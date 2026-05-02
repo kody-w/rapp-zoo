@@ -7,8 +7,10 @@ A small Flask app at `http://127.0.0.1:7070` that lists, lays-egg, summons, hatc
 ## What it does
 
 - **Lists every twin on this device**, grouped by `rappid_uuid`. Multiple incarnations of the same twin (e.g., one in your global brainstem, one in a project-local brainstem, one summoned from an egg) appear as a single twin with multiple incarnations — the parallel-omniscience pattern.
-- **Lays eggs** (`utils/egg.py` schema `brainstem-egg/2.1`). Pack a hatched twin's repo into a portable `.egg` cartridge containing identity, mutations, and `.brainstem_data` state.
-- **Summons** any `.egg` into `~/.rapp/twins/<rappid>/`. Twin self-materializes on this device's brainstem, no cloud.
+- **Lays eggs** in two schemas, picked automatically from the source layout:
+  - `brainstem-egg/2.1` (`utils/egg.py`) — for **variant repos** (rappid.json + brainstem.py at the same root). Used by templated twins like `wildhaven-ai-homes-twin`.
+  - `brainstem-egg/2.2-organism` (`utils/bond.py`) — for **brainstem-instance organisms** (rappid.json above `src/rapp_brainstem/`). Used by locally-hatched RAPP installs (`~/.brainstem/`). Packs the full organism cartridge: identity + soul + sanitized .env + custom agents + organs + senses + services + `.brainstem_data`. AirDrop one to another machine and the destination brainstem hatches it — same identity, same memory, continues elsewhere.
+- **Summons** any `.egg` into `~/.rapp/twins/<rappid>/`. The summon endpoint dispatches on schema — 2.1 eggs land in a variant-repo workspace; 2.2 organism eggs land in a brainstem-instance workspace (rappid.json at the top, kernel slot under `src/rapp_brainstem/`).
 - **Hatches**: the egg-based kernel-update flow. Lay → swap kernel files → summon back. No git merge, no conflicts. Identity, memory, and mutations preserved across the kernel swap.
 - **Starts / stops** twin processes. Runs `bash <workspace>/installer/start.sh`, tracks PIDs, sends SIGTERM on stop.
 
@@ -50,10 +52,11 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 ## How it relates to RAPP
 
 The zoo is built on the RAPP variant primitives:
-- [`utils/egg.py`](./utils/egg.py) — vendored from the RAPP species root. Schema `brainstem-egg/2.1`.
+- [`utils/egg.py`](./utils/egg.py) — vendored from the RAPP species root. Schema `brainstem-egg/2.1` (variant-repo cartridges).
+- [`utils/bond.py`](./utils/bond.py) — vendored. Schema `brainstem-egg/2.2-organism` (locally-hatched brainstem cartridges + identity/bonding CLI).
 - [`utils/peer_registry.py`](./utils/peer_registry.py) — vendored. Schema `rapp-peers/1.1` (twin-aware).
 
-Both modules are also shipped inside every variant repo (twin/, wildhaven-ai-homes-twin/) and in `RAPP/rapp_brainstem/utils/`. They're the same files. Vendored here so the zoo can be installed standalone.
+All three modules are also shipped inside `RAPP/rapp_brainstem/utils/` (and inside every variant repo for `egg.py` / `peer_registry.py`). They're the same files. Vendored here so the zoo can be installed standalone.
 
 ## Constitution
 
