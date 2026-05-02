@@ -166,6 +166,14 @@ main {
   transition: border-color .12s, transform .12s;
 }
 .card:hover { border-color: var(--blue); transform: translateY(-1px); }
+.card.is-self {
+  /* "You are here" — the rapp-zoo's own entry in its own Pokédex.
+     The catalog contains itself; light up the self-reference so the
+     metaphor reads at a glance. */
+  border-color: var(--blue);
+  background: linear-gradient(180deg, var(--panel), rgba(88, 166, 255, 0.05));
+  box-shadow: inset 0 0 0 1px rgba(88, 166, 255, 0.25);
+}
 .card .sprite {
   flex-shrink: 0;
   width: 64px;

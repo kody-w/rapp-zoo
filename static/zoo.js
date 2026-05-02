@@ -316,26 +316,58 @@ async function loadDiscover() {
     root.innerHTML = entries.map(e => {
       const rappid = e.rappid || e.id || e.singleton_filename || '';
       const sprite = spriteFor(rappid, e.category === 'creative' ? 'play' : 'rapp');
+      const kind = e.kind || 'rapplication';
+      const isTool = kind === 'tool';
+      const isSelf = e.id === 'rapp-zoo';
+
+      // Tool-kind entries (e.g. rapp-zoo itself) install via their own
+      // one-liner, not a .egg. Show a copy-to-clipboard button for the
+      // install command instead of "Download .egg". Self-detection lights
+      // up the rapp-zoo entry as "you are here" — Pokédex contains itself.
+      const installBtn = isTool && (e.install_one_liner || e.install_url)
+        ? `<button class="btn primary" data-copy="${escapeHtml(e.install_one_liner || e.install_url)}">⎘ Copy install command</button>`
+        : (e.egg_url ? `<a class="btn primary" href="${e.egg_url}" download>⬇ Download .egg</a>` : '');
+
+      const repoBtn = e.repo_url
+        ? `<a class="btn" href="${e.repo_url}" target="_blank" rel="noopener">Repo ↗</a>`
+        : '';
+
       return `
-        <div class="card">
+        <div class="card${isSelf ? ' is-self' : ''}">
           <div class="sprite">${sprite}</div>
           <div class="body">
-            <h3>${escapeHtml(e.name || e.id || 'unknown')}</h3>
+            <h3>${escapeHtml(e.name || e.id || 'unknown')}${isSelf ? ' <span class="pill skin" style="font-weight:600">you are here</span>' : ''}</h3>
             <div class="rappid">${escapeHtml(rappid)}</div>
             <div class="meta">
+              <span class="pill type-${kind === 'tool' ? 'work' : 'regular'}">${escapeHtml(kind)}</span>
               ${e.category ? `<span class="pill">${escapeHtml(e.category)}</span>` : ''}
               ${e.quality_tier ? `<span class="pill">${escapeHtml(e.quality_tier)}</span>` : ''}
-              ${e.egg_url ? '<span class="pill skin">egg available</span>' : '<span class="pill skinless">singleton only</span>'}
+              ${isTool
+                ? '<span class="pill">runs alongside</span>'
+                : (e.egg_url ? '<span class="pill skin">egg available</span>' : '<span class="pill skinless">singleton only</span>')}
             </div>
-            <div class="desc">${escapeHtml(e.summary || e.description || '')}</div>
+            <div class="desc">${escapeHtml(e.tagline || e.summary || e.description || '')}</div>
             <div class="actions">
-              ${e.egg_url ? `<a class="btn primary" href="${e.egg_url}" download>⬇ Download .egg</a>` : ''}
+              ${installBtn}
               ${e.singleton_url ? `<a class="btn" href="${e.singleton_url}" download>⬇ Singleton .py</a>` : ''}
-              ${e.spec_post ? `<a class="btn" href="${e.spec_post}" target="_blank">Spec ↗</a>` : ''}
+              ${repoBtn}
+              ${e.spec_post ? `<a class="btn" href="${e.spec_post}" target="_blank" rel="noopener">Spec ↗</a>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
+
+    // Wire up "Copy install command" buttons
+    root.querySelectorAll('button[data-copy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(btn.dataset.copy);
+          toast('📋 Install command copied — paste into your terminal');
+        } catch {
+          toast('Could not copy — open the repo and grab the one-liner manually', 'err');
+        }
+      });
+    });
   } catch (e) {
     root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
   }
