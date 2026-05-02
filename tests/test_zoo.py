@@ -70,6 +70,44 @@ def _make_repo(root: pathlib.Path) -> dict:
     return rj
 
 
+def _make_brainstem_instance(root: pathlib.Path) -> dict:
+    """Mimic a locally-hatched brainstem layout: rappid.json at the
+    workspace root, kernel under src/rapp_brainstem/. This is what the
+    install one-liner produces and what bond.pack_organism eggs.
+    """
+    rj = {
+        "schema": "rapp-rappid/2.0",
+        "rappid": "rappid:v2:hatched:@local/zoo-test-organism:abcdef0123456789abcdef0123456789",
+        "parent_rappid": "rappid:v2:prototype:@rapp/origin:0b635450c04249fbb4b1bdb571044dec@github.com/kody-w/RAPP",
+        "parent_repo": "github.com/kody-w/RAPP",
+        "parent_commit": "deadbeef",
+        "born_at": "2026-05-02T00:00:00Z",
+        "kind": "brainstem-instance",
+        "name": "zoo-test-organism",
+        "incarnations": 1,
+    }
+    (root / "rappid.json").write_text(json.dumps(rj, indent=2))
+    src = root / "src" / "rapp_brainstem"
+    src.mkdir(parents=True)
+    (src / "VERSION").write_text("0.13.0\n")
+    (src / "soul.md").write_text("## My customized soul\n")
+    (src / ".env").write_text("PORT=7071\nGITHUB_TOKEN=\n")
+    (src / "agents").mkdir()
+    (src / "agents" / "basic_agent.py").write_text("# kernel infra\n")
+    (src / "agents" / "weather_agent.py").write_text("class W: pass\n")
+    (src / "utils").mkdir()
+    (src / "utils" / "organs").mkdir()
+    (src / "utils" / "organs" / "my_organ.py").write_text("# organ\n")
+    (src / "utils" / "senses").mkdir()
+    (src / "utils" / "senses" / "my_sense.py").write_text("# sense\n")
+    (src / "utils" / "services").mkdir()
+    (src / "utils" / "services" / "my_service.py").write_text("# svc\n")
+    (src / ".brainstem_data").mkdir()
+    (src / ".brainstem_data" / "memory").mkdir()
+    (src / ".brainstem_data" / "memory" / "note.json").write_text('{"k":"v"}\n')
+    return rj
+
+
 @unittest.skipUnless(HAVE_FLASK, "flask not installed")
 class TestZooEndpoints(unittest.TestCase):
     def setUp(self):
@@ -142,6 +180,61 @@ class TestZooEndpoints(unittest.TestCase):
                 self.assertTrue(os.path.exists(ws))
                 rj_after = json.loads((pathlib.Path(ws) / "rappid.json").read_text())
                 self.assertEqual(rj_after["rappid"], rj["rappid"])
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_lay_egg_organism_then_summon_roundtrip(self):
+        # 2.2-organism path: brainstem-instance layout (rappid.json above
+        # src/rapp_brainstem/) → bond.pack_organism, summon into a
+        # workspace whose layout mirrors a brainstem instance.
+        with _Iso():
+            tmp = tempfile.mkdtemp()
+            try:
+                inst = pathlib.Path(tmp) / "instance"
+                inst.mkdir()
+                rj = _make_brainstem_instance(inst)
+
+                r1 = self.client.post("/api/lay-egg",
+                                      json={"repo_path": str(inst)})
+                self.assertEqual(r1.status_code, 200, r1.get_json())
+                payload = r1.get_json()
+                ep = payload["egg_path"]
+                self.assertTrue(os.path.exists(ep))
+                self.assertEqual(payload["rappid_uuid"], rj["rappid"])
+
+                # /api/eggs should report the schema we just wrote
+                r_list = self.client.get("/api/eggs")
+                eggs = r_list.get_json()["eggs"]
+                self.assertTrue(any(
+                    e["schema"] == "brainstem-egg/2.2-organism"
+                    and e["kernel_version"] == "0.13.0"
+                    for e in eggs
+                ), eggs)
+
+                # Summon into a fresh host root → should land at
+                # <host>/<rappid-hex-tail>/ with src/rapp_brainstem/...
+                host = os.path.join(tmp, "host")
+                r2 = self.client.post("/api/summon",
+                                      json={"egg_path": ep, "host_root": host})
+                self.assertEqual(r2.status_code, 200, r2.get_json())
+                summoned = r2.get_json()
+                self.assertEqual(summoned["schema"], "brainstem-egg/2.2-organism")
+                ws = summoned["workspace"]
+                self.assertTrue(os.path.isdir(ws))
+
+                # Identity adopted
+                rj_after = json.loads((pathlib.Path(ws) / "rappid.json").read_text())
+                self.assertEqual(rj_after["rappid"], rj["rappid"])
+
+                # Organism contents landed under the brainstem-instance layout
+                ws_src = pathlib.Path(ws) / "src" / "rapp_brainstem"
+                self.assertEqual((ws_src / "soul.md").read_text(),
+                                 "## My customized soul\n")
+                self.assertTrue((ws_src / "agents" / "weather_agent.py").exists())
+                self.assertTrue((ws_src / "utils" / "organs" / "my_organ.py").exists())
+                self.assertTrue((ws_src / "utils" / "senses" / "my_sense.py").exists())
+                self.assertTrue((ws_src / "utils" / "services" / "my_service.py").exists())
+                self.assertTrue((ws_src / ".brainstem_data" / "memory" / "note.json").exists())
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
 

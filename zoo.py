@@ -36,9 +36,11 @@ Routes:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import signal
 import subprocess
@@ -54,10 +56,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _UTILS_DIR = os.path.join(_HERE, "utils")
 _STATIC_DIR = os.path.join(_HERE, "static")
 
-# Vendored modules: egg.py + peer_registry.py
+# Vendored modules: egg.py + peer_registry.py + bond.py
 sys.path.insert(0, _UTILS_DIR)
 import egg                # noqa: E402
 import peer_registry      # noqa: E402
+import bond               # noqa: E402  — brainstem-egg/2.2-organism support
 
 
 # ── Local file conventions ──────────────────────────────────────────────
@@ -238,11 +241,30 @@ def create_app() -> Flask:
                         st = os.stat(full)
                     except OSError:
                         continue
+                    # Peek the manifest so the UI can distinguish 2.1
+                    # variant-repo eggs from 2.2 organism cartridges
+                    # (different summon paths, different display chips).
+                    schema = None
+                    egg_type = None
+                    kernel_version = None
+                    try:
+                        with open(full, "rb") as f:
+                            blob = f.read()
+                        m = bond.inspect_egg(blob) if blob[:4] == b"PK\x03\x04" else None
+                        if m:
+                            schema = m.get("schema")
+                            egg_type = m.get("type")
+                            kernel_version = m.get("kernel_version")
+                    except Exception:
+                        pass
                     out.append({
                         "rappid_uuid": rid,
                         "filename": fn,
                         "path": full,
                         "size_bytes": st.st_size,
+                        "schema": schema,
+                        "type": egg_type,
+                        "kernel_version": kernel_version,
                         "mtime": time.strftime(
                             "%Y-%m-%dT%H:%M:%SZ",
                             time.gmtime(st.st_mtime),
@@ -257,10 +279,32 @@ def create_app() -> Flask:
         repo_path = body.get("repo_path")
         if not repo_path or not os.path.isdir(repo_path):
             return jsonify({"error": "repo_path missing or not a directory"}), 400
+
+        # Layout dispatch: a brainstem-instance has rappid.json at the
+        # workspace root and the kernel under src/rapp_brainstem/ — that
+        # pack path is bond.pack_organism (schema 2.2). A variant repo
+        # has rappid.json + brainstem.py both at the same root — that's
+        # egg.pack_twin_from_repo (schema 2.1).
+        rappid_at_root = os.path.exists(os.path.join(repo_path, "rappid.json"))
+        kernel_at_root = os.path.exists(os.path.join(repo_path, "brainstem.py"))
+        instance_src = os.path.join(repo_path, "src", "rapp_brainstem")
+
         try:
-            blob = egg.pack_twin_from_repo(repo_path)
+            if rappid_at_root and not kernel_at_root and os.path.isdir(instance_src):
+                # 2.2 organism (brainstem-instance) layout
+                kver_file = os.path.join(instance_src, "VERSION")
+                kver = "?"
+                if os.path.exists(kver_file):
+                    with open(kver_file) as _vf:
+                        kver = _vf.read().strip()
+                blob = bond.pack_organism(repo_path, instance_src,
+                                          kernel_version=kver)
+            else:
+                # 2.1 variant-repo layout
+                blob = egg.pack_twin_from_repo(repo_path)
         except Exception as e:
             return jsonify({"error": f"pack failed: {e}"}), 500
+
         try:
             with open(os.path.join(repo_path, "rappid.json")) as f:
                 rj = json.load(f)
@@ -268,7 +312,10 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": f"could not read rappid.json: {e}"}), 500
 
-        out_dir = os.path.join(eggs_dir(), rid)
+        # Use the hex tail as the dir slug for 2.2 rappid strings; keep
+        # the raw value for 2.1 UUIDs (which already look like dir names).
+        slug = rid.rsplit(":", 1)[-1] if ":" in rid else rid
+        out_dir = os.path.join(eggs_dir(), slug)
         os.makedirs(out_dir, exist_ok=True)
         ts = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
         out_path = os.path.join(out_dir, f"{ts}.egg")
@@ -291,19 +338,48 @@ def create_app() -> Flask:
         try:
             with open(ep, "rb") as f:
                 blob = f.read()
-            ws = egg.summon_twin_egg(blob, host_root, keep_existing_kernel=keep)
         except Exception as e:
-            return jsonify({"error": f"summon failed: {e}"}), 500
+            return jsonify({"error": f"egg read failed: {e}"}), 500
+
+        # Schema dispatch — 2.1 variant-repo eggs go through the existing
+        # summon_twin_egg path; 2.2 organism cartridges (the kind the
+        # locally-hatched brainstem produces via `brainstem egg`) get
+        # unpacked by bond.unpack_organism into a per-rappid workspace
+        # whose layout mirrors a brainstem instance (rappid.json at the
+        # workspace root, kernel files under src/rapp_brainstem/).
+        try:
+            manifest = bond.inspect_egg(blob)
+        except Exception as e:
+            return jsonify({"error": f"egg has no manifest: {e}"}), 400
+
+        schema = manifest.get("schema", "")
+        if schema == bond.SCHEMA:
+            # 2.2 organism cartridge
+            try:
+                ws = _summon_organism(blob, manifest, host_root)
+            except Exception as e:
+                return jsonify({"error": f"organism summon failed: {e}"}), 500
+        else:
+            # 2.0 / 2.1 — existing variant-repo path
+            try:
+                ws = egg.summon_twin_egg(blob, host_root, keep_existing_kernel=keep)
+            except Exception as e:
+                return jsonify({"error": f"summon failed: {e}"}), 500
 
         # Best-effort registration in the neighborhood
         try:
-            with open(os.path.join(ws, "rappid.json")) as f:
+            rappid_path = os.path.join(ws, "rappid.json")
+            if not os.path.exists(rappid_path):
+                # 2.2 organism layout puts rappid.json at the workspace root
+                # but the kernel src lives under src/rapp_brainstem/
+                rappid_path = os.path.join(ws, "rappid.json")
+            with open(rappid_path) as f:
                 rj = json.load(f)
             claimed = peer_registry.claimed_ports()
             port = next((p for p in range(7081, 7200) if p not in claimed), 0)
             peer_registry.upsert(
                 ws, port,
-                version=(rj.get("brainstem") or {}).get("version"),
+                version=(rj.get("brainstem") or {}).get("version") or rj.get("kind"),
                 rappid_uuid=rj["rappid"],
                 twin_name=rj.get("name"),
                 parent_repo=rj.get("parent_repo"),
@@ -312,7 +388,8 @@ def create_app() -> Flask:
         except Exception:
             pass
 
-        return jsonify({"ok": True, "workspace": ws}), 200
+        return jsonify({"ok": True, "workspace": ws,
+                        "schema": schema or "unknown"}), 200
 
     @app.route("/api/hatch", methods=["POST"])
     def hatch():
@@ -440,6 +517,41 @@ def create_app() -> Flask:
         return jsonify({"ok": True, "was_running": True, "pid": pid}), 200
 
     return app
+
+
+def _summon_organism(blob: bytes, manifest: dict, host_root: str) -> str:
+    """Materialize a brainstem-egg/2.2-organism into <host_root>/<rappid_uuid>/.
+
+    Workspace layout matches a locally-hatched brainstem instance:
+        <ws>/rappid.json                      ← organism identity
+        <ws>/bonds.json                       ← (created on next bond)
+        <ws>/src/rapp_brainstem/soul.md
+        <ws>/src/rapp_brainstem/.env          ← sanitized — re-enter creds
+        <ws>/src/rapp_brainstem/agents/<f>
+        <ws>/src/rapp_brainstem/utils/{organs,senses,services}/<f>
+        <ws>/src/rapp_brainstem/.brainstem_data/<...>
+
+    The workspace does NOT include the brainstem kernel files (brainstem.py,
+    utils/llm.py, etc) — the egg only carries the *organism*. To run the
+    summoned organism, install the RAPP brainstem framework into that
+    workspace's src/rapp_brainstem/ via the one-liner. The egg-on-fresh-
+    kernel pattern is bond.py's whole reason for existing.
+    """
+    rappid = manifest.get("rappid") or "unknown"
+    # Derive a directory-safe slug from the rappid string. bond.py rappids
+    # look like "rappid:v2:hatched:@local/<name>:<32hex>" — use the hex
+    # tail so the workspace dir matches 2.1's ~/.rapp/twins/<uuid>/ shape.
+    slug = rappid.rsplit(":", 1)[-1] if ":" in rappid else rappid
+    if not slug or not re.match(r"^[\w-]+$", slug):
+        slug = hashlib.sha256((rappid or "unknown").encode()).hexdigest()[:16]
+
+    workspace = os.path.join(host_root, slug)
+    src = os.path.join(workspace, "src", "rapp_brainstem")
+    os.makedirs(src, exist_ok=True)
+    result = bond.unpack_organism(blob, workspace, src, overwrite_rappid=True)
+    if not result.get("ok"):
+        raise RuntimeError(f"unpack errors: {result.get('errors')}")
+    return workspace
 
 
 def main() -> None:
