@@ -58,6 +58,7 @@ from typing import Optional
 
 
 SCHEMA = "brainstem-egg/2.2-organism"
+SCHEMA_RAPP = "brainstem-egg/2.2-rapplication"
 SPECIES_ROOT_RAPPID = (
     "rappid:v2:prototype:@rapp/origin:"
     "0b635450c04249fbb4b1bdb571044dec@github.com/kody-w/RAPP"
@@ -345,6 +346,231 @@ def pack_organism(home: str, src: str, kernel_version: str) -> bytes:
     return buf.getvalue()
 
 
+# ── rapplication-scope packing ────────────────────────────────────────────
+# A rapplication is an organism with smaller scope: one agent (+ its
+# optional UI / organ / per-rapp state) instead of a whole brainstem
+# instance. Same egg layout as an organism egg, just a tighter include
+# set. The unification: rapps and organisms are the same kind of thing
+# at different scales (see pages/vault/Architecture/Rapplications Are Organisms.md).
+
+def pack_rapplication(src: str, rapp_id: str,
+                      agent_filename: Optional[str] = None,
+                      organ_filename: Optional[str] = None,
+                      include_state: bool = True,
+                      include_ui: bool = True,
+                      name: Optional[str] = None,
+                      version: str = "0.0.0",
+                      publisher: str = "@anon",
+                      parent_rappid: Optional[str] = None,
+                      soul_filename: Optional[str] = None) -> bytes:
+    """Pack a single rapplication into a brainstem-egg/2.2-rapplication blob.
+
+    The egg layout mirrors 2.2-organism but is scoped to ONE rapp:
+
+        rappid.json                              ← rapp identity (minted if missing)
+        soul.md                                  ← optional rapp-specific soul
+        agents/<agent_filename>                  ← the rapp's primary agent
+        organs/<organ_filename>                  ← optional sibling organ
+        rapp_ui/<rapp_id>/<...>                  ← skin (UI bundle)
+        data/<rapp_id>/<...>                     ← per-rapp state cartridge
+
+    Hatching this onto another brainstem installs the rapplication into
+    that host body. The same egg-on-fresh-kernel pattern that works for
+    full organisms works for rapps — same protocol, smaller scope.
+
+    Skin matters: a rapplication that ships only an agent (no UI bundle,
+    no organ) is functionally a bare agent — should be in RAR not the
+    rapplication store. The pack function will warn if `include_ui` is
+    True but no UI files are found at <src>/.brainstem_data/rapp_ui/<rapp_id>/.
+    """
+    if not os.path.isdir(src):
+        raise FileNotFoundError(f"brainstem src not found: {src}")
+
+    # Mint a rapp-scope rappid string. Format mirrors organism rappids
+    # but kind = "rapplication". Hash is sha256(publisher+rapp_id) so
+    # two installs of the same rapp produce the same rappid.
+    import hashlib
+    h = hashlib.sha256(f"{publisher}/{rapp_id}".encode()).hexdigest()[:32]
+    rapp_rappid = f"rappid:v2:rapplication:{publisher}/{rapp_id}:{h}"
+
+    counts = {"agent": 0, "organ": 0, "ui": 0, "data": 0, "soul": 0}
+    buf = io.BytesIO()
+
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # Identity
+        identity = {
+            "schema": "rapp-rappid/2.0",
+            "rappid": rapp_rappid,
+            "parent_rappid": parent_rappid or SPECIES_ROOT_RAPPID,
+            "kind": "rapplication",
+            "name": name or rapp_id,
+            "version": version,
+            "publisher": publisher,
+            "rapp_id": rapp_id,
+            "born_at": _now_iso(),
+        }
+        z.writestr("rappid.json", json.dumps(identity, indent=2))
+
+        # Optional rapp-specific soul (the rapp's own personality if it has one)
+        if soul_filename:
+            soul_path = os.path.join(src, soul_filename)
+            if os.path.isfile(soul_path):
+                with open(soul_path, "r", encoding="utf-8", errors="replace") as f:
+                    z.writestr("soul.md", f.read())
+                counts["soul"] = 1
+
+        # The rapp's primary agent
+        if agent_filename:
+            ap = os.path.join(src, "agents", agent_filename)
+            if os.path.isfile(ap):
+                with open(ap, "rb") as f:
+                    z.writestr(f"agents/{agent_filename}", f.read())
+                counts["agent"] = 1
+
+        # Optional sibling organ
+        if organ_filename:
+            op = os.path.join(src, "utils", "organs", organ_filename)
+            if os.path.isfile(op):
+                with open(op, "rb") as f:
+                    z.writestr(f"organs/{organ_filename}", f.read())
+                counts["organ"] = 1
+
+        # Skin — the UI bundle. The line that earns the rapplication tier.
+        if include_ui:
+            ui_dir = os.path.join(src, ".brainstem_data", "rapp_ui", rapp_id)
+            if os.path.isdir(ui_dir):
+                counts["ui"] = _walk_subtree(ui_dir, f"rapp_ui/{rapp_id}", z)
+
+        # Per-rapp state cartridge
+        if include_state:
+            state_dir = os.path.join(src, ".brainstem_data", rapp_id)
+            if os.path.isdir(state_dir):
+                counts["data"] = _walk_subtree(state_dir, f"data/{rapp_id}", z)
+
+        manifest = {
+            "schema": SCHEMA_RAPP,
+            "type": "rapplication",
+            "exported_at": _now_iso(),
+            "rappid": rapp_rappid,
+            "rapp_id": rapp_id,
+            "name": name or rapp_id,
+            "version": version,
+            "publisher": publisher,
+            "host": _short_host(),
+            "agent_filename": agent_filename,
+            "organ_filename": organ_filename,
+            "has_skin": counts["ui"] > 0,
+            "counts": counts,
+        }
+        z.writestr("manifest.json", json.dumps(manifest, indent=2))
+
+    return buf.getvalue()
+
+
+def unpack_rapplication(blob: bytes, src: str,
+                        overwrite_state: bool = False) -> dict:
+    """Hatch a brainstem-egg/2.2-rapplication blob into a host brainstem.
+
+    Maps egg paths to host destinations:
+        agents/<f>            → <src>/agents/<f>
+        organs/<f>            → <src>/utils/organs/<f>
+        rapp_ui/<rapp>/<...>  → <src>/.brainstem_data/rapp_ui/<rapp>/<...>
+        data/<rapp>/<...>     → <src>/.brainstem_data/<rapp>/<...>
+        soul.md               → <src>/.brainstem_data/<rapp>/soul.md
+                                (rapp soul lands UNDER the rapp's data
+                                dir so it doesn't clobber the host soul)
+        rappid.json           → <src>/.brainstem_data/<rapp>/rappid.json
+                                (per-rapp identity registered in the
+                                host's rapp registry, not at workspace root)
+
+    Hatching does NOT touch the host's identity (~/.brainstem/rappid.json).
+    The host stays the host; the rapp becomes a guest organism inside it.
+
+    `overwrite_state` controls whether existing per-rapp state is replaced
+    on conflict. Default False (merge — preserve any local edits).
+    """
+    if not blob[:4] == b"PK\x03\x04":
+        raise ValueError("not a zip / egg blob")
+    os.makedirs(src, exist_ok=True)
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(blob))
+    except zipfile.BadZipFile as e:
+        raise ValueError(f"corrupt or truncated egg: {e}")
+
+    with zf as z:
+        try:
+            manifest = json.loads(z.read("manifest.json"))
+        except Exception as e:
+            raise ValueError(f"egg has no readable manifest.json: {e}")
+
+        if manifest.get("schema") != SCHEMA_RAPP:
+            raise ValueError(
+                f"unsupported schema {manifest.get('schema')!r} "
+                f"(expected {SCHEMA_RAPP}). Use unpack_organism for organism eggs."
+            )
+
+        rapp_id = manifest.get("rapp_id") or "unknown_rapp"
+        restored = {"agent": 0, "organ": 0, "ui": 0, "data": 0,
+                    "soul": 0, "rappid": 0, "skipped": 0}
+        errors: list = []
+
+        rapp_data_dir = os.path.join(src, ".brainstem_data", rapp_id)
+
+        for name in z.namelist():
+            if name == "manifest.json" or name.endswith("/"):
+                continue
+
+            # rappid.json + soul.md → rapp's data dir
+            if name == "rappid.json":
+                target = os.path.join(rapp_data_dir, "rappid.json")
+                _safe_extract(z, name, target, errors)
+                restored["rappid"] += 1
+                continue
+            if name == "soul.md":
+                target = os.path.join(rapp_data_dir, "soul.md")
+                _safe_extract(z, name, target, errors)
+                restored["soul"] += 1
+                continue
+
+            # Subtree dispatch
+            dispatch = (
+                ("agents/",  os.path.join(src, "agents"),               "agent"),
+                ("organs/",  os.path.join(src, "utils", "organs"),      "organ"),
+                ("rapp_ui/", os.path.join(src, ".brainstem_data", "rapp_ui"), "ui"),
+                ("data/",    os.path.join(src, ".brainstem_data"),      "data"),
+            )
+            matched = False
+            for prefix, dest_root, key in dispatch:
+                if not name.startswith(prefix):
+                    continue
+                rel = name[len(prefix):]
+                if _excluded(rel):
+                    restored["skipped"] += 1
+                    matched = True
+                    break
+                target = os.path.normpath(os.path.join(dest_root, rel))
+                if not target.startswith(os.path.normpath(dest_root) + os.sep):
+                    errors.append(f"path-traversal blocked: {name}")
+                    matched = True
+                    break
+                # Merge semantics for state — skip if exists and not overwriting
+                if key == "data" and os.path.exists(target) and not overwrite_state:
+                    restored["skipped"] += 1
+                    matched = True
+                    break
+                _safe_extract(z, name, target, errors)
+                restored[key] += 1
+                matched = True
+                break
+
+            if not matched:
+                restored["skipped"] += 1
+
+        return {"ok": not errors, "restored": restored, "errors": errors,
+                "manifest": manifest, "rapp_id": rapp_id}
+
+
 def unpack_organism(blob: bytes, home: str, src: str,
                     overwrite_rappid: bool = True) -> dict:
     """Hatch a brainstem-egg/2.2-organism blob over a local kernel.
@@ -503,11 +729,42 @@ def _cmd_egg(args):
 def _cmd_hatch(args):
     with open(args.egg, "rb") as f:
         blob = f.read()
-    result = unpack_organism(blob, args.home, args.src,
-                             overwrite_rappid=not args.preserve_rappid)
+    # Schema dispatch — organism eggs and rapplication eggs use different
+    # unpackers. Read the manifest and route accordingly.
+    manifest = inspect_egg(blob)
+    schema = manifest.get("schema", "")
+    if schema == SCHEMA_RAPP:
+        result = unpack_rapplication(blob, args.src,
+                                     overwrite_state=getattr(args, 'overwrite_state', False))
+    elif schema == SCHEMA:
+        result = unpack_organism(blob, args.home, args.src,
+                                 overwrite_rappid=not args.preserve_rappid)
+    else:
+        result = {"ok": False, "errors": [f"unsupported schema: {schema!r}"]}
     print(json.dumps(result, indent=2))
-    if not result["ok"]:
+    if not result.get("ok"):
         sys.exit(1)
+
+
+def _cmd_pack_rapp(args):
+    blob = pack_rapplication(
+        args.src, args.rapp_id,
+        agent_filename=args.agent,
+        organ_filename=args.organ,
+        include_state=not args.no_state,
+        include_ui=not args.no_ui,
+        name=args.name,
+        version=args.version,
+        publisher=args.publisher,
+        soul_filename=args.soul,
+    )
+    with open(args.output, "wb") as f:
+        f.write(blob)
+    print(json.dumps({
+        "egg": args.output,
+        "size_kb": round(len(blob) / 1024, 1),
+        "rappid": inspect_egg(blob).get("rappid"),
+    }, indent=2))
 
 
 def _cmd_record_bond(args):
@@ -548,13 +805,29 @@ def main(argv=None):
                    help="brainstem src dir (default: <home>/src/rapp_brainstem)")
     e.set_defaults(func=lambda a: _cmd_egg(_with_src(a)))
 
-    h = sub.add_parser("hatch", help="Hatch a .egg over the local kernel")
+    h = sub.add_parser("hatch", help="Hatch a .egg over the local kernel (auto-detects schema)")
     h.add_argument("home")
     h.add_argument("egg")
     h.add_argument("--src", default=None)
     h.add_argument("--preserve-rappid", action="store_true",
-                   help="Keep the local rappid.json instead of adopting the egg's")
+                   help="(organism eggs) Keep the local rappid.json instead of adopting the egg's")
+    h.add_argument("--overwrite-state", action="store_true",
+                   help="(rapplication eggs) Replace existing per-rapp state on conflict")
     h.set_defaults(func=lambda a: _cmd_hatch(_with_src(a)))
+
+    pr = sub.add_parser("pack-rapp", help="Pack one rapplication into a 2.2-rapplication egg")
+    pr.add_argument("src", help="brainstem src dir (e.g. ~/.brainstem/src/rapp_brainstem)")
+    pr.add_argument("rapp_id", help="The rapp's id — also the dir name under .brainstem_data/rapp_ui/")
+    pr.add_argument("output", help="Output .egg path")
+    pr.add_argument("--agent", default=None, help="Filename under agents/ (e.g. bookfactory_agent.py)")
+    pr.add_argument("--organ", default=None, help="Optional filename under utils/organs/")
+    pr.add_argument("--soul", default=None, help="Optional rapp-specific soul.md path (relative to src)")
+    pr.add_argument("--name", default=None)
+    pr.add_argument("--version", default="0.0.0")
+    pr.add_argument("--publisher", default="@anon")
+    pr.add_argument("--no-state", action="store_true", help="Skip the per-rapp state cartridge")
+    pr.add_argument("--no-ui", action="store_true", help="Skip the UI bundle")
+    pr.set_defaults(func=_cmd_pack_rapp)
 
     rb = sub.add_parser("record-bond", help="Append an event to bonds.json")
     rb.add_argument("home")

@@ -1,37 +1,51 @@
 """
-zoo.py — local-first keeper for the twin estate.
+zoo.py — local-first Pokédex for digital organisms.
 
 A single small Flask process at localhost:7070 (configurable). Sits
 above the per-twin brainstems; never replaces them. The zoo's job is
-to list, lay-egg, summon, hatch, start, and stop twins on this device.
+to list, lay-egg, summon, hatch, start, stop, IMPORT, and EXPORT
+organisms on this device — every scale (rapplications, twins, full
+brainstem instances).
 
 Design constraints:
 - Local-first: reads ~/.config/rapp/peers.json + ~/.rapp/{eggs,twins}/.
-  No cloud API, no telemetry, no auth (it's bound to localhost).
-- Stateless: the source of truth lives in peer_registry + filesystem.
+  No cloud API, no telemetry, no auth (bound to localhost).
+- Stateless: source of truth lives in peer_registry + filesystem.
   The zoo doesn't keep its own database; restart at any time.
 - One file: zoo.py is the entire app. The UI is static/. Vendored
-  utils/{egg,peer_registry}.py are the only code dependencies.
+  utils/{egg,peer_registry,bond}.py are the only code dependencies.
 - Pure stdlib + flask: nothing else.
 
 Routes:
-    GET  /                  → the zoo UI (static/index.html)
-    GET  /static/<path>     → static assets
-    GET  /api/health        → zoo liveness + per-twin liveness
-    GET  /api/twins         → list grouped by rappid (parallel-omniscience aware)
-    GET  /api/eggs          → list local egg backups
-    POST /api/lay-egg       → pack a twin's repo into a fresh egg
-                              body: { repo_path }
-    POST /api/summon        → materialize an egg into ~/.rapp/twins/<rappid>/
-                              body: { egg_path, host_root?, keep_existing_kernel? }
-    POST /api/hatch         → egg-based kernel update
-                              body: { rappid_uuid, new_kernel }
-                              (new_kernel = path to brainstem.py file or
-                               directory containing one)
-    POST /api/start         → start a twin's brainstem
-                              body: { rappid_uuid }
-    POST /api/stop          → stop a running twin
-                              body: { rappid_uuid }
+    GET  /                          → the zoo UI (static/index.html)
+    GET  /static/<path>             → static assets
+    GET  /starters/dist/<path>      → bundled starter .egg downloads
+
+    GET  /api/health                → zoo liveness + per-twin liveness
+    GET  /api/twins                 → list grouped by rappid
+    GET  /api/eggs                  → list local egg backups
+    GET  /api/eggs/manifest         → peek a single egg's manifest
+                                      body: { egg_path }
+    GET  /api/starters              → list bundled starter rapplications
+    GET  /api/discover              → upstream rapp_store URL + (future) cache
+
+    POST /api/import-egg            → multipart upload of a .egg file →
+                                      saves to ~/.rapp/eggs/imported/
+                                      body: multipart with 'egg' file
+    GET  /api/export-egg            → stream an existing egg back as
+                                      a download (Content-Disposition: attachment)
+                                      query: ?path=<abs path inside ~/.rapp/eggs/>
+
+    POST /api/lay-egg               → pack a twin's repo into a fresh egg
+                                      body: { repo_path }
+    POST /api/summon                → materialize an egg into a workspace
+                                      body: { egg_path, host_root?, keep_existing_kernel? }
+    POST /api/hatch                 → egg-based kernel update (lay → swap → re-summon)
+                                      body: { rappid_uuid, new_kernel }
+    POST /api/start                 → start a twin's brainstem
+    POST /api/stop                  → stop a running twin
+    POST /api/reveal                → open a workspace dir in the OS file manager
+                                      body: { path }
 """
 
 from __future__ import annotations
@@ -515,6 +529,191 @@ def create_app() -> Flask:
             time.sleep(0.1)
         _clear_pid(rid)
         return jsonify({"ok": True, "was_running": True, "pid": pid}), 200
+
+    # ── Pokédex tier — egg import / export / inspect / starters / discover ──
+
+    @app.route("/api/import-egg", methods=["POST"])
+    def import_egg():
+        """Drag-drop / file-picker upload of a .egg file. Saves to
+        ~/.rapp/eggs/imported/<sha8>-<filename>.egg, peeks the manifest,
+        returns the saved path + manifest summary so the UI can react.
+        """
+        if "egg" not in request.files:
+            return jsonify({"error": "no 'egg' file in upload"}), 400
+        f = request.files["egg"]
+        if not f or not f.filename:
+            return jsonify({"error": "empty upload"}), 400
+
+        blob = f.read()
+        if not blob[:4] == b"PK\x03\x04":
+            return jsonify({"error": "not a valid egg (no zip header)"}), 400
+
+        # Inspect first — refuse if no manifest, otherwise we'd save garbage.
+        try:
+            manifest = bond.inspect_egg(blob)
+        except Exception as e:
+            return jsonify({"error": f"egg has no readable manifest: {e}"}), 400
+
+        # Place under eggs/imported/ so users can tell what they uploaded
+        # vs what the zoo laid via /api/lay-egg.
+        sha8 = hashlib.sha256(blob).hexdigest()[:8]
+        safe_name = re.sub(r"[^\w.-]", "_", f.filename or "upload.egg")
+        if not safe_name.endswith(".egg"):
+            safe_name += ".egg"
+        out_dir = os.path.join(eggs_dir(), "imported")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, f"{sha8}-{safe_name}")
+        with open(out_path, "wb") as o:
+            o.write(blob)
+
+        return jsonify({
+            "ok": True,
+            "egg_path": out_path,
+            "size_bytes": len(blob),
+            "manifest": manifest,
+        }), 200
+
+    @app.route("/api/export-egg")
+    def export_egg():
+        """Stream an existing egg as an attachment so the user can save
+        it anywhere (Downloads, AirDrop targets, USB, etc).
+
+        ?path=<absolute path> — must be inside ~/.rapp/eggs/ for safety.
+        """
+        path = request.args.get("path", "")
+        if not path:
+            return jsonify({"error": "?path= required"}), 400
+        path = os.path.abspath(path)
+        eggs_root = os.path.abspath(eggs_dir())
+        # Path-traversal guard: only serve eggs that live under ~/.rapp/eggs/.
+        if not path.startswith(eggs_root + os.sep):
+            return jsonify({"error": "path must be inside eggs dir"}), 403
+        if not os.path.isfile(path):
+            return jsonify({"error": "not found"}), 404
+        from flask import send_file
+        return send_file(path, mimetype="application/zip",
+                         as_attachment=True,
+                         download_name=os.path.basename(path))
+
+    @app.route("/api/eggs/manifest")
+    def egg_manifest():
+        """Peek a single egg's manifest without unpacking. Used by the
+        UI's inspect-modal flow."""
+        path = request.args.get("path", "")
+        if not path or not os.path.isfile(path):
+            return jsonify({"error": "?path= must point at an existing file"}), 400
+        try:
+            with open(path, "rb") as f:
+                blob = f.read()
+            manifest = bond.inspect_egg(blob)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+        # Also list the file tree in the egg so the UI can show what's inside.
+        import io as _io
+        import zipfile as _zf
+        try:
+            with _zf.ZipFile(_io.BytesIO(blob)) as z:
+                names = sorted(z.namelist())
+        except Exception:
+            names = []
+        return jsonify({"ok": True, "manifest": manifest,
+                        "file_tree": names, "size_bytes": len(blob)}), 200
+
+    @app.route("/api/starters")
+    def list_starters():
+        """List the bundled starter rapplications (the 3 archetype eggs
+        that ship inside this rapp-zoo install). Each entry includes the
+        URL the UI can fetch to download / inspect the egg.
+        """
+        starters_root = os.path.join(_HERE, "starters", "dist")
+        out = []
+        if not os.path.isdir(starters_root):
+            return jsonify({"schema": "rapp-zoo-starters/1.0",
+                            "starters": []}), 200
+        for fn in sorted(os.listdir(starters_root)):
+            if not fn.endswith(".egg"):
+                continue
+            path = os.path.join(starters_root, fn)
+            try:
+                with open(path, "rb") as f:
+                    manifest = bond.inspect_egg(f.read())
+            except Exception:
+                continue
+            # Type derived from the rapp_id → matches the source dir name
+            # (work / play / regular). Hardcoded mapping is fine; only
+            # 3 starters and they're stable.
+            type_map = {"workday": "work", "playtime": "play", "journal": "regular"}
+            rapp_id = manifest.get("rapp_id") or fn.replace(".egg", "")
+            out.append({
+                "rapp_id":   rapp_id,
+                "type":      type_map.get(rapp_id, "regular"),
+                "name":      manifest.get("name") or rapp_id,
+                "version":   manifest.get("version"),
+                "publisher": manifest.get("publisher"),
+                "rappid":    manifest.get("rappid"),
+                "has_skin":  manifest.get("has_skin"),
+                "egg_url":   f"/starters/dist/{fn}",
+                "size_bytes": os.path.getsize(path),
+            })
+        return jsonify({"schema": "rapp-zoo-starters/1.0",
+                        "starters": out}), 200
+
+    @app.route("/starters/dist/<path:fname>")
+    def serve_starter(fname: str):
+        """Serve a starter .egg as a download (lets the UI offer one-click
+        export of any starter to the user's Downloads folder)."""
+        starters_root = os.path.join(_HERE, "starters", "dist")
+        full = os.path.normpath(os.path.join(starters_root, fname))
+        if not full.startswith(starters_root + os.sep):
+            return abort(403)
+        if not os.path.isfile(full):
+            return abort(404)
+        from flask import send_file
+        return send_file(full, mimetype="application/zip",
+                         as_attachment=True, download_name=os.path.basename(full))
+
+    @app.route("/api/discover")
+    def discover():
+        """Pointer to the global rapp_store Pokédex API. The actual
+        catalog index lives at the upstream URL; the zoo proxies the
+        URL and (future) caches the response. Today this just hands the
+        URL back so the UI can fetch directly via the user's browser.
+        """
+        upstream = os.environ.get(
+            "RAPPSTORE_API_URL",
+            "https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/index.json",
+        )
+        return jsonify({
+            "schema": "rapp-zoo-discover/1.0",
+            "upstream_url": upstream,
+            "note": "Static API hosted from kody-w/RAPP_Store via raw.githubusercontent.com — fetch upstream_url for the catalog.",
+        }), 200
+
+    @app.route("/api/reveal", methods=["POST"])
+    def reveal():
+        """Open a workspace dir in the OS file manager (Finder / Explorer
+        / xdg-open). Path must be inside ~/.rapp/ for safety.
+        """
+        body = request.get_json(silent=True) or {}
+        path = body.get("path", "")
+        if not path:
+            return jsonify({"error": "path required"}), 400
+        path = os.path.abspath(path)
+        rapp_root = os.path.abspath(rapp_home())
+        if not path.startswith(rapp_root + os.sep) and path != rapp_root:
+            return jsonify({"error": "path must be inside ~/.rapp/"}), 403
+        if not os.path.exists(path):
+            return jsonify({"error": "not found"}), 404
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", path])
+            elif sys.platform.startswith("win"):
+                subprocess.Popen(["explorer", path])
+            else:
+                subprocess.Popen(["xdg-open", path])
+        except Exception as e:
+            return jsonify({"error": f"reveal failed: {e}"}), 500
+        return jsonify({"ok": True, "revealed": path}), 200
 
     return app
 
