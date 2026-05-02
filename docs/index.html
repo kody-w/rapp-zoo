@@ -3,13 +3,19 @@
 <head>
 <meta charset="utf-8">
 <title>rapp-zoo — Pokédex of digital organisms</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Browse the global Pokédex of RAPP digital organisms. Inspect any .egg locally in your browser. Hot-load into your local brainstem with one click.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="The user's universal Pokédex — browse every digital organism in the federation (rapplications, bare agents, sense overlays, holocards), inspect any .egg or .card locally, hot-load into your brainstem.">
 <meta property="og:title" content="rapp-zoo — Pokédex of digital organisms">
-<meta property="og:description" content="Browse, inspect, and hot-load digital organisms — entirely client-side, no backend required.">
+<meta property="og:description" content="290+ organisms across the RAPP federation. Catch them all from any device.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://kody-w.github.io/rapp-zoo/">
 <link rel="canonical" href="https://kody-w.github.io/rapp-zoo/">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="rapp-zoo">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='28'%3E🥚%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -27,9 +33,11 @@
     --gold: #d29922;
     --purple: #b58ddf;
     --red: #f85149;
-    --type-work: #ffa657;
-    --type-play: #b58ddf;
-    --type-regular: #79c0ff;
+    --rare: #ffd33d;
+    --holo-1: #58a6ff;
+    --holo-2: #b58ddf;
+    --holo-3: #ffa657;
+    --holo-4: #79c0ff;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -38,39 +46,47 @@
     color: var(--text);
     font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
   code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
+  /* ── Header ─────────────────────────────────────────────────────────── */
   header {
-    padding: 24px 32px 14px;
+    padding: 18px 20px 12px;
     border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
+    padding-top: max(18px, env(safe-area-inset-top, 18px));
   }
-  header h1 { margin: 0; font-size: 26px; font-weight: 700; }
-  header h1 .sub { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 4px; }
-  .header-actions { display: flex; align-items: center; gap: 10px; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+  header h1 .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 3px; }
   .brainstem-status {
     font-size: 11px;
     color: var(--muted);
     text-align: right;
     font-family: ui-monospace, monospace;
+    line-height: 1.4;
   }
   .brainstem-status .ok { color: var(--green); }
   .brainstem-status .off { color: var(--gray); }
 
+  /* ── Tabs ───────────────────────────────────────────────────────────── */
   .tabs {
     display: flex;
-    padding: 0 32px;
+    padding: 0 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
     position: sticky;
     top: 0;
     z-index: 5;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab {
     background: transparent;
     border: none;
@@ -80,109 +96,243 @@
     font-size: 13px;
     font-weight: 600;
     letter-spacing: .03em;
-    padding: 14px 16px;
+    padding: 12px 14px;
     cursor: pointer;
     transition: color .15s, border-color .15s;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .tab:hover { color: var(--text); }
   .tab.is-active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab .badge {
+    display: inline-block;
+    background: var(--panel-elevated);
+    color: var(--muted);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 5px;
+    font-weight: 700;
+  }
+  .tab.is-active .badge { background: rgba(88,166,255,.2); color: var(--blue); }
 
   main {
-    padding: 24px 32px 60px;
-    max-width: 1280px;
+    padding: 20px 16px 60px;
+    max-width: 1320px;
     margin: 0 auto;
   }
   .tab-panel { display: none; }
   .tab-panel.is-active { display: block; }
 
-  .intro { margin-bottom: 20px; max-width: 760px; }
-  .intro h2 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
-  .intro p { margin: 0; color: var(--muted); line-height: 1.6; }
-  .intro code { background: var(--panel-elevated); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+  /* ── Intro / filter row ─────────────────────────────────────────────── */
+  .intro { margin-bottom: 16px; max-width: 760px; }
+  .intro h2 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+  .intro p { margin: 0; color: var(--muted); line-height: 1.55; font-size: 13px; }
   .intro a { color: var(--blue); text-decoration: none; }
   .intro a:hover { text-decoration: underline; }
+  .intro code { background: var(--panel-elevated); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
 
-  .btn {
-    background: var(--panel-hover);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font: inherit;
-    font-size: 12px;
-    cursor: pointer;
-    transition: border-color .12s, color .12s;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .btn:hover { border-color: var(--blue); color: var(--blue); }
-  .btn.primary {
-    background: rgba(88, 166, 255, .15);
-    color: var(--blue);
-    border-color: rgba(88, 166, 255, .4);
-  }
-  .btn:disabled { opacity: .4; cursor: not-allowed; }
-
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 14px;
-  }
-  .card {
+  .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0 18px;
+    padding: 10px 12px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    transition: border-color .12s, transform .12s;
-  }
-  .card:hover { border-color: var(--blue); transform: translateY(-1px); }
-  .card.is-self {
-    border-color: var(--blue);
-    background: linear-gradient(180deg, var(--panel), rgba(88, 166, 255, 0.05));
-    box-shadow: inset 0 0 0 1px rgba(88, 166, 255, 0.25);
-  }
-  .card .sprite {
-    flex-shrink: 0;
-    width: 64px;
-    height: 64px;
     border-radius: 8px;
+  }
+  .filters input[type="search"] {
+    flex: 1;
+    min-width: 180px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 12px;
+  }
+  .filter-chip {
     background: var(--panel-elevated);
     border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    transition: all .12s;
+  }
+  .filter-chip:hover { color: var(--text); }
+  .filter-chip.is-active {
+    background: rgba(88,166,255,.15);
+    border-color: rgba(88,166,255,.4);
+    color: var(--blue);
+  }
+
+  /* ── TCG-style card ─────────────────────────────────────────────────── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .tcard {
+    background: linear-gradient(160deg, var(--panel) 0%, var(--panel-elevated) 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .15s, border-color .12s, box-shadow .15s;
+  }
+  .tcard:hover {
+    transform: translateY(-2px);
+    border-color: var(--blue);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .tcard.r-rare    { border-color: rgba(255,211,61,0.35); }
+  .tcard.r-holo    { border-color: rgba(181,141,223,0.5); }
+  .tcard.r-ultra   { border-color: rgba(255,166,87,0.6); }
+  .tcard.r-secret  { border-color: rgba(255,211,61,0.7); box-shadow: inset 0 0 0 1px rgba(255,211,61,0.25); }
+  .tcard.r-holo::before, .tcard.r-ultra::before, .tcard.r-secret::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+      rgba(88,166,255,0.08) 0%,
+      rgba(181,141,223,0.06) 40%,
+      rgba(255,166,87,0.08) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .tcard.r-secret::before {
+    background: linear-gradient(135deg,
+      rgba(255,211,61,0.10) 0%,
+      rgba(181,141,223,0.10) 50%,
+      rgba(255,166,87,0.10) 100%);
+  }
+  .tcard > * { position: relative; z-index: 1; }
+
+  .tcard-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .tcard-dex {
+    font-family: ui-monospace, monospace;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .03em;
+  }
+  .tcard-hp {
+    font-family: ui-monospace, monospace;
+    color: var(--rare);
+    font-weight: 700;
+  }
+  .tcard-hp .label { color: var(--muted); font-weight: 400; font-size: 9px; margin-right: 2px; }
+
+  .tcard-art {
+    width: 100%;
+    aspect-ratio: 1.2 / 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
+    image-rendering: pixelated;
   }
-  .card .sprite svg { width: 100%; height: 100%; }
-  .card .body { flex: 1; min-width: 0; }
-  .card h3 { margin: 0 0 2px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .card .rappid { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); word-break: break-all; margin-bottom: 8px; line-height: 1.4; }
-  .card .meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-  .card .pill {
+  .tcard-art svg { width: 100%; height: 100%; display: block; }
+
+  .tcard-name {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tcard-name .type-icon {
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  .tcard-meta {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    font-size: 10px;
+  }
+  .pill {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 2px 7px;
     border-radius: 999px;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
     background: var(--panel-elevated);
     color: var(--muted);
   }
-  .card .pill.skin    { background: rgba(88, 166, 255, .15); color: var(--blue); }
-  .card .pill.tool    { background: rgba(255, 166, 87, .15); color: var(--type-work); }
-  .card .pill.rapp    { background: rgba(121, 192, 255, .15); color: var(--type-regular); }
-  .card .desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
-  .card .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .card .actions .btn { font-size: 11px; padding: 4px 9px; }
+  .pill.publisher { background: rgba(88,166,255,.12); color: var(--blue); text-transform: none; }
+  .pill.kind-rapp     { background: rgba(121,192,255,.15); color: #79c0ff; }
+  .pill.kind-agent    { background: rgba(63,185,80,.15);   color: var(--green); }
+  .pill.kind-sense    { background: rgba(125,240,200,.15); color: #7df0c8; }
+  .pill.kind-card     { background: rgba(255,211,61,.15);  color: var(--rare); }
+  .pill.skin          { background: rgba(88,166,255,.15);  color: var(--blue); }
+  .pill.scope-global  { background: rgba(63,185,80,.15);   color: var(--green); }
+  .pill.scope-twin    { background: rgba(181,141,223,.15); color: var(--purple); }
+  .pill.scope-project { background: rgba(88,166,255,.15);  color: var(--blue); }
+  .pill.live          { background: rgba(63,185,80,.15);   color: var(--green); }
 
-  .empty {
-    padding: 40px 16px;
+  .tcard-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.45;
+    flex: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  .tcard-foot {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .tcard-foot .btn { font-size: 10px; padding: 4px 8px; }
+
+  .btn {
+    background: var(--panel-hover);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color .12s, color .12s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .btn:hover { border-color: var(--blue); color: var(--blue); }
+  .btn.primary { background: rgba(88,166,255,.15); color: var(--blue); border-color: rgba(88,166,255,.4); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Empty / loading / error ────────────────────────────────────────── */
+  .empty, .loading {
+    padding: 36px 16px;
     text-align: center;
     color: var(--muted);
     font-style: italic;
@@ -192,55 +342,55 @@
   }
   .err {
     color: var(--red);
-    background: rgba(248, 81, 73, .08);
-    padding: 14px;
+    background: rgba(248,81,73,.08);
+    padding: 12px 14px;
     border-radius: 6px;
-    border: 1px solid rgba(248, 81, 73, .25);
-    font-size: 13px;
+    border: 1px solid rgba(248,81,73,.25);
+    font-size: 12px;
   }
 
-  /* ── Inspect tab — drop zone + manifest viewer ───────────────────────── */
+  /* ── Inspect tab — drop zone ────────────────────────────────────────── */
   .dropzone {
     background: var(--panel);
     border: 2px dashed var(--border-strong);
     border-radius: 12px;
-    padding: 60px 32px;
+    padding: 50px 24px;
     text-align: center;
     cursor: pointer;
     transition: border-color .15s, background .15s;
   }
   .dropzone.dragging,
   .dropzone:hover { border-color: var(--blue); background: var(--panel-hover); }
-  .dropzone .big-icon { font-size: 64px; margin-bottom: 12px; }
-  .dropzone .title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-  .dropzone .sub { color: var(--muted); font-size: 13px; }
+  .dropzone .big-icon { font-size: 56px; margin-bottom: 8px; }
+  .dropzone .title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .dropzone .sub { color: var(--muted); font-size: 12px; }
   .dropzone code { background: var(--panel-elevated); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
   .dropzone input { display: none; }
 
   .inspect-result {
-    margin-top: 18px;
+    margin-top: 16px;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 18px 20px;
+    padding: 16px;
   }
-  .inspect-result h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
-  .inspect-result h4 { margin: 14px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .inspect-result h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .inspect-result h4 { margin: 12px 0 4px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .inspect-result pre {
     background: var(--bg);
     border: 1px solid var(--border);
-    padding: 12px;
+    padding: 10px;
     border-radius: 6px;
     font-family: ui-monospace, monospace;
     font-size: 11px;
     overflow: auto;
-    max-height: 300px;
+    max-height: 280px;
     white-space: pre-wrap;
     margin: 0;
   }
   .inspect-result .file-tree {
     list-style: none;
-    padding: 10px 14px;
+    padding: 8px 12px;
     margin: 0;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -248,41 +398,40 @@
     font-family: ui-monospace, monospace;
     font-size: 11px;
     color: var(--muted);
-    max-height: 240px;
+    max-height: 200px;
     overflow: auto;
   }
-  .inspect-result .file-tree li { padding: 2px 0; }
-  .inspect-result .actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 
-  /* ── Toast ───────────────────────────────────────────────────────────── */
+  /* ── Toast + footer ─────────────────────────────────────────────────── */
   .toast {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 20px;
+    right: 20px;
     background: var(--panel-elevated);
     border: 1px solid var(--border-strong);
     color: var(--text);
-    padding: 10px 16px;
+    padding: 10px 14px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     opacity: 0;
     pointer-events: none;
     transform: translateY(8px);
     transition: opacity .15s, transform .15s;
     z-index: 9999;
     max-width: 480px;
+    bottom: max(20px, env(safe-area-inset-bottom, 20px));
   }
   .toast.show { opacity: 1; transform: translateY(0); }
-  .toast.err { border-color: rgba(248, 81, 73, .5); color: var(--red); }
-  .toast.ok  { border-color: rgba(63, 185, 80, .4); }
+  .toast.err  { border-color: rgba(248,81,73,.5); color: var(--red); }
+  .toast.ok   { border-color: rgba(63,185,80,.4); }
 
-  /* ── Footer ──────────────────────────────────────────────────────────── */
   footer {
     border-top: 1px solid var(--border);
-    padding: 24px 32px;
+    padding: 16px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     text-align: center;
+    line-height: 1.6;
   }
   footer a { color: var(--blue); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
@@ -292,76 +441,120 @@
 
 <header>
   <h1>🥚 rapp-zoo
-    <span class="sub">browse the global Pokédex of digital organisms · entirely client-side</span>
+    <span class="sub">your universal Pokédex of digital organisms · 3 federation stores · local-first / global-aware</span>
   </h1>
-  <div class="header-actions">
-    <div class="brainstem-status" id="brainstem-status">
-      <span class="off">●</span> brainstem: <span id="bs-status-text">checking…</span><br>
-      <span id="bs-host">localhost:7071</span>
-    </div>
+  <div class="brainstem-status" id="brainstem-status">
+    <span class="off">●</span> brainstem: <span id="bs-status-text">checking…</span><br>
+    <span id="bs-host">localhost:7071</span>
   </div>
 </header>
 
 <nav class="tabs" role="tablist">
-  <button class="tab is-active" data-tab="discover" role="tab">Discover</button>
-  <button class="tab" data-tab="inspect" role="tab">Inspect a .egg</button>
-  <button class="tab" data-tab="install" role="tab">Get the local zoo</button>
+  <button class="tab is-active" data-tab="dex" role="tab">Pokédex<span class="badge" id="dex-badge">…</span></button>
+  <button class="tab" data-tab="holocards" role="tab">Holocards<span class="badge" id="holo-badge">…</span></button>
+  <button class="tab" data-tab="mine" role="tab">My collection</button>
+  <button class="tab" data-tab="inspect" role="tab">Inspect</button>
+  <button class="tab" data-tab="about" role="tab">About</button>
 </nav>
 
 <main>
 
-<section class="tab-panel is-active" id="panel-discover" role="tabpanel">
+<!-- ── Pokédex (unified union of all 3 federation stores) ─────────────── -->
+<section class="tab-panel is-active" id="panel-dex" role="tabpanel">
   <div class="intro">
-    <h2>The catalog</h2>
+    <h2>The federation Pokédex</h2>
     <p>
-      Live data from <a href="https://github.com/kody-w/RAPP_Store" target="_blank" rel="noopener"><code>kody-w/RAPP_Store</code></a>
-      via <code>raw.githubusercontent.com</code>. Every Pokémon is a digital organism — sprite, lineage, downloadable
-      <code>.egg</code>. Click <strong>⚡ Hot-load</strong> on any rapplication to push it into your locally-running brainstem
-      (requires the <a href="https://github.com/kody-w/RAPP" target="_blank" rel="noopener">brainstem</a> running on
-      <code>localhost:7071</code> with the <code>egg_hatcher</code> rapp installed).
+      Live union of all three RAPP federation stores —
+      <a href="https://github.com/kody-w/RAPP_Store" target="_blank" rel="noopener"><strong>RAPP_Store</strong></a>
+      (rapplications, organisms with skin),
+      <a href="https://github.com/kody-w/RAR" target="_blank" rel="noopener"><strong>RAR</strong></a>
+      (bare agents, single-celled organisms), and
+      <a href="https://github.com/kody-w/RAPP_Sense_Store" target="_blank" rel="noopener"><strong>RAPP_Sense_Store</strong></a>
+      (sense overlays, perception channels).
+      Every entry is an organism. Click <strong>⚡ Hot-load</strong> to push one into your locally-running brainstem.
     </p>
   </div>
-  <div id="discover" class="cards-grid">Loading catalog…</div>
+  <div class="filters">
+    <input type="search" id="dex-search" placeholder="filter by name, publisher, tag…">
+    <span class="filter-chip is-active" data-filter="all">All</span>
+    <span class="filter-chip" data-filter="rapp">Rapps</span>
+    <span class="filter-chip" data-filter="agent">Agents</span>
+    <span class="filter-chip" data-filter="sense">Senses</span>
+  </div>
+  <div id="dex" class="cards-grid"><div class="loading">Fetching all 3 federation stores…</div></div>
 </section>
 
+<!-- ── Holocards binder (RAR entries with .card files) ────────────────── -->
+<section class="tab-panel" id="panel-holocards" role="tabpanel">
+  <div class="intro">
+    <h2>Holocard binder</h2>
+    <p>
+      Trading-card-style sharable agents — <code>.py.card</code> files from RAR. Each carries a
+      <code>__card__</code> magic-comment header at line 1 with the rar-card metadata; the rest is the live agent
+      code. Drop the file into any brainstem's <code>agents/</code> dir and it runs. Save to disk to AirDrop / Slack
+      / USB-stick to a friend.
+    </p>
+  </div>
+  <div class="filters">
+    <input type="search" id="holo-search" placeholder="filter holocards by name, author, category…">
+  </div>
+  <div id="holocards" class="cards-grid"><div class="loading">Fetching RAR holocards…</div></div>
+</section>
+
+<!-- ── My collection (talks to localhost brainstem if alive) ──────────── -->
+<section class="tab-panel" id="panel-mine" role="tabpanel">
+  <div class="intro">
+    <h2>What's on your device</h2>
+    <p>
+      Talks to your brainstem at <code id="mine-target">localhost:7071</code> via the
+      <code>egg_hatcher</code> + <code>rapp_zoo</code> rapps (if installed). Local-first; if the brainstem isn't
+      reachable from this page (e.g. you're on cellular and your laptop is asleep) the page tells you and waits.
+    </p>
+  </div>
+  <div id="mine" class="cards-grid"><div class="loading">Pinging brainstem…</div></div>
+</section>
+
+<!-- ── Inspect (drag-drop / file-pick local parse) ────────────────────── -->
 <section class="tab-panel" id="panel-inspect" role="tabpanel">
   <div class="intro">
-    <h2>Inspect any <code>.egg</code> — entirely in your browser</h2>
+    <h2>Inspect any <code>.egg</code> or <code>.card</code> — entirely in your browser</h2>
     <p>
-      Drop a <code>.egg</code> file anywhere below or click to pick one. Nothing uploads — the file gets parsed
-      locally via <a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a>, the manifest +
-      file tree render here. Use this to peek inside an organism cartridge before you trust it on your machine.
+      Drop a file below or click to pick one. Parsed locally via
+      <a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a> for eggs, or by reading the
+      <code>__card__</code> header for holocards. Nothing uploads.
     </p>
   </div>
   <label class="dropzone" id="dropzone">
-    <input type="file" id="egg-input" accept=".egg,application/zip">
+    <input type="file" id="egg-input" accept=".egg,.card,.py,application/zip">
     <div class="big-icon">🥚</div>
-    <div class="title">Drop a <code>.egg</code> here, or click to pick one</div>
+    <div class="title">Drop a <code>.egg</code> or <code>.card</code> here</div>
     <div class="sub">Parsed locally — never leaves your browser.</div>
   </label>
   <div id="inspect-result"></div>
 </section>
 
-<section class="tab-panel" id="panel-install" role="tabpanel">
+<!-- ── About ──────────────────────────────────────────────────────────── -->
+<section class="tab-panel" id="panel-about" role="tabpanel">
   <div class="intro">
-    <h2>Run the full local rapp-zoo</h2>
+    <h2>What this is</h2>
     <p>
-      This static page is a thin slice — Discover + Inspect only, no local-collection / drag-drop-import /
-      lay-egg / summon / hatch / start-stop. For the full feature surface, install the local
-      Flask-backed rapp-zoo. It runs at <code>localhost:7070</code> and adds:
+      The user's universal Pokédex. Hosted at
+      <a href="https://kody-w.github.io/rapp-zoo/"><code>https://kody-w.github.io/rapp-zoo/</code></a>
+      so it's reachable from any device, including phones. PWA-installable (Add to Home Screen on iOS).
     </p>
-    <ul style="color: var(--muted); margin: 12px 0 16px 28px; font-size: 13px; line-height: 1.7;">
-      <li>📁 <strong>My collection</strong> — every organism on this device, grouped by rappid</li>
-      <li>📥 <strong>Drag-drop import</strong> — drop a <code>.egg</code> on the page, the zoo saves and registers it</li>
-      <li>🥚 <strong>Lay egg</strong> — pack any organism's repo into a fresh portable <code>.egg</code></li>
-      <li>🐣 <strong>Summon / hatch</strong> — materialize an egg into <code>~/.rapp/twins/&lt;rappid&gt;/</code></li>
-      <li>▶️ <strong>Start / stop / reveal-in-finder</strong> — process control for every organism</li>
-    </ul>
-    <p>Install with one curl:</p>
-    <pre style="background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-family: ui-monospace, monospace; font-size: 12px; overflow-x: auto;">curl -fsSL https://kody-w.github.io/rapp-zoo/installer/install.sh | bash &amp;&amp; \
-bash ~/.rapp-zoo/installer/start.sh</pre>
-    <p style="margin-top: 12px;">
-      Then open <a href="http://127.0.0.1:7070" target="_blank">http://127.0.0.1:7070</a>.
+    <p style="margin-top:10px">
+      Built on Constitution
+      <a href="https://github.com/kody-w/RAPP/blob/main/CONSTITUTION.md" target="_blank" rel="noopener">Article XXXVIII</a>:
+      every organism follows one anatomy (agent + organ + UI + state); every federation store ships the same
+      <code>/api/v1/</code> shape; the rapp-zoo is the user's universal control plane.
+    </p>
+    <p style="margin-top:10px">
+      For the full local control plane (drag-drop import, lay-egg, summon, hatch, start/stop running organisms)
+      install the rapp-zoo rapp into your brainstem:
+    </p>
+    <pre style="background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: ui-monospace, monospace; font-size: 11px; overflow-x: auto; margin-top:10px;">brainstem hatch https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/egg/rapp-zoo.egg</pre>
+    <p style="margin-top:10px; color: var(--muted); font-size: 12px;">
+      Brainstem itself: <code>curl -fsSL https://kody-w.github.io/RAPP/installer/install.sh | bash</code>
     </p>
   </div>
 </section>
@@ -369,35 +562,35 @@ bash ~/.rapp-zoo/installer/start.sh</pre>
 </main>
 
 <footer>
-  rapp-zoo · static client · part of the
-  <a href="https://github.com/kody-w/RAPP" target="_blank" rel="noopener">RAPP</a>
-  federation ·
-  <a href="https://github.com/kody-w/RAPP_Store" target="_blank" rel="noopener">catalog</a> ·
-  <a href="https://kody-w.github.io/RAPP/pages/about/anatomy.html" target="_blank" rel="noopener">anatomy diagram</a> ·
+  rapp-zoo · static, PWA-installable, works offline · part of the
+  <a href="https://github.com/kody-w/RAPP" target="_blank" rel="noopener">RAPP federation</a><br>
+  catalogs:
+  <a href="https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/index.json" target="_blank">RAPP_Store</a> ·
+  <a href="https://raw.githubusercontent.com/kody-w/RAR/main/api/v1/index.json" target="_blank">RAR</a> ·
+  <a href="https://raw.githubusercontent.com/kody-w/RAPP_Sense_Store/main/api/v1/index.json" target="_blank">Sense_Store</a> ·
+  <a href="https://kody-w.github.io/RAPP/pages/about/anatomy.html" target="_blank" rel="noopener">anatomy</a> ·
   <a href="https://github.com/kody-w/rapp-zoo" target="_blank" rel="noopener">source</a>
 </footer>
 
 <div id="toast" class="toast"></div>
 
-<!-- JSZip from CDN — pure JS zip reader, ~100 KB, no backend required.
-     Pinned to 3.10.1 (immutable on jsdelivr); SRI hash intentionally
-     omitted because we want the page to keep working if the CDN serves
-     identical bytes from a different mirror. The script only runs in
-     the Inspect tab and only against files the user explicitly drops. -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <script>
 "use strict";
 
-// ── Config ──────────────────────────────────────────────────────────────
-const CATALOG_URL = "https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/index.json";
-const BRAINSTEM_DEFAULT = "http://localhost:7071";
+// ── Config — federation store URLs ──────────────────────────────────────
+const STORES = [
+  { kind: 'rapp',  url: 'https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/index.json',         label: 'RAPP_Store',       collectionField: 'rapplications' },
+  { kind: 'agent', url: 'https://raw.githubusercontent.com/kody-w/RAR/main/api/v1/index.json',                label: 'RAR',              collectionField: 'agents' },
+  { kind: 'sense', url: 'https://raw.githubusercontent.com/kody-w/RAPP_Sense_Store/main/api/v1/index.json',   label: 'RAPP_Sense_Store', collectionField: 'senses' },
+];
+const BRAINSTEM_DEFAULT = 'http://localhost:7071';
 
 // ── DOM helpers ─────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 function toast(msg, kind) {
   const t = $('toast');
@@ -406,10 +599,10 @@ function toast(msg, kind) {
   setTimeout(() => { t.className = 'toast'; }, 3500);
 }
 
-// ── Sprite generator (deterministic from rappid hash) ────────────────────
+// ── Hash + sprite (matches every other federation consumer byte-for-byte) ──
 function simpleHash(s) {
   let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  for (let i = 0; i < (s||'').length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
 function spriteFor(rappid, category) {
@@ -420,6 +613,10 @@ function spriteFor(rappid, category) {
     reflection: ['#7df0c8', '#3fb950', '#1a7f37'],
     core:       ['#d29922', '#ffa657', '#7d4e00'],
     platform:   ['#79c0ff', '#58a6ff', '#0969da'],
+    b2b_sales:  ['#79c0ff', '#58a6ff', '#0969da'],
+    b2c_sales:  ['#3fb950', '#56d364', '#1a7f37'],
+    integrations: ['#ffa657', '#f78166', '#bc4c00'],
+    sense:      ['#7df0c8', '#3fb950', '#1a7f37'],
     default:    ['#58a6ff', '#79c0ff', '#0969da'],
   };
   const colors = palette[category] || palette.default;
@@ -441,6 +638,37 @@ function spriteFor(rappid, category) {
   </svg>`;
 }
 
+// ── TCG-style derived stats — same shape regardless of store of origin ───
+function dexNumFor(seed) {
+  // 3-digit Pokédex number (modulo 999) — stable per organism.
+  return String((simpleHash(seed||'unknown') % 999) + 1).padStart(3, '0');
+}
+function rarityFor(e) {
+  if (e.id === 'rapp-zoo') return 'secret';        // self-reference
+  if (e.kind === 'rapp' && e.has_skin && e.quality_tier === 'official') return 'holo';
+  if (e.kind === 'agent' && e.has_card) return 'rare';                // holocard variant
+  if (e.kind === 'sense') return 'uncommon';                          // perception overlay
+  if (e.kind === 'rapp' && (e.egg || e.egg_url)) return 'uncommon';
+  return 'common';
+}
+function hpFor(e) {
+  let n = 40;
+  if (e.kind === 'rapp')  n += (e.has_skin ? 30 : 0) + (e.quality_tier === 'official' ? 30 : 0);
+  if (e.kind === 'agent') n += Math.round((e.lines || e.singleton_lines || 0) / 8);
+  if (e.kind === 'sense') n += 40;                                    // senses are punchy
+  return Math.min(220, Math.max(30, Math.round(n / 10) * 10));
+}
+const TYPE_ICONS = {
+  rapp:'◆', agent:'⌬', sense:'✦', tool:'🛠',
+  creative:'✨', work:'⚙', productivity:'⚙', integrations:'🔌',
+  core:'◉', platform:'◯', b2b_sales:'⛬', b2c_sales:'⛬',
+  reflection:'◐', card:'🎴',
+};
+function typeFor(e) {
+  return e.category || e.kind || 'rapp';
+}
+function typeIconFor(t) { return TYPE_ICONS[t] || '◆'; }
+
 // ── Tabs ────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -448,10 +676,12 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('is-active'));
     tab.classList.add('is-active');
     $('panel-' + tab.dataset.tab).classList.add('is-active');
+    if (tab.dataset.tab === 'mine') loadMine();
+    if (tab.dataset.tab === 'holocards' && !holocardsLoaded) loadHolocards();
   });
 });
 
-// ── Brainstem status (best-effort heartbeat) ────────────────────────────
+// ── Brainstem heartbeat ─────────────────────────────────────────────────
 function brainstemTarget() {
   try {
     const override = localStorage.getItem('brainstem_url');
@@ -462,126 +692,310 @@ function brainstemTarget() {
 async function pingBrainstem() {
   const target = brainstemTarget();
   $('bs-host').textContent = target.replace(/^https?:\/\//, '');
+  $('mine-target').textContent = target.replace(/^https?:\/\//, '');
   try {
     const r = await fetch(target + '/health', { mode: 'cors', cache: 'no-cache' });
     if (r.ok) {
-      $('brainstem-status').querySelector('.off').className = 'ok';
+      const dot = $('brainstem-status').querySelector('.off, .ok');
+      if (dot) dot.className = 'ok';
       $('bs-status-text').textContent = 'alive';
       return true;
     }
   } catch {}
-  $('brainstem-status').querySelector('.ok, .off').className = 'off';
+  const dot = $('brainstem-status').querySelector('.off, .ok');
+  if (dot) dot.className = 'off';
   $('bs-status-text').textContent = 'offline';
   return false;
 }
 
-// ── Discover ────────────────────────────────────────────────────────────
-async function loadDiscover() {
-  const root = $('discover');
-  try {
-    const r = await fetch(CATALOG_URL, { cache: 'no-cache' });
-    if (!r.ok) throw new Error('catalog fetch failed: HTTP ' + r.status);
-    const catalog = await r.json();
-    const entries = catalog.rapplications || [];
-    if (entries.length === 0) {
-      root.innerHTML = '<div class="empty">No entries in the global catalog yet.</div>';
-      return;
+// ── Pokédex (unified) ───────────────────────────────────────────────────
+let allEntries = [];
+let dexFilter = 'all';
+let dexQuery = '';
+let holocardsLoaded = false;
+
+async function loadDex() {
+  const root = $('dex');
+  root.innerHTML = '<div class="loading">Fetching all 3 federation stores…</div>';
+  // Fetch in parallel; tolerate single-store failures so the union still renders.
+  const results = await Promise.all(STORES.map(async (store) => {
+    try {
+      const r = await fetch(store.url, { cache: 'no-cache' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const json = await r.json();
+      const items = json[store.collectionField] || [];
+      return items.map(e => ({ ...e, kind: store.kind, _store: store.label }));
+    } catch (err) {
+      console.warn(store.label + ' fetch failed:', err.message);
+      return [];
     }
-    root.innerHTML = entries.map(e => {
-      const rappid = e.rappid || e.id || '';
-      const sprite = spriteFor(rappid, e.category || 'default');
-      const kind = e.kind || 'rapplication';
-      const isTool = kind === 'tool';
-      const isSelf = e.id === 'rapp-zoo';
+  }));
+  allEntries = results.flat();
+  $('dex-badge').textContent = allEntries.length;
+  renderDex();
+}
 
-      const installBtn = isTool && (e.install_one_liner || e.install_url)
-        ? `<button class="btn primary" data-copy="${escapeHtml(e.install_one_liner || e.install_url)}">⎘ Copy install command</button>`
-        : (e.egg ? `<a class="btn primary" href="${e.egg}" download>⬇ Download .egg</a>` : '');
+function renderDex() {
+  const root = $('dex');
+  const q = (dexQuery || '').toLowerCase().trim();
+  const filtered = allEntries.filter(e => {
+    if (dexFilter !== 'all' && e.kind !== dexFilter) return false;
+    if (!q) return true;
+    const hay = [
+      e.name, e.id, e.publisher, e.rar_name, e.category,
+      ...(e.tags || []), e.description, e.summary,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  if (filtered.length === 0) {
+    root.innerHTML = '<div class="empty">No matches.</div>';
+    return;
+  }
+  root.innerHTML = filtered.map(renderTcardForDex).join('');
+  // Wire interactive buttons
+  root.querySelectorAll('button[data-copy]').forEach(b =>
+    b.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); toast('📋 Copied'); }
+      catch { toast('Copy failed', 'err'); }
+    }));
+  root.querySelectorAll('button[data-hotload-url]').forEach(b =>
+    b.addEventListener('click', () => hotLoad(b.dataset.hotloadUrl, b.dataset.hotloadName, b)));
+}
 
-      const hotLoadBtn = (!isTool && e.egg)
-        ? `<button class="btn" data-hotload-url="${escapeHtml(e.egg)}" data-hotload-name="${escapeHtml(e.name || e.id)}">⚡ Hot-load</button>`
-        : '';
+function renderTcardForDex(e) {
+  const rappid = e.rappid || e.id || '';
+  const sprite = spriteFor(rappid, typeFor(e));
+  const dex = dexNumFor(rappid);
+  const rarity = rarityFor(e);
+  const hp = hpFor(e);
+  const type = typeFor(e);
+  const isSelf = e.id === 'rapp-zoo';
+  const eggUrl = e.egg || e.egg_url;
+  const pyUrl = e.py || e.api_py_url;
+  const cardUrl = e.card || e.api_card_url;
 
-      return `
-        <div class="card${isSelf ? ' is-self' : ''}">
-          <div class="sprite">${sprite}</div>
-          <div class="body">
-            <h3>${escapeHtml(e.name || e.id || 'unknown')}${isSelf ? ' <span class="pill skin">you are here</span>' : ''}</h3>
-            <div class="rappid">${escapeHtml(rappid)}</div>
-            <div class="meta">
-              <span class="pill ${isTool ? 'tool' : 'rapp'}">${escapeHtml(kind)}</span>
-              ${e.category ? `<span class="pill">${escapeHtml(e.category)}</span>` : ''}
-              ${e.has_skin ? '<span class="pill skin">has skin</span>' : ''}
-              ${e.version ? `<span class="pill">v${escapeHtml(e.version)}</span>` : ''}
-            </div>
-            <div class="desc">${escapeHtml(e.description || e.summary || '')}</div>
-            <div class="actions">
-              ${installBtn}
-              ${hotLoadBtn}
-              <a class="btn" href="${e.url}" target="_blank" rel="noopener">Manifest ↗</a>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+  const hotLoadBtn = (e.kind === 'rapp' && eggUrl)
+    ? `<button class="btn primary" data-hotload-url="${escapeHtml(eggUrl)}" data-hotload-name="${escapeHtml(e.name||e.id)}">⚡ Hot-load</button>`
+    : '';
+  const downloadBtn = eggUrl
+    ? `<a class="btn" href="${escapeHtml(eggUrl)}" download>⬇ Egg</a>`
+    : (pyUrl ? `<a class="btn" href="${escapeHtml(pyUrl)}" download>⬇ .py</a>` : '');
+  const cardBtn = cardUrl
+    ? `<a class="btn" href="${escapeHtml(cardUrl)}" download>🎴 Card</a>`
+    : '';
+  const installBtn = (e.kind === 'rapp' && e.install_one_liner && !eggUrl)
+    ? `<button class="btn" data-copy="${escapeHtml(e.install_one_liner)}">⎘ Install</button>`
+    : '';
 
-    // Wire copy + hot-load buttons
-    root.querySelectorAll('button[data-copy]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(btn.dataset.copy);
-          toast('📋 Copied — paste into your terminal');
-        } catch { toast('Copy failed', 'err'); }
-      });
-    });
-    root.querySelectorAll('button[data-hotload-url]').forEach(btn => {
-      btn.addEventListener('click', () => hotLoad(btn.dataset.hotloadUrl, btn.dataset.hotloadName, btn));
-    });
+  return `
+    <div class="tcard r-${rarity}">
+      <div class="tcard-head">
+        <span class="tcard-dex">№${dex} · ${escapeHtml(e._store || '')}</span>
+        <span class="tcard-hp"><span class="label">HP</span>${hp}</span>
+      </div>
+      <div class="tcard-art">${sprite}</div>
+      <h3 class="tcard-name"><span class="type-icon">${typeIconFor(type)}</span>${escapeHtml(e.name || e.id)}${isSelf ? ' <span class="pill skin">YOU</span>' : ''}</h3>
+      <div class="tcard-meta">
+        <span class="pill kind-${escapeHtml(e.kind)}">${escapeHtml(e.kind)}</span>
+        <span class="pill publisher">${escapeHtml(e.publisher || '')}</span>
+        ${e.version ? `<span class="pill">v${escapeHtml(e.version)}</span>` : ''}
+        ${e.has_skin ? '<span class="pill skin">skin</span>' : ''}
+        ${e.has_card ? '<span class="pill kind-card">.card</span>' : ''}
+      </div>
+      <div class="tcard-desc">${escapeHtml(e.summary || e.description || e.tagline || '')}</div>
+      <div class="tcard-foot">
+        ${hotLoadBtn}
+        ${downloadBtn}
+        ${cardBtn}
+        ${installBtn}
+        <a class="btn" href="${escapeHtml(e.url || e.self_url || '#')}" target="_blank">↗</a>
+      </div>
+    </div>`;
+}
+
+$('dex-search').addEventListener('input', (e) => { dexQuery = e.target.value; renderDex(); });
+document.querySelectorAll('#panel-dex .filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#panel-dex .filter-chip').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    dexFilter = chip.dataset.filter;
+    renderDex();
+  });
+});
+
+// ── Holocards binder ────────────────────────────────────────────────────
+let allHolocards = [];
+let holoQuery = '';
+
+async function loadHolocards() {
+  holocardsLoaded = true;
+  const root = $('holocards');
+  root.innerHTML = '<div class="loading">Fetching RAR holocards…</div>';
+  try {
+    const r = await fetch(STORES[1].url, { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const json = await r.json();
+    allHolocards = (json.agents || []).filter(a => a.has_card);
+    $('holo-badge').textContent = allHolocards.length;
+    renderHolocards();
   } catch (e) {
-    root.innerHTML = `<div class="err">${escapeHtml(e.message)}</div>`;
+    root.innerHTML = `<div class="err">Couldn't fetch RAR: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+function renderHolocards() {
+  const root = $('holocards');
+  const q = (holoQuery || '').toLowerCase().trim();
+  const filtered = allHolocards.filter(a => {
+    if (!q) return true;
+    const hay = [a.name, a.id, a.publisher, a.rar_name, a.category].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  if (filtered.length === 0) {
+    root.innerHTML = '<div class="empty">No holocards match.</div>';
+    return;
+  }
+  root.innerHTML = filtered.map(a => {
+    const rappid = a.rar_name || a.id;
+    const dex = dexNumFor(rappid);
+    const sprite = spriteFor(rappid, a.category || 'default');
+    const cardUrl = a.card;
+    const pyUrl = a.py;
+    return `
+      <div class="tcard r-rare">
+        <div class="tcard-head">
+          <span class="tcard-dex">№${dex} · holocard</span>
+          <span class="tcard-hp"><span class="label">HP</span>${hpFor({kind:'agent',lines:80})}</span>
+        </div>
+        <div class="tcard-art">${sprite}</div>
+        <h3 class="tcard-name"><span class="type-icon">🎴</span>${escapeHtml(a.name)}</h3>
+        <div class="tcard-meta">
+          <span class="pill kind-card">.card</span>
+          <span class="pill publisher">${escapeHtml(a.publisher)}</span>
+          ${a.category ? `<span class="pill">${escapeHtml(a.category)}</span>` : ''}
+          ${a.version ? `<span class="pill">v${escapeHtml(a.version)}</span>` : ''}
+        </div>
+        <div class="tcard-desc">${escapeHtml(a.rar_name)}</div>
+        <div class="tcard-foot">
+          ${cardUrl ? `<a class="btn primary" href="${escapeHtml(cardUrl)}" download>🎴 Card</a>` : ''}
+          ${pyUrl ? `<a class="btn" href="${escapeHtml(pyUrl)}" download>⬇ .py</a>` : ''}
+          <a class="btn" href="${escapeHtml(a.url)}" target="_blank">↗</a>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+$('holo-search').addEventListener('input', (e) => { holoQuery = e.target.value; renderHolocards(); });
+
+// ── Hot-load (POST egg URL to brainstem chat → egg_hatcher rapp) ────────
 async function hotLoad(eggUrl, name, btn) {
   const target = brainstemTarget();
   const original = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⚡ hatching…';
-  toast(`⚡ Asking ${target} to hot-load ${name}…`);
+  toast(`⚡ ${target} → ${name}…`);
   try {
     const r = await fetch(target + '/chat', {
-      method: 'POST',
-      mode: 'cors',
+      method: 'POST', mode: 'cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_input: `Hot-load this rapplication egg: ${eggUrl}`,
-        conversation_history: [],
-      }),
+      body: JSON.stringify({ user_input: `Hot-load this rapplication egg: ${eggUrl}`, conversation_history: [] }),
     });
     const d = await r.json();
     if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
     if (((d.response || '') + (d.agent_logs || '')).includes('🥚 Hot-loaded')) {
-      toast(`✓ ${name} installed in your brainstem`);
+      toast(`✓ ${name} caught`);
     } else {
-      toast(`Hot-load completed — check brainstem chat for details`);
+      toast(`Hot-load done — see brainstem chat`);
     }
   } catch (e) {
-    toast(`Hot-load failed: ${e.message} — is your brainstem running on ${target}?`, 'err');
+    toast(`Hot-load failed: ${e.message} — is your brainstem at ${target} alive + hosting egg_hatcher?`, 'err');
   } finally {
-    btn.disabled = false;
-    btn.textContent = original;
+    btn.disabled = false; btn.textContent = original;
   }
 }
 
-// ── Inspect a .egg locally ──────────────────────────────────────────────
+// ── My collection (talks to brainstem's /api/rapp_zoo/* via direct fetch) ──
+async function loadMine() {
+  const root = $('mine');
+  const target = brainstemTarget();
+  root.innerHTML = '<div class="loading">Pinging brainstem at ' + escapeHtml(target) + '…</div>';
+
+  // Try the rapp_zoo organ first (canonical path), then degrade gracefully.
+  let twins = null, eggs = null, errMsg = null;
+  try {
+    const r = await fetch(target + '/api/rapp_zoo/twins', { mode: 'cors', cache: 'no-cache' });
+    if (r.ok) twins = await r.json();
+  } catch (e) { errMsg = e.message; }
+  try {
+    const r = await fetch(target + '/api/rapp_zoo/eggs', { mode: 'cors', cache: 'no-cache' });
+    if (r.ok) eggs = await r.json();
+  } catch (e) { errMsg = errMsg || e.message; }
+
+  if (!twins && !eggs) {
+    root.innerHTML = `<div class="err">Couldn't reach the rapp_zoo organ at ${escapeHtml(target)}.<br><br>` +
+      `Either your brainstem isn't running, or the rapp-zoo rapp hasn't been hot-loaded yet. From a terminal:` +
+      `<pre style="margin-top:8px; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:4px; font-size:11px; overflow-x:auto;">brainstem hatch https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/egg/rapp-zoo.egg</pre>` +
+      `Then refresh this tab.</div>`;
+    return;
+  }
+  const twinList = (twins && twins.twins) || [];
+  const eggList  = (eggs && eggs.eggs) || [];
+  if (twinList.length === 0 && eggList.length === 0) {
+    root.innerHTML = '<div class="empty">No organisms on this device yet. Catch one from the Pokédex tab — click ⚡ Hot-load.</div>';
+    return;
+  }
+  const twinCards = twinList.map(t => {
+    const sprite = spriteFor(t.rappid_uuid, 'twin');
+    const dex = dexNumFor(t.rappid_uuid);
+    const live = (t.incarnations || []).find(i => i.live);
+    return `
+      <div class="tcard r-${live ? 'ultra' : 'rare'}">
+        <div class="tcard-head">
+          <span class="tcard-dex">№${dex} · live</span>
+          <span class="tcard-hp"><span class="label">HP</span>${hpFor({kind:'twin', incarnations: t.incarnations || []})}</span>
+        </div>
+        <div class="tcard-art">${sprite}</div>
+        <h3 class="tcard-name"><span class="type-icon">⌬</span>${escapeHtml(t.name || 'unnamed')}</h3>
+        <div class="tcard-meta">
+          <span class="pill kind-rapp">organism</span>
+          <span class="pill">${t.incarnation_count} incarnation${t.incarnation_count===1?'':'s'}</span>
+          ${live ? `<span class="pill live">live :${live.port}</span>` : '<span class="pill">offline</span>'}
+        </div>
+        <div class="tcard-desc">${escapeHtml(t.rappid_uuid)}</div>
+        <div class="tcard-foot">
+          ${live ? `<a class="btn primary" href="http://localhost:${live.port}/" target="_blank">Open ↗</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+  const eggCards = eggList.map(e => {
+    const dex = dexNumFor(e.rappid_uuid);
+    const sprite = spriteFor(e.rappid_uuid, 'default');
+    const schemaShort = (e.schema || '').replace('brainstem-egg/', '');
+    return `
+      <div class="tcard r-uncommon">
+        <div class="tcard-head">
+          <span class="tcard-dex">№${dex} · egg</span>
+          <span class="tcard-hp"><span class="label">${(e.size_bytes/1024).toFixed(1)}</span>KB</span>
+        </div>
+        <div class="tcard-art">${sprite}</div>
+        <h3 class="tcard-name"><span class="type-icon">🥚</span>${escapeHtml(e.filename)}</h3>
+        <div class="tcard-meta">
+          <span class="pill">${escapeHtml(schemaShort||'?')}</span>
+          ${e.kernel_version ? `<span class="pill">k${escapeHtml(e.kernel_version)}</span>` : ''}
+        </div>
+        <div class="tcard-desc">${escapeHtml(e.mtime)} · ${escapeHtml(e.rappid_uuid)}</div>
+      </div>`;
+  }).join('');
+  root.innerHTML = twinCards + eggCards;
+}
+
+// ── Inspect a .egg or .card locally ─────────────────────────────────────
 const dropzone = $('dropzone');
 const fileInput = $('egg-input');
-
-['dragenter', 'dragover'].forEach(ev =>
-  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragging'); })
-);
-['dragleave', 'drop'].forEach(ev =>
-  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragging'); })
-);
+['dragenter','dragover'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragging'); }));
+['dragleave','drop'].forEach(ev =>
+  dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragging'); }));
 dropzone.addEventListener('drop', e => {
   const f = e.dataTransfer.files && e.dataTransfer.files[0];
   if (f) inspectFile(f);
@@ -594,64 +1008,62 @@ fileInput.addEventListener('change', e => {
 
 async function inspectFile(file) {
   const out = $('inspect-result');
+  const lower = file.name.toLowerCase();
   out.innerHTML = '<div class="inspect-result"><h3>📂 ' + escapeHtml(file.name) + '</h3><p style="color:var(--muted)">parsing…</p></div>';
   try {
+    if (lower.endsWith('.card') || lower.endsWith('.py')) {
+      // Holocard / bare agent — look for __card__ + __manifest__ in the source
+      const text = await file.text();
+      let card = null, manifest = null;
+      const cm = text.match(/^#\s*__card__\s*=\s*(\{.+?\})\s*$/m);
+      if (cm) { try { card = JSON.parse(cm[1]); } catch {} }
+      const mm = text.match(/__manifest__\s*=\s*(\{[\s\S]*?\n\})/);
+      if (mm) {
+        try { manifest = JSON.parse(mm[1].replace(/'/g, '"').replace(/,(\s*[}\]])/g, '$1')); } catch {}
+      }
+      out.innerHTML = `
+        <div class="inspect-result">
+          <h3>🎴 ${escapeHtml(file.name)} <span class="pill kind-card" style="margin-left:8px">${card ? 'rar-card/'+escapeHtml(card.format||'?') : 'no card header'}</span></h3>
+          <p style="color:var(--muted); font-size:12px; margin: 0 0 6px;">${(file.size/1024).toFixed(1)} KB · Python source</p>
+          ${card ? `<h4>Holocard metadata</h4><pre>${escapeHtml(JSON.stringify(card, null, 2))}</pre>` : ''}
+          ${manifest ? `<h4>Agent manifest</h4><pre>${escapeHtml(JSON.stringify(manifest, null, 2))}</pre>` : ''}
+          ${(!card && !manifest) ? '<p style="color:var(--gold); font-size:12px;">⚠ No __card__ or __manifest__ block found — this might be a plain .py without RAPP structure.</p>' : ''}
+        </div>`;
+      return;
+    }
+    // Default: treat as .egg (zip)
     if (typeof JSZip === 'undefined') throw new Error('JSZip not loaded — refresh and try again');
     const zip = await JSZip.loadAsync(file);
     const manifestFile = zip.file('manifest.json');
     if (!manifestFile) throw new Error('no manifest.json — not a valid egg');
-    const manifestText = await manifestFile.async('string');
-    let manifest;
-    try { manifest = JSON.parse(manifestText); }
-    catch (e) { throw new Error('manifest.json is not valid JSON: ' + e.message); }
-
+    const manifest = JSON.parse(await manifestFile.async('string'));
     const allFiles = [];
-    zip.forEach((path, entry) => { if (!entry.dir) allFiles.push(path); });
+    zip.forEach((p, e) => { if (!e.dir) allFiles.push(p); });
     allFiles.sort();
-
-    const isOrganism = manifest.schema === 'brainstem-egg/2.2-organism';
-    const isRapp = manifest.schema === 'brainstem-egg/2.2-rapplication';
-    const sizeKB = (file.size / 1024).toFixed(1);
-
     out.innerHTML = `
       <div class="inspect-result">
-        <h3>📂 ${escapeHtml(file.name)} <span class="pill ${isRapp || isOrganism ? 'skin' : ''}" style="margin-left:8px">${escapeHtml(manifest.schema || 'unknown')}</span></h3>
-        <p style="color:var(--muted); font-size:12px; margin: 0 0 6px;">${sizeKB} KB · ${allFiles.length} files</p>
-        ${manifest.rappid ? `<p style="color:var(--muted); font-family:ui-monospace, monospace; font-size:11px; word-break:break-all; margin: 6px 0;">${escapeHtml(manifest.rappid)}</p>` : ''}
+        <h3>📂 ${escapeHtml(file.name)} <span class="pill kind-rapp" style="margin-left:8px">${escapeHtml(manifest.schema || '?')}</span></h3>
+        <p style="color:var(--muted); font-size:12px; margin: 0 0 6px;">${(file.size/1024).toFixed(1)} KB · ${allFiles.length} files</p>
+        ${manifest.rappid ? `<p style="color:var(--muted); font-family:ui-monospace, monospace; font-size:11px; word-break:break-all;">${escapeHtml(manifest.rappid)}</p>` : ''}
         <h4>Manifest</h4>
         <pre>${escapeHtml(JSON.stringify(manifest, null, 2))}</pre>
         <h4>Files inside (${allFiles.length})</h4>
-        <ul class="file-tree">
-          ${allFiles.map(f => '<li>' + escapeHtml(f) + '</li>').join('')}
-        </ul>
-        <div class="actions">
-          ${isRapp ? `<button class="btn primary" id="hatch-this">⚡ Hot-load into brainstem</button>` : ''}
-          <button class="btn" onclick="document.getElementById('inspect-result').innerHTML=''">Clear</button>
-        </div>
-        ${!isRapp && !isOrganism ? '<p style="color: var(--gold); font-size: 12px; margin-top: 10px;">⚠ Unrecognized schema — only brainstem-egg/2.2-rapplication and 2.2-organism are known.</p>' : ''}
-      </div>
-    `;
-    // Wire hot-load for the just-inspected egg (if it's a rapplication)
-    if (isRapp) {
-      // Reupload-as-URL is impossible without a server; instead we POST
-      // a chat message asking the brainstem to install. The brainstem
-      // can't read the user's local file, so we encode the manifest as
-      // a "this egg is already in your collection" hint, then ask the
-      // user to drop the same egg into their brainstem's local zoo if
-      // they want to install it. Honest about the limitation:
-      $('hatch-this').addEventListener('click', () => {
-        toast('Static page can\'t push a local file to a remote brainstem. Install via the local rapp-zoo (Tab 3) which can.', 'err');
-      });
-    }
+        <ul class="file-tree">${allFiles.map(f => '<li>' + escapeHtml(f) + '</li>').join('')}</ul>
+      </div>`;
   } catch (e) {
     out.innerHTML = `<div class="err">Could not inspect: ${escapeHtml(e.message)}</div>`;
   }
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────
-loadDiscover();
+loadDex();
 pingBrainstem();
 setInterval(pingBrainstem, 15000);
+
+// Service worker — offline-first PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 
 </body>
