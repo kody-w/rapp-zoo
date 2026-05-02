@@ -274,6 +274,135 @@ class TestZooEndpoints(unittest.TestCase):
             ct = r.headers.get("Content-Type", "")
             self.assertTrue("html" in ct or "json" in ct)
 
+    # ── Pokédex Tier 1+2 endpoints ──────────────────────────────────
+
+    def test_starters_endpoint_lists_three(self):
+        # The build_starters.py script pre-bakes 3 .egg files in
+        # starters/dist/. The endpoint should pick them up and report
+        # type / has_skin for each.
+        with _Iso():
+            r = self.client.get("/api/starters")
+            self.assertEqual(r.status_code, 200)
+            d = r.get_json()
+            self.assertEqual(d["schema"], "rapp-zoo-starters/1.0")
+            # Exactly three starters ship: workday, playtime, journal.
+            ids = sorted(s["rapp_id"] for s in d["starters"])
+            self.assertEqual(ids, ["journal", "playtime", "workday"])
+            for s in d["starters"]:
+                self.assertTrue(s["has_skin"], f"{s['rapp_id']} should have skin")
+                self.assertTrue(s["egg_url"].startswith("/starters/dist/"))
+
+    def test_starter_egg_downloadable(self):
+        # The /starters/dist/<file>.egg route serves the pre-built eggs
+        # so the UI can offer one-click download.
+        with _Iso():
+            r = self.client.get("/starters/dist/workday.egg")
+            self.assertEqual(r.status_code, 200)
+            # Should be a real zip blob (PK header)
+            self.assertTrue(r.data.startswith(b"PK\x03\x04"))
+
+    def test_discover_returns_upstream_url(self):
+        with _Iso():
+            r = self.client.get("/api/discover")
+            self.assertEqual(r.status_code, 200)
+            d = r.get_json()
+            self.assertEqual(d["schema"], "rapp-zoo-discover/1.0")
+            self.assertIn("upstream_url", d)
+            self.assertIn("rapp_store", d["upstream_url"].lower())
+
+    def test_import_egg_validates_upload(self):
+        with _Iso():
+            # No file → 400
+            r = self.client.post("/api/import-egg")
+            self.assertEqual(r.status_code, 400)
+
+    def test_import_egg_round_trip(self):
+        # Upload a real organism egg (built from a fake instance), then
+        # confirm /api/eggs lists it under eggs/imported/.
+        with _Iso():
+            tmp = tempfile.mkdtemp()
+            try:
+                inst = pathlib.Path(tmp) / "instance"
+                inst.mkdir()
+                _make_brainstem_instance(inst)
+                # Pack via bond directly to get a blob to upload
+                sys.path.insert(0, str(_REPO_ROOT / "utils"))
+                import bond as _bond
+                blob = _bond.pack_organism(
+                    str(inst),
+                    str(inst / "src" / "rapp_brainstem"),
+                    kernel_version="0.13.0"
+                )
+                # Upload as multipart
+                r = self.client.post(
+                    "/api/import-egg",
+                    data={"egg": (__import__("io").BytesIO(blob), "uploaded.egg")},
+                    content_type="multipart/form-data",
+                )
+                self.assertEqual(r.status_code, 200, r.get_json())
+                d = r.get_json()
+                self.assertTrue(d["ok"])
+                self.assertIn("imported", d["egg_path"])
+                self.assertTrue(os.path.exists(d["egg_path"]))
+                # /api/eggs should now include the imported one
+                eggs = self.client.get("/api/eggs").get_json()["eggs"]
+                self.assertTrue(any("imported" in e["path"] for e in eggs))
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_export_egg_path_traversal_blocked(self):
+        # ?path= must point inside ~/.rapp/eggs/. /etc/passwd type tries fail.
+        with _Iso():
+            r = self.client.get("/api/export-egg?path=/etc/passwd")
+            self.assertEqual(r.status_code, 403)
+
+    def test_export_egg_streams_bytes(self):
+        with _Iso():
+            tmp = tempfile.mkdtemp()
+            try:
+                # Drop a fake egg into the eggs dir
+                eggs_dir = os.path.join(os.environ["RAPP_HOME"], "eggs", "test")
+                os.makedirs(eggs_dir, exist_ok=True)
+                fake = os.path.join(eggs_dir, "marker.egg")
+                with open(fake, "wb") as f:
+                    f.write(b"PK\x03\x04fake-egg-bytes-for-test")
+                r = self.client.get("/api/export-egg?path=" + fake)
+                self.assertEqual(r.status_code, 200)
+                self.assertEqual(r.data, b"PK\x03\x04fake-egg-bytes-for-test")
+                # Content-Disposition should be set so browser downloads it
+                cd = r.headers.get("Content-Disposition", "")
+                self.assertIn("attachment", cd)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_egg_manifest_peek(self):
+        with _Iso():
+            tmp = tempfile.mkdtemp()
+            try:
+                inst = pathlib.Path(tmp) / "instance"
+                inst.mkdir()
+                _make_brainstem_instance(inst)
+                # Lay an egg through the API → peek its manifest
+                r1 = self.client.post("/api/lay-egg", json={"repo_path": str(inst)})
+                ep = r1.get_json()["egg_path"]
+                r2 = self.client.get("/api/eggs/manifest?path=" + ep)
+                self.assertEqual(r2.status_code, 200)
+                d = r2.get_json()
+                self.assertTrue(d["ok"])
+                self.assertEqual(d["manifest"]["schema"], "brainstem-egg/2.2-organism")
+                self.assertIsInstance(d["file_tree"], list)
+                self.assertIn("manifest.json", d["file_tree"])
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_reveal_path_safety(self):
+        # Reveal must refuse paths outside ~/.rapp/
+        with _Iso():
+            r = self.client.post("/api/reveal", json={"path": "/etc"})
+            self.assertEqual(r.status_code, 403)
+            r2 = self.client.post("/api/reveal", json={})
+            self.assertEqual(r2.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Playtime — riff partner</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    background: linear-gradient(180deg, #1a1330 0%, #0d0820 100%);
+    color: #f3e6ff; line-height: 1.6;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 32px 24px;
+  }
+  .card {
+    width: 100%; max-width: 580px;
+    background: rgba(40, 22, 70, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid #6e3ca0; border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 8px 32px rgba(110, 60, 160, 0.3);
+  }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; font-style: italic; }
+  .sub { color: #c5a8e8; font-size: 14px; margin-bottom: 24px; font-style: italic; }
+  .modes { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .mode {
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    background: rgba(60, 30, 100, 0.4); border: 1px solid #6e3ca0;
+    color: #d8c4f0; font-size: 12px; font-family: -apple-system, system-ui, sans-serif;
+    transition: all .15s;
+  }
+  .mode:hover { border-color: #b58ddf; color: #fff; }
+  .mode.active { background: #6e3ca0; color: #fff; border-color: #b58ddf; }
+  textarea {
+    width: 100%; min-height: 100px;
+    background: rgba(20, 10, 40, 0.5); border: 1px solid #6e3ca0; border-radius: 10px;
+    color: #f3e6ff; font: inherit; font-style: italic; padding: 14px 16px; resize: vertical;
+  }
+  textarea::placeholder { color: #8a6fb0; }
+  button.send {
+    background: linear-gradient(135deg, #b58ddf, #6e3ca0);
+    color: #fff; border: none; border-radius: 10px;
+    padding: 12px 24px; font-weight: 600; cursor: pointer; margin-top: 12px;
+    font-family: -apple-system, system-ui, sans-serif;
+    box-shadow: 0 2px 12px rgba(181, 141, 223, 0.4);
+  }
+  button.send:hover { transform: translateY(-1px); }
+  .out {
+    margin-top: 20px; padding: 18px; background: rgba(20, 10, 40, 0.4);
+    border: 1px solid #4a2870; border-radius: 10px; min-height: 60px;
+    white-space: pre-wrap; font-size: 15px; line-height: 1.7;
+  }
+  .out:empty::before {
+    content: "✨ riff lands here";
+    color: #8a6fb0; font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>✨ Playtime</h1>
+  <div class="sub">Toss me a spark. I'll riff with you, never against you.</div>
+
+  <div class="modes" id="modes">
+    <span class="mode active" data-mode="freestyle">freestyle</span>
+    <span class="mode" data-mode="story">story openers</span>
+    <span class="mode" data-mode="what-if">what-if</span>
+    <span class="mode" data-mode="brainstorm">brainstorm</span>
+  </div>
+
+  <textarea id="spark" placeholder="A phrase. A feeling. An image. The thing on your mind."></textarea>
+  <button class="send" onclick="send()">Riff with me →</button>
+
+  <div class="out" id="out"></div>
+</div>
+
+<script>
+let mode = 'freestyle';
+document.getElementById('modes').addEventListener('click', e => {
+  if (!e.target.classList.contains('mode')) return;
+  document.querySelectorAll('.mode').forEach(m => m.classList.remove('active'));
+  e.target.classList.add('active');
+  mode = e.target.dataset.mode;
+});
+
+async function send() {
+  const spark = document.getElementById('spark').value.trim();
+  const out = document.getElementById('out');
+  if (!spark) return;
+  out.textContent = '✨…';
+  try {
+    const r = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_input: `Use the playtime agent in ${mode} mode. Spark: ${spark}`,
+      }),
+    });
+    const d = await r.json();
+    out.textContent = d.response || d.error || JSON.stringify(d);
+  } catch (e) {
+    out.textContent = 'Error: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>

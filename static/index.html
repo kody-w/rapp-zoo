@@ -2,80 +2,137 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>rapp-zoo — twin estate keeper</title>
+<title>rapp-zoo — Pokédex</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/static/zoo.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='28'%3E🥚%3C/text%3E%3C/svg%3E">
 </head>
 <body>
+
+<!-- Drop-zone overlay — covers the page when files are dragged over -->
+<div id="drop-overlay">
+  <div class="drop-inner">
+    <div class="drop-icon">🥚</div>
+    <div class="drop-title">Drop a <code>.egg</code> to import</div>
+    <div class="drop-sub">Any organism cartridge — rapplication, twin, or full instance.</div>
+  </div>
+</div>
+
 <header>
   <h1>rapp-zoo
-    <span class="sub">local-first keeper for the twin estate on this device</span>
+    <span class="sub">your local Pokédex of digital organisms</span>
   </h1>
-  <div class="health" id="health">…</div>
+  <div class="header-actions">
+    <button class="btn" id="btn-import" title="Pick a .egg file to import">⤓ Import .egg</button>
+    <input type="file" id="file-import" accept=".egg" style="display:none">
+    <button class="btn" id="btn-refresh">↻</button>
+    <div class="health" id="health">…</div>
+  </div>
 </header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab is-active" data-tab="collection" role="tab">My collection</button>
+  <button class="tab" data-tab="starters" role="tab">Starters</button>
+  <button class="tab" data-tab="discover" role="tab">Discover</button>
+</nav>
 
 <main>
 
-<section id="twins-section">
-  <div class="section-head">
-    <h2>Your twins</h2>
-    <button class="btn primary" id="btn-summon-from-egg">Summon from egg…</button>
-    <button class="btn" id="btn-refresh">Refresh</button>
+<!-- ── My Collection ─────────────────────────────────────────────────── -->
+<section class="tab-panel is-active" id="panel-collection" role="tabpanel">
+
+  <div class="collection-row">
+    <div class="collection-col">
+      <div class="section-head">
+        <h2>Active organisms</h2>
+        <span class="muted small" id="twins-count"></span>
+      </div>
+      <div id="twins" class="cards-grid">Loading…</div>
+    </div>
+
+    <div class="collection-col">
+      <div class="section-head">
+        <h2>Egg backups</h2>
+        <span class="muted small" id="eggs-count"></span>
+      </div>
+      <div id="eggs" class="eggs-list">Loading…</div>
+    </div>
   </div>
-  <div id="twins" class="twins-grid">Loading…</div>
 </section>
 
-<section id="eggs-section">
-  <div class="section-head">
-    <h2>Egg backups</h2>
-    <span class="muted" id="eggs-count"></span>
+<!-- ── Starters ──────────────────────────────────────────────────────── -->
+<section class="tab-panel" id="panel-starters" role="tabpanel">
+  <div class="starters-intro">
+    <h2>Pick your starter rapplication</h2>
+    <p class="muted">
+      Three archetype organisms ship with rapp-zoo. Click one to download its
+      <code>.egg</code> — then drag it into a brainstem (or back into this page)
+      to hatch. They're cartridges. The choice is yours; you can collect all three.
+    </p>
   </div>
-  <div id="eggs" class="eggs-list">Loading…</div>
+  <div id="starters" class="cards-grid">Loading…</div>
+</section>
+
+<!-- ── Discover ──────────────────────────────────────────────────────── -->
+<section class="tab-panel" id="panel-discover" role="tabpanel">
+  <div class="starters-intro">
+    <h2>Discover</h2>
+    <p class="muted">
+      The global Pokédex API. Pulls the full catalog of cataloged rapplications
+      from the upstream <code>kody-w/RAPP_Store</code> repo — sprite, lineage,
+      stats, downloadable egg per entry. Click a card to fetch the egg.
+    </p>
+  </div>
+  <div id="discover" class="cards-grid">Loading…</div>
 </section>
 
 </main>
 
+<!-- ── Modals ────────────────────────────────────────────────────────── -->
+<dialog id="inspect-dialog">
+  <h3>Egg manifest</h3>
+  <pre id="inspect-body"></pre>
+  <h4>Files inside</h4>
+  <ul id="inspect-tree" class="file-tree"></ul>
+  <div class="dialog-actions">
+    <a class="btn" id="inspect-export" href="#" download>⬇ Download</a>
+    <button class="btn" onclick="document.getElementById('inspect-dialog').close()">Close</button>
+  </div>
+</dialog>
+
+<dialog id="confirm-dialog">
+  <h3 id="confirm-title">Are you sure?</h3>
+  <p id="confirm-body"></p>
+  <div class="dialog-actions">
+    <button class="btn" id="confirm-cancel">Cancel</button>
+    <button class="btn danger" id="confirm-proceed">Proceed</button>
+  </div>
+</dialog>
+
 <dialog id="summon-dialog">
   <form method="dialog">
-    <h3>Summon a twin from an egg</h3>
-    <p class="muted">Enter an absolute path to a <code>.egg</code> file. The
-    twin will materialize at <code>~/.rapp/twins/&lt;rappid&gt;/</code>.</p>
+    <h3>Summon from egg</h3>
+    <p class="muted">Path on disk. Drag-drop import is the easier path — close this and drop the file anywhere on the page.</p>
     <input type="text" id="summon-egg-path" placeholder="/full/path/to/your.egg">
     <label class="checkbox">
       <input type="checkbox" id="summon-keep-kernel">
-      Keep existing kernel (use only if the workspace already has the kernel you want)
+      Keep existing kernel
     </label>
     <div class="dialog-actions">
       <button class="btn" value="cancel">Cancel</button>
-      <button class="btn primary" id="summon-confirm" value="confirm">Summon</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="hatch-dialog">
-  <form method="dialog">
-    <h3>Hatch (kernel update via egg roundtrip)</h3>
-    <p class="muted">Lay an egg, swap the kernel, summon back.
-    Identity, memory, and mutations are preserved.</p>
-    <p class="muted small" id="hatch-twin-name"></p>
-    <input type="text" id="hatch-new-kernel" placeholder="path to new brainstem.py or RAPP checkout">
-    <div class="dialog-actions">
-      <button class="btn" value="cancel">Cancel</button>
-      <button class="btn primary" id="hatch-confirm" value="confirm">Hatch</button>
+      <button class="btn primary" value="confirm">Summon</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="lay-egg-dialog">
   <form method="dialog">
-    <h3>Lay egg (back up this twin)</h3>
-    <p class="muted">Pack the twin's repo into a fresh <code>.egg</code> at
-    <code>~/.rapp/eggs/&lt;rappid&gt;/&lt;timestamp&gt;.egg</code>. Non-destructive.</p>
-    <p class="muted small" id="lay-twin-name"></p>
-    <input type="text" id="lay-repo-path" placeholder="/full/path/to/the/twin/repo">
+    <h3>Lay egg <span id="lay-twin-name" class="muted small"></span></h3>
+    <p class="muted">Pack this organism's repo into a fresh <code>.egg</code>.</p>
+    <input type="text" id="lay-repo-path" placeholder="/full/path/to/repo">
     <div class="dialog-actions">
       <button class="btn" value="cancel">Cancel</button>
-      <button class="btn primary" id="lay-confirm" value="confirm">Lay egg</button>
+      <button class="btn primary" value="confirm">Lay egg</button>
     </div>
   </form>
 </dialog>

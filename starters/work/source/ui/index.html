@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workday — daybrief</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #0d1117; color: #e6edf3; line-height: 1.5;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 32px 24px;
+  }
+  .card {
+    width: 100%; max-width: 540px;
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .sub { color: #8b949e; font-size: 13px; margin-bottom: 20px; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip {
+    background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+    padding: 6px 12px; border-radius: 999px; font-size: 12px;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .chip:hover { border-color: #58a6ff; color: #58a6ff; }
+  textarea {
+    width: 100%; min-height: 90px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    color: #e6edf3; font: inherit; padding: 10px 12px; resize: vertical;
+  }
+  button.send {
+    background: #1f6feb; color: #fff; border: none; border-radius: 6px;
+    padding: 10px 20px; font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+  button.send:hover { background: #388bfd; }
+  .out {
+    margin-top: 16px; padding: 16px; background: #0d1117;
+    border: 1px solid #21262d; border-radius: 6px; min-height: 50px;
+    white-space: pre-wrap; font-size: 13px;
+  }
+  .out:empty::before {
+    content: "Daybrief lands here.";
+    color: #6e7681; font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🗓 Workday</h1>
+  <div class="sub">Tight, opinionated daybrief — quick prompts below or write your own.</div>
+
+  <div class="row">
+    <span class="chip" onclick="setReq('Plan my day. I have a 9am standup, a 1:1 with my manager at 11, and a deep-work block in the afternoon.')">Plan my day</span>
+    <span class="chip" onclick="setReq('Recap what happened today.')">Recap</span>
+    <span class="chip" onclick="setReq('Prep me for the next meeting.')">Meeting prep</span>
+    <span class="chip" onclick="setReq('Wrap me up — tomorrow looks like:')">Wrap-up</span>
+  </div>
+
+  <textarea id="req" placeholder="What do you want — plan / recap / prep / wrap-up?"></textarea>
+  <button class="send" onclick="send()">Brief me →</button>
+
+  <div class="out" id="out"></div>
+</div>
+
+<script>
+const setReq = (t) => { document.getElementById('req').value = t; };
+async function send() {
+  const req = document.getElementById('req').value.trim();
+  const out = document.getElementById('out');
+  if (!req) return;
+  out.textContent = '…';
+  try {
+    // Talk to the host brainstem's chat endpoint. The rapp's UI is hatched
+    // alongside its agent into a brainstem; this fetch goes to whatever
+    // host the rapp is currently incarnated inside.
+    const r = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_input: req }),
+    });
+    const d = await r.json();
+    out.textContent = d.response || d.error || JSON.stringify(d);
+  } catch (e) {
+    out.textContent = 'Error: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>

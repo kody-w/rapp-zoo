@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Journal — a journal that talks back</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-serif, Georgia, "Times New Roman", serif;
+    background: #f8f5ee; color: #2d2a26; line-height: 1.7;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1a17; color: #e8e4dc; }
+    .card { background: #252220 !important; border-color: #3a342f !important; }
+    textarea { background: #1c1a17 !important; color: #e8e4dc !important; border-color: #3a342f !important; }
+    .out { background: #1c1a17 !important; border-color: #3a342f !important; }
+  }
+  .card {
+    width: 100%; max-width: 540px;
+    background: #fff; border: 1px solid #e8e1d3; border-radius: 4px;
+    padding: 36px 40px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  h1 { font-size: 22px; font-weight: 400; margin-bottom: 4px; font-style: italic; letter-spacing: 0.5px; }
+  .sub { color: #8a8077; font-size: 14px; margin-bottom: 28px; font-style: italic; }
+  textarea {
+    width: 100%; min-height: 140px;
+    background: #fdfcf8; border: none; border-bottom: 1px solid #d6cfbf;
+    color: #2d2a26; font: inherit; font-style: italic; font-size: 16px;
+    padding: 8px 0; resize: vertical;
+    transition: border-color .15s;
+  }
+  textarea:focus { outline: none; border-bottom-color: #2d2a26; }
+  textarea::placeholder { color: #b3a99c; font-style: italic; }
+  button.send {
+    background: transparent; color: #5a5048; border: 1px solid #c9c0ac;
+    border-radius: 2px; padding: 8px 18px; font: inherit;
+    font-style: italic; cursor: pointer; margin-top: 18px;
+    transition: all .15s;
+  }
+  button.send:hover { background: #2d2a26; color: #f8f5ee; border-color: #2d2a26; }
+  .out {
+    margin-top: 28px; padding: 20px 24px;
+    background: #faf7ef; border-left: 2px solid #c9c0ac;
+    min-height: 60px; white-space: pre-wrap;
+    font-size: 16px; line-height: 1.8;
+  }
+  .out:empty { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Journal</h1>
+  <div class="sub">Type. I'll read it. Then I'll ask one thing.</div>
+
+  <textarea id="entry" placeholder="What's on your mind? Don't edit, just write."></textarea>
+  <button class="send" onclick="send()">Hand it over</button>
+
+  <div class="out" id="out"></div>
+</div>
+
+<script>
+async function send() {
+  const entry = document.getElementById('entry').value.trim();
+  const out = document.getElementById('out');
+  if (!entry) return;
+  out.textContent = '…';
+  try {
+    const r = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_input: `Use the journal agent. Entry: ${entry}`,
+      }),
+    });
+    const d = await r.json();
+    out.textContent = d.response || d.error || JSON.stringify(d);
+  } catch (e) {
+    out.textContent = '(could not reach the brainstem: ' + e.message + ')';
+  }
+}
+</script>
+</body>
+</html>
