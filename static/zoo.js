@@ -328,6 +328,16 @@ async function loadDiscover() {
         ? `<button class="btn primary" data-copy="${escapeHtml(e.install_one_liner || e.install_url)}">⎘ Copy install command</button>`
         : (e.egg_url ? `<a class="btn primary" href="${e.egg_url}" download>⬇ Download .egg</a>` : '');
 
+      // Hot-load button — only for rapplication-kind eggs (tool eggs
+      // don't ship as 2.2-rapplication cartridges yet). Posts to the
+      // user's brainstem (default localhost:7071) asking the
+      // egg_hatcher agent to fetch + install. The brainstem hot-reloads
+      // agents from disk on the next /chat call, so the rapp is live
+      // immediately. Configurable target via localStorage 'brainstem_url'.
+      const hotLoadBtn = (!isTool && e.egg_url)
+        ? `<button class="btn" data-hotload-url="${escapeHtml(e.egg_url)}" data-hotload-name="${escapeHtml(e.name || e.id)}">⚡ Hot-load into brainstem</button>`
+        : '';
+
       const repoBtn = e.repo_url
         ? `<a class="btn" href="${e.repo_url}" target="_blank" rel="noopener">Repo ↗</a>`
         : '';
@@ -349,6 +359,7 @@ async function loadDiscover() {
             <div class="desc">${escapeHtml(e.tagline || e.summary || e.description || '')}</div>
             <div class="actions">
               ${installBtn}
+              ${hotLoadBtn}
               ${e.singleton_url ? `<a class="btn" href="${e.singleton_url}" download>⬇ Singleton .py</a>` : ''}
               ${repoBtn}
               ${e.spec_post ? `<a class="btn" href="${e.spec_post}" target="_blank" rel="noopener">Spec ↗</a>` : ''}
@@ -368,8 +379,67 @@ async function loadDiscover() {
         }
       });
     });
+
+    // Wire up "Hot-load into brainstem" buttons
+    root.querySelectorAll('button[data-hotload-url]').forEach(btn => {
+      btn.addEventListener('click', () => hotLoadIntoBrainstem(
+        btn.dataset.hotloadUrl, btn.dataset.hotloadName, btn));
+    });
   } catch (e) {
     root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ── Hot-load via brainstem's egg_hatcher_agent ───────────────────────
+// Picks a target brainstem from the user's peer registry (or default
+// http://localhost:7071) and asks its egg_hatcher agent to fetch + install
+// the egg URL. Conversational path — works through /chat, which means it
+// honors the brainstem's normal LLM tool-calling loop. The brainstem's
+// next /chat call hot-reloads the new agent automatically.
+
+function brainstemTarget() {
+  // Order of precedence: explicit localStorage override > first global
+  // peer from /api/twins > localhost:7071.
+  try {
+    const override = localStorage.getItem('brainstem_url');
+    if (override) return override.replace(/\/+$/, '');
+  } catch {}
+  return 'http://localhost:7071';
+}
+
+async function hotLoadIntoBrainstem(eggUrl, name, btn) {
+  const target = brainstemTarget();
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⚡ hatching…';
+  toast(`⚡ Asking ${target} to hot-load ${name}…`);
+  try {
+    const r = await fetch(target + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_input: `Hot-load this rapplication egg: ${eggUrl}`,
+        // No conversation history — this is a one-shot agent call.
+        conversation_history: [],
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+    // Look for the hatcher's success marker in the response
+    const ok = (d.response || '').includes('🥚 Hot-loaded') ||
+               (d.agent_logs || '').includes('🥚 Hot-loaded');
+    if (ok) {
+      toast(`✓ ${name} is now installed in ${target}`);
+    } else {
+      toast(`Hot-load completed — check brainstem chat for details`, 'ok');
+    }
+    // Refresh the local "My collection" tab in case the install changed peer state
+    refresh();
+  } catch (e) {
+    toast(`Hot-load failed: ${e.message} — try copying the egg URL and using the brainstem chat directly`, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
   }
 }
 
