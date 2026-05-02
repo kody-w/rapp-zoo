@@ -1,0 +1,90 @@
+{
+  "schema": "rapp-zoo-holocards/1.0",
+  "set_id": "rar",
+  "set_name": "RAR",
+  "set_subtitle": "Rapp Agent Registry",
+  "set_number": 1,
+  "edition": "First Print",
+  "publisher": "@rapp",
+  "release_date": "2026-04-28",
+  "description": "The first holocard set. One card per default agent — all of class Agent. Cast a card to invoke its bound agent through your brainstem's /chat. Simplest mechanic; a foundation for richer sets.",
+  "cards": [
+    {
+      "id": "rar-001",
+      "number": "001/007",
+      "name": "Total Recall",
+      "card_class": "agent",
+      "agent": "ContextMemory",
+      "rarity": "uncommon",
+      "type": "regular",
+      "tagline": "Pulls every related memory you've ever stored.",
+      "prompt": "Use ContextMemory to surface every memory you have related to my current focus. Group by theme. Highlight contradictions."
+    },
+    {
+      "id": "rar-002",
+      "number": "002/007",
+      "name": "Headlines",
+      "card_class": "agent",
+      "agent": "HackerNews",
+      "rarity": "common",
+      "type": "work",
+      "tagline": "Top stories on Hacker News, summarized.",
+      "prompt": "Use HackerNews to get the top 5 stories right now. One sentence per story — what it is and why it matters."
+    },
+    {
+      "id": "rar-003",
+      "number": "003/007",
+      "name": "Daybrief",
+      "card_class": "agent",
+      "agent": "WorkIQ",
+      "rarity": "uncommon",
+      "type": "work",
+      "tagline": "Tight bullets, no preamble. Plan, recap, prep.",
+      "prompt": "Daybrief mode. Tight bullets, no paragraphs. What did I do yesterday, what's the focus today, what's the one thing that must ship."
+    },
+    {
+      "id": "rar-004",
+      "number": "004/007",
+      "name": "Curate",
+      "card_class": "agent",
+      "agent": "ManageMemory",
+      "rarity": "rare",
+      "type": "regular",
+      "tagline": "Audit memory: deletions, merges, elevations.",
+      "prompt": "Use ManageMemory to audit my memory store. Propose three sets of changes: (1) deletions of stale or duplicated memories, (2) merges of fragments that belong together, (3) elevations of patterns worth promoting to constitution."
+    },
+    {
+      "id": "rar-005",
+      "number": "005/007",
+      "name": "Synthesis",
+      "card_class": "agent",
+      "agent": "LearnNew",
+      "rarity": "holo",
+      "type": "regular",
+      "tagline": "Triangulate everything you know across all my memory.",
+      "prompt": "Use LearnNew to triangulate everything you know about the topic I'll name next, drawing from every memory at your disposal. Lead with the load-bearing claim. Cite which memories support which claims."
+    },
+    {
+      "id": "rar-006",
+      "number": "006/007",
+      "name": "Convergence",
+      "card_class": "agent",
+      "agent": "SwarmFactory",
+      "rarity": "ultra",
+      "type": "play",
+      "tagline": "Spawn a 5-specialist swarm and converge.",
+      "prompt": "Use SwarmFactory to spawn 5 specialist agents converging on the open question I'll name next. Run two cycles. Return the converged answer plus a one-line dissent log."
+    },
+    {
+      "id": "rar-007",
+      "number": "007/007",
+      "name": "Chapter Strike",
+      "card_class": "agent",
+      "agent": "BookFactory",
+      "rarity": "rare",
+      "type": "creative",
+      "tagline": "Five-persona pipeline. One chapter back per call.",
+      "prompt": "Use BookFactory to draft a chapter from the source material I'll paste next. Walk it through Writer → Editor → CEO → Publisher → Reviewer. Return the final chapter plus the dissent log."
+    }
+  ]
+}

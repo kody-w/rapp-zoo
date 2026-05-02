@@ -1,0 +1,111 @@
+{
+  "schema": "rapp-zoo-holocards/1.0",
+  "set_id": "genesis",
+  "set_name": "Genesis",
+  "set_subtitle": "Hatchery Expansion",
+  "set_number": 2,
+  "edition": "First Print",
+  "publisher": "@rapp",
+  "release_date": "2026-05-02",
+  "description": "Set 2. Introduces five new card classes beyond Agent: Organism (hatch a full .egg), Rapplication (run a .egg one-shot), Action (canned prompt, no agent binding), Stadium (geofenced public POI — only plays at the location), Sense (install a translation overlay).",
+  "cards": [
+    {
+      "id": "gen-001",
+      "number": "001/008",
+      "name": "Spine Map",
+      "card_class": "organism",
+      "egg_url": "https://raw.githubusercontent.com/kody-w/rapp_store/main/apps/@blazingbeard/spine_dag/singleton/spine_dag_agent.py",
+      "rarity": "rare",
+      "type": "analysis",
+      "tagline": "Hatches SpineDAG. Map the spine of any folder, file, or prose.",
+      "publisher": "@blazingbeard"
+    },
+    {
+      "id": "gen-002",
+      "number": "002/008",
+      "name": "WildhavenCEO",
+      "card_class": "organism",
+      "egg_url": "https://raw.githubusercontent.com/kody-w/rapp_store/main/apps/@wildhaven/wildhaven_ceo/singleton/wildhaven_ceo_agent.py",
+      "rarity": "holo",
+      "type": "productivity",
+      "tagline": "Hatches a CEO workspace operator. Talk to the workspace.",
+      "publisher": "@wildhaven"
+    },
+    {
+      "id": "gen-003",
+      "number": "003/008",
+      "name": "BookFactory: Run",
+      "card_class": "rapplication",
+      "rapp_url": "https://raw.githubusercontent.com/kody-w/rapp_store/main/apps/@rapp/bookfactory/singleton/bookfactory_agent.py",
+      "rarity": "rare",
+      "type": "creative",
+      "tagline": "One-shot — runs the rapplication without permanent install.",
+      "prompt": "Run the BookFactory rapplication on the source I'll paste. Stream the chapter back. Don't install permanently."
+    },
+    {
+      "id": "gen-004",
+      "number": "004/008",
+      "name": "Quick Take",
+      "card_class": "action",
+      "rarity": "common",
+      "type": "regular",
+      "tagline": "One sentence. No preamble. No agent binding.",
+      "prompt": "One sentence on what's happening with my work right now. No preamble. No bullet list. Just the sentence."
+    },
+    {
+      "id": "gen-005",
+      "number": "005/008",
+      "name": "Mirror Soul",
+      "card_class": "action",
+      "rarity": "uncommon",
+      "type": "regular",
+      "tagline": "Recite my soul. Show me what you think I value.",
+      "prompt": "Read my soul.md. Don't summarize — paraphrase the load-bearing principles back to me, in your own words. I want to know which of my stated values you actually internalized."
+    },
+    {
+      "id": "gen-006",
+      "number": "006/008",
+      "name": "Blue Bottle — Mission",
+      "card_class": "stadium",
+      "rarity": "rare",
+      "type": "regular",
+      "tagline": "Geofenced public stadium. Plays only when you're there.",
+      "location": {
+        "name": "Blue Bottle Coffee — Mint Plaza",
+        "address": "66 Mint St, San Francisco, CA",
+        "lat": 37.7826,
+        "lng": -122.4069,
+        "radius_m": 80
+      },
+      "prompt_on_arrive": "I just checked in at Blue Bottle Mint Plaza. Cafe-focus mode. Surface my pinned tasks, hide noise, and don't ask me clarifying questions until I prompt — assume I'm context-rich for the next hour."
+    },
+    {
+      "id": "gen-007",
+      "number": "007/008",
+      "name": "SF Public Library — Main",
+      "card_class": "stadium",
+      "rarity": "rare",
+      "type": "regular",
+      "tagline": "Geofenced. Research mode unlocks at the library.",
+      "location": {
+        "name": "San Francisco Public Library — Main Branch",
+        "address": "100 Larkin St, San Francisco, CA",
+        "lat": 37.7790,
+        "lng": -122.4159,
+        "radius_m": 120
+      },
+      "prompt_on_arrive": "I'm at the main library. Research mode. I'll name a topic — go wide, cite, and queue up follow-up searches. No summaries until I ask."
+    },
+    {
+      "id": "gen-008",
+      "number": "008/008",
+      "name": "Haiku Energy",
+      "card_class": "sense",
+      "rarity": "common",
+      "type": "play",
+      "tagline": "Equip the haiku sense. Same response, 5/7/5.",
+      "sense_url": "https://raw.githubusercontent.com/kody-w/RAPP_Sense_Store/main/senses/@rapp/haiku_sense.py",
+      "sense_filename": "haiku_sense.py"
+    }
+  ]
+}

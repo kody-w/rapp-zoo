@@ -436,3 +436,491 @@ dialog .checkbox {
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast.err  { border-color: rgba(248, 81, 73, .5); color: var(--red); }
 .toast.ok   { border-color: rgba(63, 185, 80, .4); }
+
+/* ────────────────────────────────────────────────────────────────────
+   Holocard layer — TCG-style rarity, foil, mouse-tilt, dex#, HP.
+   Composed onto .card so existing event delegation keeps working.
+   ──────────────────────────────────────────────────────────────────── */
+
+.holocard {
+  /* CSS vars driven by the JS mousemove handler in bindHoloTilt(). */
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --pos-x: 50%;
+  --pos-y: 50%;
+  overflow: hidden;
+  isolation: isolate;             /* contain blend modes to this card */
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: transform .12s ease, border-color .12s, box-shadow .15s;
+  cursor: pointer;
+}
+.holocard:hover {
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateY(-2px);
+}
+
+/* ── Rarity stripe — the colored bar at the top edge ──────────── */
+.holo-rarity-stripe {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--gray);
+  z-index: 2;
+}
+.holocard.rarity-common   .holo-rarity-stripe { background: var(--gray); }
+.holocard.rarity-uncommon .holo-rarity-stripe { background: var(--blue); }
+.holocard.rarity-rare     .holo-rarity-stripe { background: var(--gold); }
+.holocard.rarity-holo     .holo-rarity-stripe {
+  background: linear-gradient(90deg, var(--blue), var(--purple), var(--gold), var(--blue));
+  background-size: 200% 100%;
+  animation: holo-stripe 6s linear infinite;
+}
+.holocard.rarity-ultra    .holo-rarity-stripe {
+  background: linear-gradient(90deg, #ff5599, #ffb84d, #4dffaa, #4dccff, #b566ff, #ff5599);
+  background-size: 200% 100%;
+  animation: holo-stripe 4s linear infinite;
+  height: 4px;
+}
+.holocard.rarity-secret   .holo-rarity-stripe {
+  background: linear-gradient(90deg, #ff5599, #ffe04d, #4dffaa, #4dccff, #b566ff, #ff5599);
+  background-size: 200% 100%;
+  animation: holo-stripe 3s linear infinite;
+  height: 5px;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+}
+@keyframes holo-stripe {
+  to { background-position: -200% 0; }
+}
+
+/* ── Foil layer — the holographic shimmer overlay ──────────────── */
+.holo-foil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity .25s;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+/* Common / uncommon: no foil */
+.holocard.rarity-common .holo-foil,
+.holocard.rarity-uncommon .holo-foil { display: none; }
+
+/* Rare: gentle gold-tinted reflection that follows the cursor */
+.holocard.rarity-rare .holo-foil {
+  background: radial-gradient(circle 240px at var(--pos-x) var(--pos-y),
+    rgba(210, 153, 34, .35) 0%, rgba(210, 153, 34, .15) 30%, transparent 60%);
+}
+.holocard.rarity-rare:hover .holo-foil { opacity: 1; }
+
+/* Holo: rainbow conic that swings with cursor */
+.holocard.rarity-holo .holo-foil {
+  background:
+    radial-gradient(circle 240px at var(--pos-x) var(--pos-y),
+      rgba(255,255,255,.4) 0%, transparent 50%),
+    conic-gradient(from 200deg at var(--pos-x) var(--pos-y),
+      rgba(88,166,255,.30), rgba(181,141,223,.30), rgba(210,153,34,.30),
+      rgba(63,185,80,.30), rgba(88,166,255,.30));
+}
+.holocard.rarity-holo:hover .holo-foil { opacity: .85; }
+
+/* Ultra: animated rainbow that always shimmers */
+.holocard.rarity-ultra .holo-foil {
+  background:
+    radial-gradient(circle 280px at var(--pos-x) var(--pos-y),
+      rgba(255,255,255,.5) 0%, transparent 50%),
+    linear-gradient(115deg, transparent 0%, rgba(255,80,180,.30) 18%,
+      rgba(255,200,80,.30) 36%, rgba(80,255,150,.30) 54%,
+      rgba(80,180,255,.30) 72%, rgba(180,100,255,.30) 90%, transparent 100%);
+  background-size: auto, 250% 100%;
+  background-position: 0 0, 0 0;
+  animation: holo-pan 6s linear infinite;
+  opacity: .55;
+}
+.holocard.rarity-ultra:hover .holo-foil { opacity: .9; }
+
+/* Secret: full glitter — strongest treatment */
+.holocard.rarity-secret .holo-foil {
+  background:
+    radial-gradient(circle 320px at var(--pos-x) var(--pos-y),
+      rgba(255,255,255,.7) 0%, rgba(255,255,255,.15) 25%, transparent 60%),
+    linear-gradient(115deg, transparent 0%, rgba(255,80,180,.45) 16%,
+      rgba(255,225,80,.45) 33%, rgba(80,255,150,.45) 50%,
+      rgba(80,180,255,.45) 67%, rgba(180,100,255,.45) 84%, transparent 100%);
+  background-size: auto, 280% 100%;
+  background-position: 0 0, 0 0;
+  animation: holo-pan 4s linear infinite;
+  opacity: .65;
+}
+.holocard.rarity-secret { box-shadow: 0 0 20px rgba(255, 215, 0, 0.15); }
+.holocard.rarity-secret:hover { box-shadow: 0 0 32px rgba(255, 215, 0, 0.30); }
+.holocard.rarity-secret:hover .holo-foil { opacity: .95; }
+
+@keyframes holo-pan {
+  0%   { background-position: 0 0,    -120% 0; }
+  100% { background-position: 0 0,     220% 0; }
+}
+
+/* ── Card chrome — header, dex number, HP pill, footer ─────────── */
+.holocard .body { position: relative; z-index: 2; min-width: 0; }
+.holocard .holo-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.holocard .dex-num {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .04em;
+  flex-shrink: 0;
+}
+.holocard .holo-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+}
+.holocard .hp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.holocard .hp-pill .hp-num { color: var(--text); }
+.holocard .hp-pill .hp-label { color: var(--muted); font-size: 9px; }
+.holocard .hp-pill .type-icon { font-size: 12px; line-height: 1; }
+.holocard.type-work    .hp-pill { color: var(--type-work);    border-color: rgba(255,166,87,.4); }
+.holocard.type-play    .hp-pill { color: var(--type-play);    border-color: rgba(181,141,223,.4); }
+.holocard.type-regular .hp-pill { color: var(--type-regular); border-color: rgba(121,192,255,.4); }
+.holocard.type-twin    .hp-pill { color: var(--purple);       border-color: rgba(181,141,223,.4); }
+.holocard.type-tool    .hp-pill { color: var(--gold);         border-color: rgba(210,153,34,.4); }
+
+/* Bring the sprite frame forward through the foil */
+.holocard .sprite { position: relative; z-index: 2; }
+
+/* ── Footer — rarity glyph, name, publisher ──────────────────────── */
+.holo-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+.holo-footer .rarity-glyph {
+  font-size: 13px;
+  line-height: 1;
+}
+.holocard.rarity-common   .rarity-glyph { color: var(--gray); }
+.holocard.rarity-uncommon .rarity-glyph { color: var(--blue); }
+.holocard.rarity-rare     .rarity-glyph { color: var(--gold); }
+.holocard.rarity-holo     .rarity-glyph { color: var(--purple); }
+.holocard.rarity-ultra    .rarity-glyph { color: #ff5599; }
+.holocard.rarity-secret   .rarity-glyph { color: gold; text-shadow: 0 0 8px rgba(255,215,0,.6); }
+.holo-footer .rarity-name { text-transform: uppercase; font-weight: 700; }
+.holo-footer .publisher { margin-left: auto; font-size: 10px; }
+
+/* Hover border tints by rarity (override the generic blue) */
+.holocard.rarity-rare:hover     { border-color: var(--gold) !important; }
+.holocard.rarity-holo:hover     { border-color: var(--purple) !important; }
+.holocard.rarity-ultra:hover    { border-color: #ff5599 !important; }
+.holocard.rarity-secret:hover   { border-color: gold !important; }
+
+/* ── Card detail dialog ────────────────────────────────────────────── */
+.card-detail-dialog {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  max-width: 520px;
+  width: 92vw;
+  overflow: visible;
+}
+.card-detail-dialog::backdrop { background: rgba(0,0,0,.85); backdrop-filter: blur(4px); }
+.card-detail-dialog .detail-close {
+  position: absolute;
+  top: -42px;
+  right: 0;
+  z-index: 10;
+}
+#card-detail-slot .holocard.detail {
+  /* showcase scale: bigger sprite, looser layout */
+  width: 100%;
+  padding: 24px;
+  border-radius: 14px;
+  flex-direction: column;
+  align-items: stretch;
+  cursor: default;
+  box-shadow: 0 24px 60px rgba(0,0,0,.7);
+}
+#card-detail-slot .holocard.detail .sprite {
+  width: 100%;
+  height: 280px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+#card-detail-slot .holocard.detail .holo-header h3 { font-size: 22px; }
+#card-detail-slot .holocard.detail .desc { font-size: 14px; line-height: 1.55; }
+#card-detail-slot .holocard.detail .actions .btn { font-size: 13px; padding: 6px 12px; }
+
+/* ── Discover controls (search + rarity filters) ──────────────────── */
+.discover-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+#discover-search {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+#discover-search:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+.rarity-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.rarity-filter {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.rarity-filter:hover { color: var(--text); border-color: var(--border-strong); }
+.rarity-filter.is-active {
+  background: rgba(88, 166, 255, .12);
+  color: var(--blue);
+  border-color: rgba(88, 166, 255, .4);
+}
+.rarity-filter[data-rarity="rare"].is-active   { background: rgba(210,153,34,.15); color: var(--gold);   border-color: rgba(210,153,34,.5); }
+.rarity-filter[data-rarity="holo"].is-active   { background: rgba(181,141,223,.15); color: var(--purple); border-color: rgba(181,141,223,.5); }
+.rarity-filter[data-rarity="ultra"].is-active  { background: rgba(255,85,153,.15);  color: #ff5599;       border-color: rgba(255,85,153,.5); }
+.rarity-filter[data-rarity="secret"].is-active { background: rgba(255,215,0,.15);   color: gold;          border-color: rgba(255,215,0,.5); }
+
+/* ────────────────────────────────────────────────────────────────────
+   Holocard card-class system — TCG card-type taxonomy.
+   Six classes, six visual treatments. The class-tinted left edge
+   tells you at a glance whether the card hatches a creature, runs a
+   one-shot, casts an agent, plays a canned action, fires at a
+   geofenced location, or equips a translation overlay.
+   ──────────────────────────────────────────────────────────────────── */
+
+.holocards-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.set-filters,
+.class-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.set-filter,
+.class-filter {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.set-filter:hover, .class-filter:hover { color: var(--text); border-color: var(--border-strong); }
+.set-filter.is-active,
+.class-filter.is-active {
+  background: rgba(88, 166, 255, .12);
+  color: var(--blue);
+  border-color: rgba(88, 166, 255, .4);
+}
+/* Set chips that match a known set get a tint nod */
+.set-filter[data-set="rar"].is-active     { background: rgba(88,166,255,.15); }
+.set-filter[data-set="genesis"].is-active { background: rgba(63,185,80,.12); color: var(--green); border-color: rgba(63,185,80,.4); }
+
+/* Card-class badge — tiny chip inside the card body */
+.card-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+.card-class-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--panel-elevated);
+  color: var(--muted);
+}
+.card-class-badge.class-organism     { background: rgba(63,185,80,.18);   color: var(--green); }
+.card-class-badge.class-rapplication { background: rgba(255,80,180,.18);  color: #ff5599; }
+.card-class-badge.class-agent        { background: rgba(88,166,255,.18);  color: var(--blue); }
+.card-class-badge.class-action       { background: rgba(210,153,34,.20);  color: var(--gold); }
+.card-class-badge.class-stadium      { background: rgba(181,141,223,.18); color: var(--purple); }
+.card-class-badge.class-sense        { background: rgba(255,166,87,.18);  color: var(--type-work); }
+
+.card-set-tag {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--panel-elevated);
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+/* Class-tinted left edge on the holocard body — reads at a glance */
+.holocard.class-organism     { box-shadow: inset 4px 0 0 0 var(--green); }
+.holocard.class-rapplication { box-shadow: inset 4px 0 0 0 #ff5599; }
+.holocard.class-agent        { box-shadow: inset 4px 0 0 0 var(--blue); }
+.holocard.class-action       { box-shadow: inset 4px 0 0 0 var(--gold); }
+.holocard.class-stadium      { box-shadow: inset 4px 0 0 0 var(--purple); }
+.holocard.class-sense        { box-shadow: inset 4px 0 0 0 var(--type-work); }
+/* Stack with secret-rarity glow without losing the class edge */
+.holocard.rarity-secret.class-organism,
+.holocard.rarity-secret.class-rapplication,
+.holocard.rarity-secret.class-agent,
+.holocard.rarity-secret.class-action,
+.holocard.rarity-secret.class-stadium,
+.holocard.rarity-secret.class-sense {
+  box-shadow: inset 4px 0 0 0 currentColor, 0 0 20px rgba(255, 215, 0, 0.15);
+}
+
+/* Stadium's location block (under the description) */
+.holo-location {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(181, 141, 223, .07);
+  border-left: 2px solid var(--purple);
+  line-height: 1.4;
+}
+
+/* ── Play dialog ───────────────────────────────────────────────────── */
+.play-dialog {
+  width: 92vw;
+  max-width: 600px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.play-dialog::backdrop { background: rgba(0,0,0,.75); backdrop-filter: blur(3px); }
+.play-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-elevated);
+}
+.play-class-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--panel);
+  color: var(--muted);
+}
+.play-class-badge.class-organism     { background: rgba(63,185,80,.20);   color: var(--green); }
+.play-class-badge.class-rapplication { background: rgba(255,80,180,.20);  color: #ff5599; }
+.play-class-badge.class-agent        { background: rgba(88,166,255,.20);  color: var(--blue); }
+.play-class-badge.class-action       { background: rgba(210,153,34,.22);  color: var(--gold); }
+.play-class-badge.class-stadium      { background: rgba(181,141,223,.20); color: var(--purple); }
+.play-class-badge.class-sense        { background: rgba(255,166,87,.20);  color: var(--type-work); }
+.play-head h3 { margin: 0; font-size: 16px; flex: 1; min-width: 0; }
+.play-set { font-size: 10px; color: var(--muted); font-family: ui-monospace, monospace; }
+.play-close { padding: 2px 8px; font-size: 11px; }
+.play-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.play-body p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.play-body label { font-size: 11px; }
+.play-body textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.play-body textarea:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+.play-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.play-result {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow: auto;
+}
+.play-result:empty { display: none; }
+.play-result pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.play-result.err { border-color: rgba(248, 81, 73, .4); color: var(--red); }
+.stadium-info {
+  background: rgba(181, 141, 223, .07);
+  padding: 10px 12px;
+  border-radius: 4px;
+  border-left: 3px solid var(--purple);
+  line-height: 1.6;
+}

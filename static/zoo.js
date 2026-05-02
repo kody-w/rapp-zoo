@@ -34,6 +34,104 @@ function escapeHtml(s) {
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// ── Dex number, rarity, HP, type — TCG-style derived stats ──────────
+//
+// Every organism gets a stable 3-digit Pokédex number, a rarity tier,
+// an HP-like stat, and a type-icon glyph. All derived from data we
+// already have — same input always produces the same readout. No state.
+
+function dexNumFor(seed) {
+  const h = simpleHash(seed || 'unknown');
+  return String((h % 999) + 1).padStart(3, '0');
+}
+
+function rarityFor(entry, kind) {
+  // Returns: common | uncommon | rare | holo | ultra | secret
+  // Drives the foil treatment (rare+ get holo overlays, ultra+ get
+  // animated rainbow shimmer, secret gets the works).
+  if (kind === 'holocard') return entry.rarity || 'common';
+  if (kind === 'twin') {
+    if ((entry.incarnations || []).some(i => i.live && i.is_global)) return 'secret';
+    if ((entry.incarnations || []).some(i => i.live)) return 'ultra';
+    if ((entry.incarnations || []).length > 1) return 'holo';   // parallel-omniscience
+    if (entry.rappid_uuid) return 'rare';
+    return 'uncommon';
+  }
+  if (kind === 'starter') return entry.has_skin ? 'rare' : 'uncommon';
+  if (kind === 'discover') {
+    if (entry.id === 'rapp-zoo') return 'secret';                 // self-reference
+    if (entry.quality_tier === 'official') return 'holo';
+    if (entry.kind === 'tool') return 'rare';
+    if (entry.egg_url || entry.egg) return 'uncommon';
+    return 'common';
+  }
+  return 'common';
+}
+
+const RARITY_GLYPH = {
+  common:   '●',
+  uncommon: '◆',
+  rare:     '★',
+  holo:     '✦',
+  ultra:    '✧',
+  secret:   '☆',
+};
+
+const TYPE_ICONS = {
+  work:        '⚙',
+  play:        '✦',
+  regular:     '◯',
+  organism:    '◉',
+  twin:        '⌬',
+  rapp:        '◆',
+  creative:    '✨',
+  productivity:'⚙',
+  analysis:    '◉',
+  utility:     '⛬',
+  tool:        '🛠',
+};
+
+function typeIconFor(type) { return TYPE_ICONS[type] || '◆'; }
+
+function hpFor(entry, kind) {
+  // HP is flavor — meant to feel meaningful, not be authoritative. Pulls
+  // from real metrics so identical inputs always give identical numbers.
+  let n = 40;
+  if (kind === 'twin') {
+    n += ((entry.incarnations || []).length * 30);
+    if ((entry.incarnations || []).some(i => i.live)) n += 30;
+  } else if (kind === 'starter') {
+    n += Math.round((entry.size_bytes || 0) / 200);
+  } else if (kind === 'discover') {
+    n += Math.round((entry.singleton_lines || entry.lines || 0) / 8);
+    if (entry.has_skin) n += 20;
+    if (entry.quality_tier === 'official') n += 30;
+  }
+  // Round to nearest 10, cap so it stays card-like
+  return Math.min(220, Math.max(30, Math.round(n / 10) * 10));
+}
+
+function inferType(entry, kind) {
+  if (entry.type) return entry.type;
+  if (entry.category) {
+    const c = entry.category.toLowerCase();
+    if (c in TYPE_ICONS) return c;
+  }
+  if (kind === 'twin') return 'twin';
+  if (kind === 'discover') return entry.kind === 'tool' ? 'tool' : 'rapp';
+  if (kind === 'holocard') return 'rapp';
+  return 'rapp';
+}
+
+function dexNumberFor(entry, kind) {
+  // Holocards carry their printed number ("007 / Base Set"); otherwise
+  // synthesize a stable 3-digit from the rappid hash.
+  if (entry.number) return String(entry.number).padStart(3, '0');
+  const rappid = entry.rappid_uuid || entry.rappid || entry.id ||
+                 entry.singleton_filename || entry.name || 'unknown';
+  return dexNumFor(rappid);
+}
+
 // ── Sprite generator ─────────────────────────────────────────────────
 // Deterministic pixel-style avatar generated from the rappid string.
 // Hash → 6×6 symmetric "Pokémon" silhouette + colour. Same rappid always
@@ -74,6 +172,151 @@ function simpleHash(s) {
   return Math.abs(h);
 }
 
+// ── Holocard renderer ────────────────────────────────────────────────
+//
+// One factory used by every tab. The kind argument tells it which
+// shape the entry came in as (twin / starter / discover) so it can
+// derive the right name, rappid, type, version, etc. without each
+// caller re-implementing the dex maths.
+
+function holocardHTML(entry, kind, opts) {
+  opts = opts || {};
+  const rappid = entry.rappid_uuid || entry.rappid || entry.id ||
+                 entry.singleton_filename || entry.name || 'unknown';
+  const name   = entry.name || entry.display_name || rappid;
+  const type   = inferType(entry, kind);
+  const sprite = spriteFor(rappid, type);
+  const dex    = dexNumberFor(entry, kind);
+  const rarity = rarityFor(entry, kind);
+  const hp     = hpFor(entry, kind);
+  const tagline = entry.tagline || entry.summary || entry.description ||
+                  (kind === 'starter' ? starterDescription(entry.rapp_id) : '') || '';
+  const version = entry.version ||
+                  (entry.incarnations && (entry.incarnations.find(i => i.version) || {}).version) || '';
+  const publisher = entry.publisher || entry.author || entry.maintainer || '';
+  const isLive = (entry.incarnations || []).some(i => i.live);
+  const isSelf = entry.id === 'rapp-zoo';
+
+  // Pills (existing pill styles stay; we just curate which ones)
+  const pills = [];
+  pills.push(`<span class="pill type-${type}">${escapeHtml(type)}</span>`);
+  if (version) pills.push(`<span class="pill">v${escapeHtml(version)}</span>`);
+  if (isLive)  pills.push('<span class="pill live">live</span>');
+  if (entry.has_skin === true)  pills.push('<span class="pill skin">has skin</span>');
+  if (entry.has_skin === false) pills.push('<span class="pill skinless">no skin</span>');
+  if (entry.quality_tier && entry.quality_tier !== 'official') {
+    pills.push(`<span class="pill">${escapeHtml(entry.quality_tier)}</span>`);
+  }
+  for (const inc of (entry.incarnations || [])) {
+    const [cls, label] = scopeFor(inc);
+    pills.push(`<span class="pill ${cls}" title=":${inc.port || '?'}">${label}</span>`);
+  }
+
+  // Per-card actions are kind-specific; the caller still owns wiring.
+  const actions = (opts.actions || '').trim();
+
+  // Data attrs the caller's existing event delegation relies on
+  const dataAttrs = [
+    `data-rappid="${escapeHtml(rappid)}"`,
+    entry.brainstem_dir || (entry.incarnations || [])[0]?.brainstem_dir
+      ? `data-repo="${escapeHtml(entry.brainstem_dir || (entry.incarnations || []).find(i => i.brainstem_dir)?.brainstem_dir || '')}"`
+      : '',
+  ].filter(Boolean).join(' ');
+
+  return `
+    <div class="card holocard rarity-${rarity} type-${type}${isSelf ? ' is-self' : ''}"
+         ${dataAttrs} data-kind="${kind}" data-name="${escapeHtml(name)}"
+         data-rarity="${rarity}" data-hp="${hp}" data-dex="${dex}">
+      <div class="holo-foil" aria-hidden="true"></div>
+      <div class="holo-rarity-stripe" aria-hidden="true"></div>
+      <div class="sprite">${sprite}</div>
+      <div class="body">
+        <div class="holo-header">
+          <span class="dex-num mono">#${dex}</span>
+          <h3>${escapeHtml(name)}${isSelf ? ' <span class="pill skin" style="font-weight:600">you are here</span>' : ''}</h3>
+          <span class="hp-pill"><span class="hp-num">${hp}</span><span class="hp-label">HP</span><span class="type-icon">${typeIconFor(type)}</span></span>
+        </div>
+        <div class="rappid">${escapeHtml(rappid)}</div>
+        <div class="meta">${pills.join('')}</div>
+        ${tagline ? `<div class="desc">${escapeHtml(tagline)}</div>` : ''}
+        ${actions ? `<div class="actions">${actions}</div>` : ''}
+        <div class="holo-footer">
+          <span class="rarity-glyph" title="${rarity}">${RARITY_GLYPH[rarity]}</span>
+          <span class="rarity-name">${rarity}</span>
+          ${publisher ? `<span class="publisher mono">${escapeHtml(publisher)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Mouse-tracked tilt + foil shimmer. One delegated handler per grid root,
+// updates CSS variables on the hovered card. requestAnimationFrame so we
+// only paint once per frame even if the mouse fires faster.
+function bindHoloTilt(root) {
+  if (root._holoTiltBound) return;
+  root._holoTiltBound = true;
+  let pending = null;
+  root.addEventListener('mousemove', (e) => {
+    const card = e.target.closest('.holocard');
+    if (!card) return;
+    if (pending) cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => {
+      const r = card.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width) * 100;
+      const py = ((e.clientY - r.top)  / r.height) * 100;
+      // tilt: -1..1 mapped to small rotation (subtle — no nausea)
+      const tx = ((py / 100) - 0.5) * -6;
+      const ty = ((px / 100) - 0.5) * 6;
+      card.style.setProperty('--pos-x', px + '%');
+      card.style.setProperty('--pos-y', py + '%');
+      card.style.setProperty('--tilt-x', tx + 'deg');
+      card.style.setProperty('--tilt-y', ty + 'deg');
+    });
+  });
+  // mouseout bubbles; reset when the cursor leaves a holocard.
+  root.addEventListener('mouseout', (e) => {
+    const card = e.target.closest('.holocard');
+    if (!card) return;
+    if (card.contains(e.relatedTarget)) return;  // moved to a child
+    card.style.removeProperty('--tilt-x');
+    card.style.removeProperty('--tilt-y');
+  });
+  // Click anywhere on the card body (not a button / link) → detail view.
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('button, a, [data-act], [data-copy], [data-hotload-url]')) return;
+    const card = e.target.closest('.holocard');
+    if (!card) return;
+    openCardDetail(card);
+  });
+}
+
+// ── Card detail dialog (the "showcase" view) ────────────────────────
+function openCardDetail(card) {
+  const dlg = $('card-detail-dialog');
+  if (!dlg) return;
+  // Clone the entire card into the dialog so it preserves rarity, foil,
+  // pills, footer — everything the grid view shows, but at showcase size.
+  const clone = card.cloneNode(true);
+  clone.classList.add('detail');
+  // Buttons inside the clone — wire them to dispatch the same data-act
+  // events on the original card. Avoid surprising the user when they
+  // click "Start" inside the modal vs in the grid.
+  for (const btn of clone.querySelectorAll('[data-act]')) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const orig = card.querySelector(`[data-act="${btn.dataset.act}"]`);
+      if (orig) orig.click();
+      dlg.close();
+    });
+  }
+  const slot = $('card-detail-slot');
+  slot.innerHTML = '';
+  slot.appendChild(clone);
+  // Bind tilt to the dialog so the showcased card reacts to cursor too.
+  bindHoloTilt(slot);
+  dlg.showModal();
+}
+
 // ── Tabs ─────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -83,6 +326,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     $('panel-' + tab.dataset.tab).classList.add('is-active');
     if (tab.dataset.tab === 'starters') loadStarters();
     if (tab.dataset.tab === 'discover') loadDiscover();
+    if (tab.dataset.tab === 'holocards') loadHolocards();
   });
 });
 
@@ -103,38 +347,21 @@ function renderTwins(data) {
     return;
   }
   root.innerHTML = twins.map(t => {
-    const sprite = spriteFor(t.rappid_uuid, 'twin');
     const incs = (t.incarnations || []);
     const target = incs.find(i => i.is_twin_only) || incs[0];
     const isLive = !!(target && target.live);
     const port = target && target.port;
-    const repoPath = (target && target.brainstem_dir) || '';
-
-    const incPills = incs.map(inc => {
-      const [cls, label] = scopeFor(inc);
-      return `<span class="pill ${cls}" title=":${inc.port || '?'}">${label}${inc.live ? ' ●' : ''}</span>`;
-    }).join('');
-
-    return `
-      <div class="card" data-rappid="${t.rappid_uuid}" data-repo="${escapeHtml(repoPath)}">
-        <div class="sprite">${sprite}</div>
-        <div class="body">
-          <h3>${escapeHtml(t.name || 'unnamed organism')}</h3>
-          <div class="rappid">${escapeHtml(t.rappid_uuid)}</div>
-          <div class="meta">${incPills}${isLive ? '<span class="pill live">live</span>' : ''}</div>
-          <div class="actions">
-            ${isLive
-              ? `<a class="btn primary" href="http://localhost:${port}/" target="_blank">Open ↗</a>
-                 <button class="btn danger" data-act="stop">Stop</button>`
-              : `<button class="btn primary" data-act="start">Start</button>`
-            }
-            <button class="btn" data-act="lay-egg" title="Pack as portable .egg">⬇ Egg</button>
-            <button class="btn" data-act="reveal" title="Open workspace in Finder">📂</button>
-          </div>
-        </div>
-      </div>`;
+    const actions = `
+      ${isLive
+        ? `<a class="btn primary" href="http://localhost:${port}/" target="_blank">Open ↗</a>
+           <button class="btn danger" data-act="stop">Stop</button>`
+        : `<button class="btn primary" data-act="start">Start</button>`}
+      <button class="btn" data-act="lay-egg" title="Pack as portable .egg">⬇ Egg</button>
+      <button class="btn" data-act="reveal" title="Open workspace in Finder">📂</button>`;
+    return holocardHTML(t, 'twin', { actions });
   }).join('');
   root.onclick = onTwinAction;
+  bindHoloTilt(root);
 }
 
 async function renderEggs(data) {
@@ -240,14 +467,47 @@ function confirmThen({title, body}) {
 }
 
 // ── Inspect modal ────────────────────────────────────────────────────
-async function showInspect(eggPath) {
+// Two egg sources to handle:
+//   - http(s):// URL  → fetch the bytes + parse client-side via JSZip
+//                       (works for starter eggs served from /starters/dist/
+//                        and for catalog eggs served from raw.githubusercontent.com)
+//   - filesystem path → backend /api/eggs/manifest?path= (existing flow,
+//                       used for ~/.rapp/eggs/ backups)
+// The earlier code passed URLs to the backend endpoint, which 400'd
+// because the path-traversal guard rejects anything that isn't a real
+// file under ~/.rapp/eggs/. Dispatch on shape now.
+async function showInspect(eggSource) {
+  const isUrl = /^https?:/i.test(eggSource);
   try {
-    const r = await api('/api/eggs/manifest?path=' + encodeURIComponent(eggPath));
-    $('inspect-body').textContent = JSON.stringify(r.manifest, null, 2);
-    $('inspect-tree').innerHTML = (r.file_tree || []).map(n =>
+    let manifest, fileTree, exportHref;
+    if (isUrl) {
+      // Client-side parse — fetch the egg bytes, unzip in browser.
+      if (typeof JSZip === 'undefined') {
+        throw new Error('JSZip not loaded — refresh and try again');
+      }
+      const r = await fetch(eggSource, { cache: 'no-cache' });
+      if (!r.ok) throw new Error('fetch failed: HTTP ' + r.status);
+      const buf = await r.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const mf = zip.file('manifest.json');
+      if (!mf) throw new Error('no manifest.json in egg');
+      manifest = JSON.parse(await mf.async('string'));
+      fileTree = [];
+      zip.forEach((p, e) => { if (!e.dir) fileTree.push(p); });
+      fileTree.sort();
+      exportHref = eggSource;  // direct download link to the URL
+    } else {
+      // Backend peek — for local egg backups under ~/.rapp/eggs/.
+      const r = await api('/api/eggs/manifest?path=' + encodeURIComponent(eggSource));
+      manifest = r.manifest;
+      fileTree = r.file_tree || [];
+      exportHref = '/api/export-egg?path=' + encodeURIComponent(eggSource);
+    }
+    $('inspect-body').textContent = JSON.stringify(manifest, null, 2);
+    $('inspect-tree').innerHTML = fileTree.map(n =>
       '<li>' + escapeHtml(n) + '</li>'
     ).join('') || '<li class="muted">(empty)</li>';
-    $('inspect-export').href = '/api/export-egg?path=' + encodeURIComponent(eggPath);
+    $('inspect-export').href = exportHref;
     $('inspect-dialog').showModal();
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -264,26 +524,20 @@ async function loadStarters() {
       return;
     }
     root.innerHTML = starters.map(s => {
-      const sprite = spriteFor(s.rappid, s.type);
-      return `
-        <div class="card">
-          <div class="sprite">${sprite}</div>
-          <div class="body">
-            <h3>${escapeHtml(s.name)}</h3>
-            <div class="rappid">${escapeHtml(s.rappid)}</div>
-            <div class="meta">
-              <span class="pill type-${escapeHtml(s.type)}">${escapeHtml(s.type)}</span>
-              <span class="pill ${s.has_skin ? 'skin' : 'skinless'}">${s.has_skin ? 'has skin' : 'no skin'}</span>
-              <span class="pill">v${escapeHtml(s.version)}</span>
-            </div>
-            <div class="desc">${starterDescription(s.rapp_id)}</div>
-            <div class="actions">
-              <a class="btn primary" href="${s.egg_url}" download="${s.rapp_id}.egg">⬇ Download .egg</a>
-              <button class="btn" onclick="showInspect('${s.egg_url.replace(/^\/starters\/dist\//, location.origin + '/starters/dist/')}')">Inspect</button>
-            </div>
-          </div>
-        </div>`;
+      const fullEggUrl = s.egg_url.startsWith('/')
+        ? location.origin + s.egg_url
+        : s.egg_url;
+      const actions = `
+        <a class="btn primary" href="${escapeHtml(s.egg_url)}" download="${escapeHtml(s.rapp_id)}.egg">⬇ Download .egg</a>
+        <button class="btn" data-act="inspect-url" data-url="${escapeHtml(fullEggUrl)}">Inspect</button>`;
+      return holocardHTML(s, 'starter', { actions });
     }).join('');
+    // Inspect-url buttons (delegate)
+    root.onclick = (e) => {
+      const btn = e.target.closest('button[data-act="inspect-url"]');
+      if (btn) showInspect(btn.dataset.url);
+    };
+    bindHoloTilt(root);
   } catch (e) {
     root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
   }
@@ -299,6 +553,75 @@ function starterDescription(rappId) {
 }
 
 // ── Discover ─────────────────────────────────────────────────────────
+// Cached after first fetch so search/filter stay snappy.
+let _discoverEntries = [];
+let _discoverMeta = null;
+let _discoverSearch = '';
+let _discoverRarity = 'all';
+
+function renderDiscover() {
+  const root = $('discover');
+  if (!_discoverEntries.length) {
+    root.innerHTML = '<div class="empty">No entries in the global catalog yet.</div>';
+    return;
+  }
+  const q = _discoverSearch.trim().toLowerCase();
+  const matches = _discoverEntries.filter(e => {
+    if (_discoverRarity !== 'all' && rarityFor(e, 'discover') !== _discoverRarity) return false;
+    if (!q) return true;
+    const blob = JSON.stringify([
+      e.id, e.name, e.tagline, e.summary, e.description,
+      e.category, e.publisher, e.author, e.quality_tier, e.kind,
+      e.tags, e.rappid,
+    ]).toLowerCase();
+    return blob.includes(q);
+  });
+  $('discover-count').textContent = matches.length === _discoverEntries.length
+    ? `${matches.length} entries`
+    : `${matches.length} of ${_discoverEntries.length}`;
+  if (matches.length === 0) {
+    root.innerHTML = `<div class="empty">No entries match "${escapeHtml(_discoverSearch)}".</div>`;
+    return;
+  }
+  root.innerHTML = matches.map(e => {
+    const isTool = (e.kind || 'rapplication') === 'tool';
+    const installBtn = isTool && (e.install_one_liner || e.install_url)
+      ? `<button class="btn primary" data-copy="${escapeHtml(e.install_one_liner || e.install_url)}">⎘ Copy install</button>`
+      : (e.egg_url ? `<a class="btn primary" href="${escapeHtml(e.egg_url)}" download>⬇ Download .egg</a>` : '');
+    const hotLoadBtn = (!isTool && e.egg_url)
+      ? `<button class="btn" data-hotload-url="${escapeHtml(e.egg_url)}" data-hotload-name="${escapeHtml(e.name || e.id)}">⚡ Hot-load</button>`
+      : '';
+    const repoBtn = e.repo_url
+      ? `<a class="btn" href="${escapeHtml(e.repo_url)}" target="_blank" rel="noopener">Repo ↗</a>`
+      : '';
+    const singletonBtn = e.singleton_url
+      ? `<a class="btn" href="${escapeHtml(e.singleton_url)}" download>⬇ Singleton .py</a>`
+      : '';
+    const specBtn = e.spec_post
+      ? `<a class="btn" href="${escapeHtml(e.spec_post)}" target="_blank" rel="noopener">Spec ↗</a>`
+      : '';
+    const actions = [installBtn, hotLoadBtn, singletonBtn, repoBtn, specBtn]
+      .filter(Boolean).join('\n');
+    return holocardHTML(e, 'discover', { actions });
+  }).join('');
+  // Re-wire copy + hot-load (delegated)
+  root.querySelectorAll('button[data-copy]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        toast('📋 Install command copied — paste into your terminal');
+      } catch {
+        toast('Could not copy — open the repo and grab the one-liner manually', 'err');
+      }
+    });
+  });
+  root.querySelectorAll('button[data-hotload-url]').forEach(btn => {
+    btn.addEventListener('click', () => hotLoadIntoBrainstem(
+      btn.dataset.hotloadUrl, btn.dataset.hotloadName, btn));
+  });
+  bindHoloTilt(root);
+}
+
 async function loadDiscover() {
   const root = $('discover');
   root.innerHTML = '<div class="empty">Loading discover…</div>';
@@ -313,81 +636,343 @@ async function loadDiscover() {
       root.innerHTML = '<div class="empty">No entries in the global catalog yet.</div>';
       return;
     }
-    root.innerHTML = entries.map(e => {
-      const rappid = e.rappid || e.id || e.singleton_filename || '';
-      const sprite = spriteFor(rappid, e.category === 'creative' ? 'play' : 'rapp');
-      const kind = e.kind || 'rapplication';
-      const isTool = kind === 'tool';
-      const isSelf = e.id === 'rapp-zoo';
-
-      // Tool-kind entries (e.g. rapp-zoo itself) install via their own
-      // one-liner, not a .egg. Show a copy-to-clipboard button for the
-      // install command instead of "Download .egg". Self-detection lights
-      // up the rapp-zoo entry as "you are here" — Pokédex contains itself.
-      const installBtn = isTool && (e.install_one_liner || e.install_url)
-        ? `<button class="btn primary" data-copy="${escapeHtml(e.install_one_liner || e.install_url)}">⎘ Copy install command</button>`
-        : (e.egg_url ? `<a class="btn primary" href="${e.egg_url}" download>⬇ Download .egg</a>` : '');
-
-      // Hot-load button — only for rapplication-kind eggs (tool eggs
-      // don't ship as 2.2-rapplication cartridges yet). Posts to the
-      // user's brainstem (default localhost:7071) asking the
-      // egg_hatcher agent to fetch + install. The brainstem hot-reloads
-      // agents from disk on the next /chat call, so the rapp is live
-      // immediately. Configurable target via localStorage 'brainstem_url'.
-      const hotLoadBtn = (!isTool && e.egg_url)
-        ? `<button class="btn" data-hotload-url="${escapeHtml(e.egg_url)}" data-hotload-name="${escapeHtml(e.name || e.id)}">⚡ Hot-load into brainstem</button>`
-        : '';
-
-      const repoBtn = e.repo_url
-        ? `<a class="btn" href="${e.repo_url}" target="_blank" rel="noopener">Repo ↗</a>`
-        : '';
-
-      return `
-        <div class="card${isSelf ? ' is-self' : ''}">
-          <div class="sprite">${sprite}</div>
-          <div class="body">
-            <h3>${escapeHtml(e.name || e.id || 'unknown')}${isSelf ? ' <span class="pill skin" style="font-weight:600">you are here</span>' : ''}</h3>
-            <div class="rappid">${escapeHtml(rappid)}</div>
-            <div class="meta">
-              <span class="pill type-${kind === 'tool' ? 'work' : 'regular'}">${escapeHtml(kind)}</span>
-              ${e.category ? `<span class="pill">${escapeHtml(e.category)}</span>` : ''}
-              ${e.quality_tier ? `<span class="pill">${escapeHtml(e.quality_tier)}</span>` : ''}
-              ${isTool
-                ? '<span class="pill">runs alongside</span>'
-                : (e.egg_url ? '<span class="pill skin">egg available</span>' : '<span class="pill skinless">singleton only</span>')}
-            </div>
-            <div class="desc">${escapeHtml(e.tagline || e.summary || e.description || '')}</div>
-            <div class="actions">
-              ${installBtn}
-              ${hotLoadBtn}
-              ${e.singleton_url ? `<a class="btn" href="${e.singleton_url}" download>⬇ Singleton .py</a>` : ''}
-              ${repoBtn}
-              ${e.spec_post ? `<a class="btn" href="${e.spec_post}" target="_blank" rel="noopener">Spec ↗</a>` : ''}
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-
-    // Wire up "Copy install command" buttons
-    root.querySelectorAll('button[data-copy]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(btn.dataset.copy);
-          toast('📋 Install command copied — paste into your terminal');
-        } catch {
-          toast('Could not copy — open the repo and grab the one-liner manually', 'err');
-        }
-      });
-    });
-
-    // Wire up "Hot-load into brainstem" buttons
-    root.querySelectorAll('button[data-hotload-url]').forEach(btn => {
-      btn.addEventListener('click', () => hotLoadIntoBrainstem(
-        btn.dataset.hotloadUrl, btn.dataset.hotloadName, btn));
-    });
+    // Stash for the search/rarity filter; renderDiscover handles wiring.
+    _discoverEntries = entries;
+    _discoverMeta = catalog;
+    renderDiscover();
   } catch (e) {
     root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
   }
+}
+
+// ── Holocards ────────────────────────────────────────────────────────
+//
+// Six card classes — same renderer, class-specific frame and play verb:
+//   organism      🥚 Hatch       hot-load .egg permanently
+//   rapplication  ⚙ Run          one-shot .egg call (no install)
+//   agent         ✦ Cast         /chat with prompt that targets a named agent
+//   action        ⚡ Play         /chat with canned prompt — no agent binding
+//   stadium       📍 Check in    geofenced; only fires when at the GPS POI
+//   sense         👁 Equip       install a sense file into the brainstem
+
+const PLAY_VERBS = {
+  organism:     { icon: '🥚', verb: 'Hatch'    },
+  rapplication: { icon: '⚙',  verb: 'Run'      },
+  agent:        { icon: '✦',  verb: 'Cast'     },
+  action:       { icon: '⚡', verb: 'Play'     },
+  stadium:      { icon: '📍', verb: 'Check in' },
+  sense:        { icon: '👁', verb: 'Equip'    },
+};
+
+let _holocards = [];
+let _holocardSets = [];
+let _holocardClassFilter = 'all';
+let _holocardSetFilter = 'all';
+
+async function loadHolocards() {
+  const root = $('holocards');
+  $('holocards-target').textContent = brainstemTarget();
+  if (_holocards.length) { renderHolocards(); return; }
+  root.innerHTML = '<div class="empty">Loading deck…</div>';
+  try {
+    const d = await api('/api/holocards');
+    _holocards = d.cards || [];
+    _holocardSets = d.sets || [];
+    // Build set filter chips from the data (one per discovered set)
+    const setRoot = document.querySelector('.set-filters');
+    if (setRoot) {
+      // Keep the "All sets" chip; add one per set
+      const existing = new Set();
+      setRoot.querySelectorAll('.set-filter').forEach(c => existing.add(c.dataset.set));
+      for (const sid of _holocardSets) {
+        if (existing.has(sid)) continue;
+        const sample = _holocards.find(c => c.set_id === sid) || {};
+        const label = (sample.set_name || sid).toUpperCase();
+        const chip = document.createElement('button');
+        chip.className = 'set-filter';
+        chip.dataset.set = sid;
+        chip.textContent = label;
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.set-filter').forEach(c => c.classList.remove('is-active'));
+          chip.classList.add('is-active');
+          _holocardSetFilter = sid;
+          renderHolocards();
+        });
+        setRoot.appendChild(chip);
+      }
+      // The default "All sets" chip
+      setRoot.querySelector('[data-set="all"]').onclick = () => {
+        document.querySelectorAll('.set-filter').forEach(c => c.classList.remove('is-active'));
+        setRoot.querySelector('[data-set="all"]').classList.add('is-active');
+        _holocardSetFilter = 'all';
+        renderHolocards();
+      };
+    }
+    // Class filter wiring (one-time)
+    document.querySelectorAll('.class-filter').forEach(chip => {
+      if (chip._bound) return;
+      chip._bound = true;
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.class-filter').forEach(c => c.classList.remove('is-active'));
+        chip.classList.add('is-active');
+        _holocardClassFilter = chip.dataset.class;
+        renderHolocards();
+      });
+    });
+    renderHolocards();
+  } catch (e) {
+    root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderHolocards() {
+  const root = $('holocards');
+  const matches = _holocards.filter(c => {
+    if (_holocardClassFilter !== 'all' && c.card_class !== _holocardClassFilter) return false;
+    if (_holocardSetFilter !== 'all'  && c.set_id     !== _holocardSetFilter)   return false;
+    return true;
+  });
+  $('holocards-count').textContent = matches.length === _holocards.length
+    ? `${matches.length} cards across ${_holocardSets.length} set${_holocardSets.length === 1 ? '' : 's'}`
+    : `${matches.length} of ${_holocards.length}`;
+  if (matches.length === 0) {
+    root.innerHTML = '<div class="empty">No cards match this filter.</div>';
+    return;
+  }
+  root.innerHTML = matches.map(c => {
+    const cls = c.card_class || 'action';
+    const v = PLAY_VERBS[cls] || PLAY_VERBS.action;
+    const setBadge = c.set_id
+      ? `<span class="card-set-tag mono">${escapeHtml((c.set_name || c.set_id).toUpperCase())} · ${escapeHtml(c.number || '')}</span>`
+      : '';
+    const classBadge = `<span class="card-class-badge class-${cls}">${escapeHtml(cls)}</span>`;
+    const stadium = (cls === 'stadium' && c.location)
+      ? `<div class="holo-location mono small muted">📍 ${escapeHtml(c.location.name)}<br><span style="font-size:10px">${escapeHtml(c.location.address || '')} · ${c.location.lat.toFixed(4)}, ${c.location.lng.toFixed(4)} · r=${c.location.radius_m}m</span></div>`
+      : '';
+    const actions = `
+      <button class="btn primary" data-act="play" data-card-id="${escapeHtml(c.id)}">${v.icon} ${v.verb}</button>
+      ${c.egg_url || c.rapp_url || c.sense_url
+        ? `<a class="btn" href="${escapeHtml(c.egg_url || c.rapp_url || c.sense_url)}" target="_blank" rel="noopener">Source ↗</a>`
+        : ''}
+      ${stadium}`;
+    // The renderer wraps the card body; inject set badge + class badge into the title row via opts.
+    return holocardHTML({
+      ...c,
+      // Put the set/class badge into the tagline area? Better: put it before the rappid in a custom wrapper.
+      // The unified renderer doesn't have a slot for class badge — easiest: prepend to the card via post-process below.
+    }, 'holocard', { actions });
+  }).join('');
+  // Post-process: inject set/class badges into each card. Cleaner than
+  // bolting yet another slot into holocardHTML.
+  const cardEls = root.querySelectorAll('.holocard');
+  matches.forEach((c, i) => {
+    const el = cardEls[i];
+    if (!el) return;
+    const cls = c.card_class || 'action';
+    el.classList.add('class-' + cls);
+    const body = el.querySelector('.body');
+    if (!body) return;
+    const setRow = document.createElement('div');
+    setRow.className = 'card-tags-row';
+    setRow.innerHTML = `
+      <span class="card-class-badge class-${cls}">${escapeHtml(cls)}</span>
+      ${c.set_id ? `<span class="card-set-tag mono">${escapeHtml((c.set_name || c.set_id).toUpperCase())} · ${escapeHtml(c.number || '')}</span>` : ''}`;
+    body.insertBefore(setRow, body.querySelector('.rappid') || body.firstChild);
+    if (c.card_class === 'stadium' && c.location) {
+      const loc = document.createElement('div');
+      loc.className = 'holo-location mono small muted';
+      loc.innerHTML = `📍 ${escapeHtml(c.location.name)}<br><span style="font-size:10px">${escapeHtml(c.location.address || '')} · ${c.location.lat.toFixed(4)}, ${c.location.lng.toFixed(4)} · r=${c.location.radius_m}m</span>`;
+      body.insertBefore(loc, body.querySelector('.actions'));
+    }
+  });
+  // Wire Play buttons
+  root.querySelectorAll('button[data-act="play"]').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const card = _holocards.find(c => c.id === btn.dataset.cardId);
+      if (card) playHolocard(card);
+    });
+  });
+  bindHoloTilt(root);
+}
+
+// ── Play handler — dispatches by card_class ──────────────────────────
+async function playHolocard(card) {
+  const cls = card.card_class || 'action';
+  const v = PLAY_VERBS[cls] || PLAY_VERBS.action;
+  const dlg = $('play-dialog');
+  $('play-title').textContent = card.name;
+  $('play-class-badge').textContent = cls.toUpperCase();
+  $('play-class-badge').className = 'play-class-badge class-' + cls;
+  $('play-set').textContent = card.set_id
+    ? `${(card.set_name || card.set_id).toUpperCase()} · ${card.number || ''}`
+    : '';
+  const body = $('play-body');
+  const target = brainstemTarget();
+
+  // Class-specific body content
+  if (cls === 'organism') {
+    body.innerHTML = `
+      <p class="muted small">Hatching this card hot-loads the bound <code>.egg</code> permanently
+      into <code>${escapeHtml(target)}</code>. The agent appears in subsequent <code>/chat</code>
+      tool-calls.</p>
+      <p class="mono small" style="word-break:break-all"><strong>egg_url:</strong> ${escapeHtml(card.egg_url || '')}</p>
+      <div class="play-actions">
+        <button class="btn" id="play-cancel">Cancel</button>
+        <button class="btn primary" id="play-fire">${v.icon} ${v.verb} into brainstem</button>
+      </div>
+      <div class="play-result" id="play-result"></div>`;
+  } else if (cls === 'rapplication') {
+    body.innerHTML = `
+      <p class="muted small">Runs the rapplication as a <em>one-shot call</em> — the
+      brainstem will fetch and invoke without permanent install.</p>
+      <p class="mono small" style="word-break:break-all"><strong>rapp_url:</strong> ${escapeHtml(card.rapp_url || '')}</p>
+      <label class="muted small">Bound prompt (edit before sending):</label>
+      <textarea id="play-prompt" rows="5">${escapeHtml(card.prompt || '')}</textarea>
+      <div class="play-actions">
+        <button class="btn" id="play-cancel">Cancel</button>
+        <button class="btn primary" id="play-fire">${v.icon} ${v.verb}</button>
+      </div>
+      <div class="play-result" id="play-result"></div>`;
+  } else if (cls === 'sense') {
+    body.innerHTML = `
+      <p class="muted small">Installs a sense — a translation overlay applied to every
+      response. Senses live in the brainstem's <code>senses/</code> dir and load on next chat.</p>
+      <p class="mono small" style="word-break:break-all"><strong>sense_url:</strong> ${escapeHtml(card.sense_url || '')}</p>
+      <div class="play-actions">
+        <button class="btn" id="play-cancel">Cancel</button>
+        <button class="btn primary" id="play-fire">${v.icon} ${v.verb}</button>
+      </div>
+      <div class="play-result" id="play-result"></div>`;
+  } else if (cls === 'stadium') {
+    const loc = card.location || {};
+    body.innerHTML = `
+      <p class="muted small">Stadium cards are geofenced. The bound action only plays when
+      you're physically inside the radius.</p>
+      <div class="stadium-info mono small">
+        📍 ${escapeHtml(loc.name || '')}<br>
+        ${escapeHtml(loc.address || '')}<br>
+        ${(loc.lat || 0).toFixed(4)}, ${(loc.lng || 0).toFixed(4)} · radius ${loc.radius_m || '?'} m
+      </div>
+      <div class="play-actions">
+        <button class="btn" id="play-cancel">Cancel</button>
+        <button class="btn primary" id="play-fire">📍 Check in</button>
+      </div>
+      <div class="play-result" id="play-result"></div>`;
+  } else {
+    // agent / action — both ride /chat with an editable prompt
+    body.innerHTML = `
+      ${card.agent ? `<p class="muted small">Bound to agent <code>${escapeHtml(card.agent)}</code>. Cast sends the prompt to <code>${escapeHtml(target)}/chat</code>.</p>` : '<p class="muted small">No specific agent bound — the brainstem\'s LLM picks tools.</p>'}
+      <label class="muted small">Bound prompt (edit before sending):</label>
+      <textarea id="play-prompt" rows="5">${escapeHtml(card.prompt || '')}</textarea>
+      <div class="play-actions">
+        <button class="btn" id="play-cancel">Cancel</button>
+        <button class="btn primary" id="play-fire">${v.icon} ${v.verb}</button>
+      </div>
+      <div class="play-result" id="play-result"></div>`;
+  }
+
+  $('play-cancel').onclick = () => dlg.close();
+  $('play-fire').onclick = () => firePlay(card);
+  dlg.showModal();
+}
+
+async function firePlay(card) {
+  const cls = card.card_class || 'action';
+  const target = brainstemTarget();
+  const fireBtn = $('play-fire');
+  const result = $('play-result');
+  result.className = 'play-result';
+  result.innerHTML = '<span class="muted">…firing…</span>';
+  fireBtn.disabled = true;
+
+  try {
+    if (cls === 'organism') {
+      // Existing hot-load mechanic
+      const r = await fetch(target + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_input: `Hot-load this rapplication egg permanently: ${card.egg_url}`,
+          conversation_history: [],
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+      result.innerHTML = `<strong>${escapeHtml(card.name)}</strong> hatched.<br><pre>${escapeHtml(d.response || JSON.stringify(d, null, 2)).slice(0, 2000)}</pre>`;
+      refresh();   // collection may have changed
+    } else if (cls === 'sense') {
+      const r = await fetch(target + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_input: `Install this sense file from URL: ${card.sense_url} (filename: ${card.sense_filename || ''}). Drop it into rapp_brainstem/senses/ on disk so it auto-loads next chat.`,
+          conversation_history: [],
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+      result.innerHTML = `<strong>${escapeHtml(card.name)}</strong> equipped.<br><pre>${escapeHtml(d.response || '').slice(0, 2000)}</pre>`;
+    } else if (cls === 'stadium') {
+      const loc = card.location || {};
+      if (!navigator.geolocation) throw new Error('No geolocation API in this browser');
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true, timeout: 8000, maximumAge: 0,
+        });
+      });
+      const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, loc.lat, loc.lng);
+      if (dist > (loc.radius_m || 100)) {
+        const km = dist > 1000 ? (dist / 1000).toFixed(2) + ' km' : Math.round(dist) + ' m';
+        result.className = 'play-result err';
+        result.innerHTML = `Out of range. You're <strong>${km}</strong> from <strong>${escapeHtml(loc.name)}</strong>. Travel inside the ${loc.radius_m}m radius to play this card.`;
+        fireBtn.disabled = false;
+        return;
+      }
+      // Inside the geofence — fire the bound prompt
+      const r = await fetch(target + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_input: card.prompt_on_arrive || card.prompt || `Activate stadium ${loc.name}`,
+          conversation_history: [],
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+      result.innerHTML = `Checked in at <strong>${escapeHtml(loc.name)}</strong> (${Math.round(dist)} m from center).<br><pre>${escapeHtml(d.response || '').slice(0, 4000)}</pre>`;
+    } else {
+      // agent / action / rapplication — POST /chat with the editable prompt
+      const prompt = $('play-prompt').value.trim();
+      if (!prompt) throw new Error('prompt is empty');
+      const r = await fetch(target + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_input: prompt,
+          conversation_history: [],
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+      result.innerHTML = `<pre>${escapeHtml(d.response || JSON.stringify(d, null, 2)).slice(0, 4000)}</pre>`;
+    }
+  } catch (e) {
+    result.className = 'play-result err';
+    result.innerHTML = escapeHtml(e.message);
+  } finally {
+    fireBtn.disabled = false;
+  }
+}
+
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 // ── Hot-load via brainstem's egg_hatcher_agent ───────────────────────
@@ -510,6 +1095,43 @@ async function refresh() {
 }
 
 $('btn-refresh').addEventListener('click', refresh);
+
+// ── Discover search & rarity filter ──────────────────────────────────
+const _discoverSearchInput = $('discover-search');
+if (_discoverSearchInput) {
+  _discoverSearchInput.addEventListener('input', (e) => {
+    _discoverSearch = e.target.value;
+    if (_discoverEntries.length) renderDiscover();
+  });
+}
+document.querySelectorAll('.rarity-filter').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.rarity-filter').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+    _discoverRarity = chip.dataset.rarity;
+    if (_discoverEntries.length) renderDiscover();
+  });
+});
+
+// ── Play dialog close ────────────────────────────────────────────────
+const _playDlg = $('play-dialog');
+if (_playDlg) {
+  $('play-close').onclick = () => _playDlg.close();
+  _playDlg.addEventListener('click', (e) => {
+    if (e.target === _playDlg) _playDlg.close();
+  });
+}
+
+// ── Card-detail dialog close ─────────────────────────────────────────
+const _cardDetailDlg = $('card-detail-dialog');
+if (_cardDetailDlg) {
+  _cardDetailDlg.addEventListener('click', (e) => {
+    // Click on the backdrop (outside the card) closes the dialog
+    if (e.target === _cardDetailDlg) _cardDetailDlg.close();
+  });
+  const closeBtn = $('card-detail-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => _cardDetailDlg.close());
+}
 
 // ── Lay-egg dialog ───────────────────────────────────────────────────
 $('lay-egg-dialog').addEventListener('close', async function () {

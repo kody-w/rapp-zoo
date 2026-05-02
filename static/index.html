@@ -33,6 +33,7 @@
 <nav class="tabs" role="tablist">
   <button class="tab is-active" data-tab="collection" role="tab">My collection</button>
   <button class="tab" data-tab="starters" role="tab">Starters</button>
+  <button class="tab" data-tab="holocards" role="tab">Holocards</button>
   <button class="tab" data-tab="discover" role="tab">Discover</button>
 </nav>
 
@@ -73,15 +74,57 @@
   <div id="starters" class="cards-grid">Loading…</div>
 </section>
 
+<!-- ── Holocards ─────────────────────────────────────────────────────── -->
+<section class="tab-panel" id="panel-holocards" role="tabpanel">
+  <div class="starters-intro">
+    <h2>Holocards <span class="muted small" id="holocards-count" style="font-weight:400"></span></h2>
+    <p class="muted">
+      Playable cards bound to specific invocations. <strong>RAR Set 1</strong> is
+      pure Agent cards — the simple mechanic. <strong>Genesis Set 2</strong>
+      introduces Organism (hatch a full <code>.egg</code>), Rapplication (run
+      one-shot), Action, Stadium (geofenced public POI), and Sense (translation
+      overlay). Cast a card to fire its bound action against your brainstem at
+      <code id="holocards-target"></code>.
+    </p>
+  </div>
+  <div class="holocards-controls">
+    <div class="set-filters" role="tablist" aria-label="Filter by set">
+      <button class="set-filter is-active" data-set="all">All sets</button>
+    </div>
+    <div class="class-filters" role="tablist" aria-label="Filter by card class">
+      <button class="class-filter is-active" data-class="all">All classes</button>
+      <button class="class-filter" data-class="organism">🥚 Organism</button>
+      <button class="class-filter" data-class="rapplication">⚙ Rapplication</button>
+      <button class="class-filter" data-class="agent">✦ Agent</button>
+      <button class="class-filter" data-class="action">⚡ Action</button>
+      <button class="class-filter" data-class="stadium">📍 Stadium</button>
+      <button class="class-filter" data-class="sense">👁 Sense</button>
+    </div>
+  </div>
+  <div id="holocards" class="cards-grid">Loading deck…</div>
+</section>
+
 <!-- ── Discover ──────────────────────────────────────────────────────── -->
 <section class="tab-panel" id="panel-discover" role="tabpanel">
   <div class="starters-intro">
-    <h2>Discover</h2>
+    <h2>Discover <span class="muted small" id="discover-count" style="font-weight:400"></span></h2>
     <p class="muted">
       The global Pokédex API. Pulls the full catalog of cataloged rapplications
-      from the upstream <code>kody-w/RAPP_Store</code> repo — sprite, lineage,
-      stats, downloadable egg per entry. Click a card to fetch the egg.
+      from the upstream <code>kody-w/RAPP_Store</code> repo. Click any card for
+      the showcase view.
     </p>
+  </div>
+  <div class="discover-controls">
+    <input type="search" id="discover-search" placeholder="Search by name, tag, category, publisher…">
+    <div class="rarity-filters" role="tablist" aria-label="Filter by rarity">
+      <button class="rarity-filter is-active" data-rarity="all">All</button>
+      <button class="rarity-filter" data-rarity="common">● Common</button>
+      <button class="rarity-filter" data-rarity="uncommon">◆ Uncommon</button>
+      <button class="rarity-filter" data-rarity="rare">★ Rare</button>
+      <button class="rarity-filter" data-rarity="holo">✦ Holo</button>
+      <button class="rarity-filter" data-rarity="ultra">✧ Ultra</button>
+      <button class="rarity-filter" data-rarity="secret">☆ Secret</button>
+    </div>
   </div>
   <div id="discover" class="cards-grid">Loading…</div>
 </section>
@@ -125,6 +168,21 @@
   </form>
 </dialog>
 
+<dialog id="play-dialog" class="play-dialog">
+  <div class="play-head">
+    <span class="play-class-badge" id="play-class-badge">CARD</span>
+    <h3 id="play-title">Play</h3>
+    <span class="play-set" id="play-set"></span>
+    <button class="btn play-close" id="play-close" aria-label="Close">✕</button>
+  </div>
+  <div id="play-body" class="play-body"></div>
+</dialog>
+
+<dialog id="card-detail-dialog" class="card-detail-dialog">
+  <button class="btn detail-close" id="card-detail-close" aria-label="Close">✕</button>
+  <div id="card-detail-slot"></div>
+</dialog>
+
 <dialog id="lay-egg-dialog">
   <form method="dialog">
     <h3>Lay egg <span id="lay-twin-name" class="muted small"></span></h3>
@@ -139,6 +197,10 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- JSZip — used by the Inspect modal to parse egg blobs client-side
+     (works for catalog URLs + starter eggs that the backend's
+     path-based manifest endpoint can't reach). Pinned to 3.10.1. -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="/static/zoo.js"></script>
 </body>
 </html>

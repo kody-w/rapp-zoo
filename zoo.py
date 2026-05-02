@@ -672,6 +672,59 @@ def create_app() -> Flask:
         return send_file(full, mimetype="application/zip",
                          as_attachment=True, download_name=os.path.basename(full))
 
+    @app.route("/api/holocards")
+    def list_holocards():
+        """Holocards are playable cards bound to specific agent invocations
+        (or .egg hatch URLs). Many cards per underlying agent, like 151
+        Pokémon × N printings = thousands of TCG cards.
+
+        Reads two locations and merges:
+            <repo>/holocards/*.json   ← bundled sets that ship with rapp-zoo
+            ~/.rapp/holocards/*.json  ← user's personal deck
+
+        Each file is a set: { schema, set_id, set_name, cards: [...] }.
+        Cards inherit set_id / set_name / edition / publisher when those
+        fields are missing on the card itself, so authors don't have to
+        repeat them per-card.
+        """
+        out_cards = []
+        seen_set_ids = set()
+
+        def _ingest(root: str, source: str) -> None:
+            if not os.path.isdir(root):
+                return
+            for fn in sorted(os.listdir(root)):
+                if not fn.endswith(".json"):
+                    continue
+                full = os.path.join(root, fn)
+                try:
+                    with open(full, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                except (OSError, json.JSONDecodeError):
+                    continue
+                set_id   = data.get("set_id")   or fn[:-5]
+                set_name = data.get("set_name") or set_id
+                edition  = data.get("edition")
+                publisher = data.get("publisher")
+                seen_set_ids.add(set_id)
+                for card in (data.get("cards") or []):
+                    card = dict(card)
+                    card.setdefault("set_id",   set_id)
+                    card.setdefault("set_name", set_name)
+                    if edition:   card.setdefault("edition",   edition)
+                    if publisher: card.setdefault("publisher", publisher)
+                    card.setdefault("source", source)
+                    out_cards.append(card)
+
+        _ingest(os.path.join(_HERE, "holocards"), "bundled")
+        _ingest(os.path.join(rapp_home(), "holocards"), "user")
+
+        return jsonify({
+            "schema":   "rapp-zoo-holocards/1.0",
+            "sets":     sorted(seen_set_ids),
+            "cards":    out_cards,
+        }), 200
+
     @app.route("/api/discover")
     def discover():
         """Pointer to the global rapp_store Pokédex API. The actual
