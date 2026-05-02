@@ -932,10 +932,31 @@ async function loadMine() {
   } catch (e) { errMsg = errMsg || e.message; }
 
   if (!twins && !eggs) {
-    root.innerHTML = `<div class="err">Couldn't reach the rapp_zoo organ at ${escapeHtml(target)}.<br><br>` +
-      `Either your brainstem isn't running, or the rapp-zoo rapp hasn't been hot-loaded yet. From a terminal:` +
-      `<pre style="margin-top:8px; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:4px; font-size:11px; overflow-x:auto;">brainstem hatch https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/egg/rapp-zoo.egg</pre>` +
-      `Then refresh this tab.</div>`;
+    // Bootstrap: the rapp-zoo organ isn't installed in the brainstem yet.
+    // Don't make the user copy a terminal command — just hand them the
+    // .egg cartridge and let them drag it over the brainstem chat. The
+    // brainstem's chat UI already accepts dragged .egg files via its
+    // import flow (the Drag & Drop affordance at the bottom of every
+    // chat). One file, one drag, the rapp-zoo is hatched.
+    const eggUrl = 'https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/egg/rapp-zoo.egg';
+    root.innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:24px; max-width:560px; margin:0 auto; text-align:center;">
+        <div style="font-size:48px; margin-bottom:8px;">🥚</div>
+        <h3 style="margin:0 0 8px; font-size:16px; font-weight:700;">Hatch rapp-zoo into your brainstem</h3>
+        <p style="margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.55;">
+          Couldn't reach <code>${escapeHtml(target)}/api/rapp_zoo/*</code> — either your brainstem isn't running,
+          or the rapp-zoo rapp hasn't been installed there yet.
+          Grab the cartridge and drag it over your brainstem chat:
+        </p>
+        <a class="btn primary" href="${eggUrl}" download="rapp-zoo.egg" style="font-size:14px; padding:10px 20px;">⬇ Download rapp-zoo.egg</a>
+        <ol style="text-align:left; color:var(--muted); font-size:12px; line-height:1.7; margin:18px 0 0; padding-left:18px;">
+          <li>Click the button — your browser saves <code>rapp-zoo.egg</code> to Downloads.</li>
+          <li>Open your brainstem chat at <a href="${escapeHtml(target)}" target="_blank">${escapeHtml(target)}</a>.</li>
+          <li>Drag the <code>rapp-zoo.egg</code> file into the chat window — the brainstem hatches it.</li>
+          <li>Refresh this tab.</li>
+        </ol>
+        <button class="btn" style="margin-top:16px;" onclick="loadMine()">↻ I've installed it — refresh</button>
+      </div>`;
     return;
   }
   const twinList = (twins && twins.twins) || [];
