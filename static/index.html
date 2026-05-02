@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rapp-zoo — twin estate keeper</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/zoo.css">
+</head>
+<body>
+<header>
+  <h1>rapp-zoo
+    <span class="sub">local-first keeper for the twin estate on this device</span>
+  </h1>
+  <div class="health" id="health">…</div>
+</header>
+
+<main>
+
+<section id="twins-section">
+  <div class="section-head">
+    <h2>Your twins</h2>
+    <button class="btn primary" id="btn-summon-from-egg">Summon from egg…</button>
+    <button class="btn" id="btn-refresh">Refresh</button>
+  </div>
+  <div id="twins" class="twins-grid">Loading…</div>
+</section>
+
+<section id="eggs-section">
+  <div class="section-head">
+    <h2>Egg backups</h2>
+    <span class="muted" id="eggs-count"></span>
+  </div>
+  <div id="eggs" class="eggs-list">Loading…</div>
+</section>
+
+</main>
+
+<dialog id="summon-dialog">
+  <form method="dialog">
+    <h3>Summon a twin from an egg</h3>
+    <p class="muted">Enter an absolute path to a <code>.egg</code> file. The
+    twin will materialize at <code>~/.rapp/twins/&lt;rappid&gt;/</code>.</p>
+    <input type="text" id="summon-egg-path" placeholder="/full/path/to/your.egg">
+    <label class="checkbox">
+      <input type="checkbox" id="summon-keep-kernel">
+      Keep existing kernel (use only if the workspace already has the kernel you want)
+    </label>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" id="summon-confirm" value="confirm">Summon</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="hatch-dialog">
+  <form method="dialog">
+    <h3>Hatch (kernel update via egg roundtrip)</h3>
+    <p class="muted">Lay an egg, swap the kernel, summon back.
+    Identity, memory, and mutations are preserved.</p>
+    <p class="muted small" id="hatch-twin-name"></p>
+    <input type="text" id="hatch-new-kernel" placeholder="path to new brainstem.py or RAPP checkout">
+    <div class="dialog-actions">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" id="hatch-confirm" value="confirm">Hatch</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="lay-egg-dialog">
+  <form method="dialog">
+    <h3>Lay egg (back up this twin)</h3>
+    <p class="muted">Pack the twin's repo into a fresh <code>.egg</code> at
+    <code>~/.rapp/eggs/&lt;rappid&gt;/&lt;timestamp&gt;.egg</code>. Non-destructive.</p>
+    <p class="muted small" id="lay-twin-name"></p>
+    <input type="text" id="lay-repo-path" placeholder="/full/path/to/the/twin/repo">
+    <div class="dialog-actions">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" id="lay-confirm" value="confirm">Lay egg</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/zoo.js"></script>
+</body>
+</html>

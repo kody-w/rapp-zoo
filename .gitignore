@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local runtime state (zoo never commits these — they live under ~/.rapp/)
+.rapp/
+
+# Local secrets
+.env
+.env.local
