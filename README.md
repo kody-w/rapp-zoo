@@ -35,23 +35,37 @@ python3 ~/.rapp-zoo/starters/build_starters.py
 
 Then open <http://127.0.0.1:7070>.
 
-## Generate a fresh twin to manage
+## Cartridges — drop-in tools for the ancestor brainstem
 
-`agent.py` is a single-file twin generator you can hand to anyone. They run it; out the other end is a complete, runnable twin variant on their disk:
+The canonical extension pattern: drop a `*_agent.py` into `~/.brainstem/agents/`. The brainstem's loader picks it up at next boot. The LLM gets it as an OpenAI-style tool. Capability lives **inside the chat**, not in a separate CLI.
+
+Two cartridges ship in [`agents/`](./agents/):
+
+| File | Tool name | What it does |
+|---|---|---|
+| [`agents/summon_twin_agent.py`](./agents/summon_twin_agent.py) | `SummonTwin` | Generate a fresh twin organism on the device. Picks a soul template based on `kind` (personal / pre-founder / memorial / project / place / custom), mints a fresh `rappid` (UUIDv4), writes `~/.rapp/twins/<rappid>/`, registers in the neighborhood. |
+| [`agents/hatch_egg_agent.py`](./agents/hatch_egg_agent.py) | `HatchEgg` | Import a `.egg` cartridge (someone's twin packed elsewhere) and hatch it as a fully-viable local twin. Identity, memory, and mutations preserved across the substrate hop. Same `rappid` as wherever the egg was packed. |
+
+Install with one command (after running the rapp-installer):
 
 ```bash
-python3 agent.py
-# Interactive: asks for name, kind, description.
-# Twin kinds: personal | pre-founder | memorial | project | place | custom
-
-# Or non-interactive:
-python3 agent.py --name my-twin --kind personal \
-                 --description "my digital companion"
+cp agents/summon_twin_agent.py agents/hatch_egg_agent.py ~/.brainstem/agents/
+# restart the brainstem; the cartridges auto-load
 ```
 
-The generated twin descends from [wildhaven-ai-homes-twin](https://github.com/kody-w/wildhaven-ai-homes-twin) (which descends from RAPP), bundles its own kernel, and is immediately runnable with `bash <repo>/installer/start.sh`. Boot it once, then summon it into rapp-zoo's estate to manage it alongside your other twins.
+Then in chat:
 
-`agent.py` is meant to be **shared standalone** — email it, AirDrop it, copy it on a USB stick. Anyone with Python 3.9+ and git can run it.
+> **You:** "I have my dad's twin egg on a USB stick at /Volumes/usb/dad.egg. Hatch it on this machine."
+>
+> **Model:** *invokes HatchEgg(egg_path="/Volumes/usb/dad.egg")*
+> "Hatched twin 'dad-twin' (rappid 7bd3...) — fully viable. Workspace: ~/.rapp/twins/7bd3.../. Identity preserved across the substrate hop. Same rappid as wherever this egg was packed; this is the same twin, materialized here."
+
+> **You:** "Make me a memorial twin for my grandmother who passed last year."
+>
+> **Model:** *invokes SummonTwin(twin_name="grandma-twin", kind="memorial", description="my grandmother who passed in 2025")*
+> "Created memorial twin 'grandma-twin' (rappid 2af8...). Located at ~/.rapp/twins/2af8.../. Estate: registered at port 7081. Soul.md uses the memorial template, with your description woven in."
+
+The cartridges follow the rule: **the rapp-installer'd brainstem is the static ancestor; cartridges conform to its interface and never request console-side changes.** Test contract: [`tests/test_cartridges_against_ancestor_brainstem.py`](./tests/test_cartridges_against_ancestor_brainstem.py) loads each cartridge through the actual `brainstem._load_agent_from_file()` and asserts they pass the BasicAgent contract + produce viable artifacts.
 
 The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem installed; otherwise it creates a local venv on first run.
 
