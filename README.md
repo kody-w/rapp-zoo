@@ -35,6 +35,24 @@ python3 ~/.rapp-zoo/starters/build_starters.py
 
 Then open <http://127.0.0.1:7070>.
 
+## Generate a fresh twin to manage
+
+`agent.py` is a single-file twin generator you can hand to anyone. They run it; out the other end is a complete, runnable twin variant on their disk:
+
+```bash
+python3 agent.py
+# Interactive: asks for name, kind, description.
+# Twin kinds: personal | pre-founder | memorial | project | place | custom
+
+# Or non-interactive:
+python3 agent.py --name my-twin --kind personal \
+                 --description "my digital companion"
+```
+
+The generated twin descends from [wildhaven-ai-homes-twin](https://github.com/kody-w/wildhaven-ai-homes-twin) (which descends from RAPP), bundles its own kernel, and is immediately runnable with `bash <repo>/installer/start.sh`. Boot it once, then summon it into rapp-zoo's estate to manage it alongside your other twins.
+
+`agent.py` is meant to be **shared standalone** — email it, AirDrop it, copy it on a USB stick. Anyone with Python 3.9+ and git can run it.
+
 The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem installed; otherwise it creates a local venv on first run.
 
 ## What it isn't
