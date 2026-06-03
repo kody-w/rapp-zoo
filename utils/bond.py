@@ -44,6 +44,7 @@ Stdlib only — must be importable on a fresh venv before any other deps.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -59,10 +60,7 @@ from typing import Optional
 
 SCHEMA = "brainstem-egg/2.2-organism"
 SCHEMA_RAPP = "brainstem-egg/2.2-rapplication"
-SPECIES_ROOT_RAPPID = (
-    "rappid:v2:prototype:@rapp/origin:"
-    "0b635450c04249fbb4b1bdb571044dec@github.com/kody-w/RAPP"
-)
+SPECIES_ROOT_RAPPID = "rappid:@rapp/origin:0b635450c04249fbb4b1bdb571044dec"
 
 # Files under brainstem-src that are part of the *organism*, not the
 # *kernel*. The kernel ships defaults at install time; the organism's
@@ -174,11 +172,11 @@ def mint_rappid(home: str, parent_commit: Optional[str] = None) -> dict:
         return existing
 
     uid = uuid.uuid4()
-    uid_compact = uid.hex
+    h256 = hashlib.sha256(uid.bytes).hexdigest()
     name = _organism_slug()
     data = {
         "schema": "rapp-rappid/2.0",
-        "rappid": f"rappid:v2:hatched:@local/{name}:{uid_compact}",
+        "rappid": f"rappid:@local/{name}:{h256}",
         "parent_rappid": SPECIES_ROOT_RAPPID,
         "parent_repo": "github.com/kody-w/RAPP",
         "parent_commit": parent_commit or "",
@@ -386,12 +384,15 @@ def pack_rapplication(src: str, rapp_id: str,
     if not os.path.isdir(src):
         raise FileNotFoundError(f"brainstem src not found: {src}")
 
-    # Mint a rapp-scope rappid string. Format mirrors organism rappids
-    # but kind = "rapplication". Hash is sha256(publisher+rapp_id) so
-    # two installs of the same rapp produce the same rappid.
-    import hashlib
-    h = hashlib.sha256(f"{publisher}/{rapp_id}".encode()).hexdigest()[:32]
-    rapp_rappid = f"rappid:v2:rapplication:{publisher}/{rapp_id}:{h}"
+    # Mint a rapp-scope rappid string. Format mirrors organism rappids;
+    # the "rapplication" kind lives in the record (identity["kind"]), not
+    # the string. Hash is sha256(publisher+rapp_id) so two installs of the
+    # same rapp produce the same rappid (256-bit, deterministic). The
+    # canonical "rappid:@" prefix already carries the owner sigil, so a
+    # leading "@" on publisher is stripped to avoid "@@".
+    owner = publisher.lstrip("@") or "anon"
+    h = hashlib.sha256(f"{publisher}/{rapp_id}".encode()).hexdigest()
+    rapp_rappid = f"rappid:@{owner}/{rapp_id}:{h}"
 
     counts = {"agent": 0, "organ": 0, "ui": 0, "data": 0, "soul": 0}
     buf = io.BytesIO()
