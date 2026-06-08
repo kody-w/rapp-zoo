@@ -791,9 +791,9 @@ def _summon_organism(blob: bytes, manifest: dict, host_root: str) -> str:
     """
     rappid = manifest.get("rappid") or "unknown"
     # Derive a directory-safe slug from the rappid string. bond.py rappids
-    # look like "rappid:@local/<name>:<64hex>" (legacy "rappid:v2:..." forms
-    # are still read) — use the hex tail after the last ":" so the workspace
-    # dir matches 2.1's ~/.rapp/twins/<uuid>/ shape.
+    # are the canonical Eternity form "rappid:@<owner>/<slug>:<hex>" (legacy
+    # envelope forms are still read) — use the hex tail after the last ":"
+    # so the workspace dir matches 2.1's ~/.rapp/twins/<uuid>/ shape.
     slug = rappid.rsplit(":", 1)[-1] if ":" in rappid else rappid
     if not slug or not re.match(r"^[\w-]+$", slug):
         slug = hashlib.sha256((rappid or "unknown").encode()).hexdigest()[:16]

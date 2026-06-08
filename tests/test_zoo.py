@@ -77,14 +77,15 @@ def _make_brainstem_instance(root: pathlib.Path) -> dict:
     """
     rj = {
         "schema": "rapp-rappid/2.0",
-        "rappid": "rappid:v2:hatched:@local/zoo-test-organism:abcdef0123456789abcdef0123456789",
-        "parent_rappid": "rappid:v2:prototype:@rapp/origin:0b635450c04249fbb4b1bdb571044dec@github.com/kody-w/RAPP",
+        "rappid": "rappid:@local/zoo-test-organism:abcdef0123456789abcdef0123456789",
+        "parent_rappid": "rappid:@rapp/origin:0b635450c04249fbb4b1bdb571044dec",
         "parent_repo": "github.com/kody-w/RAPP",
         "parent_commit": "deadbeef",
         "born_at": "2026-05-02T00:00:00Z",
         "kind": "brainstem-instance",
         "name": "zoo-test-organism",
         "incarnations": 1,
+        "_migrated_from": "rappid:v2:hatched:@local/zoo-test-organism:abcdef0123456789abcdef0123456789",
     }
     (root / "rappid.json").write_text(json.dumps(rj, indent=2))
     src = root / "src" / "rapp_brainstem"
