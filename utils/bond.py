@@ -60,7 +60,7 @@ from typing import Optional
 
 SCHEMA = "brainstem-egg/2.2-organism"
 SCHEMA_RAPP = "brainstem-egg/2.2-rapplication"
-SPECIES_ROOT_RAPPID = "rappid:@rapp/origin:0b635450c04249fbb4b1bdb571044dec"
+SPECIES_ROOT_RAPPID = "rappid:@kody-w/rapp:9a8f0a4b5a710e20f4d819a0f37d2a4c9f113b5e78fb3c29e70b54fff48a38f9"
 
 # Files under brainstem-src that are part of the *organism*, not the
 # *kernel*. The kernel ships defaults at install time; the organism's
@@ -172,10 +172,10 @@ def mint_rappid(home: str, parent_commit: Optional[str] = None) -> dict:
         return existing
 
     uid = uuid.uuid4()
-    h256 = hashlib.sha256(uid.bytes).hexdigest()
+    h256 = hashlib.sha256(b"rapp/1:rappid\n" + uid.bytes).hexdigest()  # §6.2 domain-separated keyless mint
     name = _organism_slug()
     data = {
-        "schema": "rapp-rappid/2.0",
+        "schema": "rapp/1",
         "rappid": f"rappid:@local/{name}:{h256}",
         "parent_rappid": SPECIES_ROOT_RAPPID,
         "parent_repo": "github.com/kody-w/RAPP",
@@ -400,7 +400,7 @@ def pack_rapplication(src: str, rapp_id: str,
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         # Identity
         identity = {
-            "schema": "rapp-rappid/2.0",
+            "schema": "rapp/1",
             "rappid": rapp_rappid,
             "parent_rappid": parent_rappid or SPECIES_ROOT_RAPPID,
             "kind": "rapplication",
