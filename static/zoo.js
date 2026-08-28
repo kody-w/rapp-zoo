@@ -51,9 +51,10 @@ function rarityFor(entry, kind) {
   // animated rainbow shimmer, secret gets the works).
   if (kind === 'holocard') return entry.rarity || 'common';
   if (kind === 'twin') {
-    if ((entry.incarnations || []).some(i => i.live && i.is_global)) return 'secret';
-    if ((entry.incarnations || []).some(i => i.live)) return 'ultra';
-    if ((entry.incarnations || []).length > 1) return 'holo';   // parallel-omniscience
+    const instances = entry.instances || entry.incarnations || [];
+    if (instances.some(i => i.live && i.is_global)) return 'secret';
+    if (instances.some(i => i.live)) return 'ultra';
+    if (instances.length > 1) return 'holo';
     if (entry.rappid_uuid) return 'rare';
     return 'uncommon';
   }
@@ -98,8 +99,9 @@ function hpFor(entry, kind) {
   // from real metrics so identical inputs always give identical numbers.
   let n = 40;
   if (kind === 'twin') {
-    n += ((entry.incarnations || []).length * 30);
-    if ((entry.incarnations || []).some(i => i.live)) n += 30;
+    const instances = entry.instances || entry.incarnations || [];
+    n += (instances.length * 30);
+    if (instances.some(i => i.live)) n += 30;
   } else if (kind === 'starter') {
     n += Math.round((entry.size_bytes || 0) / 200);
   } else if (kind === 'discover') {
@@ -191,10 +193,11 @@ function holocardHTML(entry, kind, opts) {
   const hp     = hpFor(entry, kind);
   const tagline = entry.tagline || entry.summary || entry.description ||
                   (kind === 'starter' ? starterDescription(entry.rapp_id) : '') || '';
+  const instances = entry.instances || entry.incarnations || [];
   const version = entry.version ||
-                  (entry.incarnations && (entry.incarnations.find(i => i.version) || {}).version) || '';
+                  ((instances.find(i => i.version) || {}).version) || '';
   const publisher = entry.publisher || entry.author || entry.maintainer || '';
-  const isLive = (entry.incarnations || []).some(i => i.live);
+  const isLive = instances.some(i => i.live);
   const isSelf = entry.id === 'rapp-zoo';
 
   // Pills (existing pill styles stay; we just curate which ones)
@@ -207,7 +210,7 @@ function holocardHTML(entry, kind, opts) {
   if (entry.quality_tier && entry.quality_tier !== 'official') {
     pills.push(`<span class="pill">${escapeHtml(entry.quality_tier)}</span>`);
   }
-  for (const inc of (entry.incarnations || [])) {
+  for (const inc of instances) {
     const [cls, label] = scopeFor(inc);
     pills.push(`<span class="pill ${cls}" title=":${inc.port || '?'}">${label}</span>`);
   }
@@ -218,8 +221,11 @@ function holocardHTML(entry, kind, opts) {
   // Data attrs the caller's existing event delegation relies on
   const dataAttrs = [
     `data-rappid="${escapeHtml(rappid)}"`,
-    entry.brainstem_dir || (entry.incarnations || [])[0]?.brainstem_dir
-      ? `data-repo="${escapeHtml(entry.brainstem_dir || (entry.incarnations || []).find(i => i.brainstem_dir)?.brainstem_dir || '')}"`
+    entry.selected_instance_rappid
+      ? `data-instance="${escapeHtml(entry.selected_instance_rappid)}"`
+      : '',
+    entry.brainstem_dir || instances[0]?.brainstem_dir
+      ? `data-repo="${escapeHtml(entry.brainstem_dir || instances.find(i => i.brainstem_dir)?.brainstem_dir || '')}"`
       : '',
   ].filter(Boolean).join(' ');
 
@@ -347,7 +353,7 @@ function renderTwins(data) {
     return;
   }
   root.innerHTML = twins.map(t => {
-    const incs = (t.incarnations || []);
+    const incs = t.instances || t.incarnations || [];
     const target = incs.find(i => i.is_twin_only) || incs[0];
     const isLive = !!(target && target.live);
     const port = target && target.port;
@@ -358,7 +364,10 @@ function renderTwins(data) {
         : `<button class="btn primary" data-act="start">Start</button>`}
       <button class="btn" data-act="lay-egg" title="Pack as portable .egg">⬇ Egg</button>
       <button class="btn" data-act="reveal" title="Open workspace in Finder">📂</button>`;
-    return holocardHTML(t, 'twin', { actions });
+    return holocardHTML({
+      ...t,
+      selected_instance_rappid: target && target.instance_rappid,
+    }, 'twin', { actions });
   }).join('');
   root.onclick = onTwinAction;
   bindHoloTilt(root);
@@ -373,12 +382,15 @@ async function renderEggs(data) {
     return;
   }
   root.innerHTML = eggs.map(e => {
-    const schemaShort = (e.schema || '').replace('brainstem-egg/', '');
+    const schemaShort = e.schema
+      ? `${e.schema}${e.variant ? ' · ' + e.variant : ''}`
+      : 'invalid egg';
+    const artifact = e.artifact_rappid || e.rappid_uuid || 'unknown';
     return `
       <div class="egg-row" data-path="${escapeHtml(e.path)}">
         <div class="name">${escapeHtml(e.filename)}</div>
         <div class="size">${(e.size_bytes / 1024).toFixed(1)} KB</div>
-        <div class="ts">${e.mtime} · ${escapeHtml(e.rappid_uuid.slice(0, 8))}…</div>
+        <div class="ts">${e.mtime} · ${escapeHtml(artifact.slice(0, 18))}…</div>
         <div class="schema">${schemaShort}${e.kernel_version ? ' · k' + e.kernel_version : ''}</div>
         <div class="actions">
           <button class="btn" data-act="inspect">Inspect</button>
@@ -403,7 +415,7 @@ async function onTwinAction(e) {
   if (!btn) return;
   const card = btn.closest('.card');
   if (!card) return;
-  const rid = card.dataset.rappid;
+  const rid = card.dataset.instance || card.dataset.rappid;
   const repo = card.dataset.repo;
   const name = card.querySelector('h3').textContent;
   const act = btn.dataset.act;
@@ -413,7 +425,7 @@ async function onTwinAction(e) {
       btn.disabled = true;
       const r = await api('/api/start', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ rappid_uuid: rid }),
+        body: JSON.stringify({ instance_rappid: rid }),
       });
       toast(r.already_running ? 'Already running (pid ' + r.pid + ')' : 'Started (pid ' + r.pid + ')');
       setTimeout(refresh, 1200);
@@ -426,7 +438,7 @@ async function onTwinAction(e) {
       btn.disabled = true;
       const r = await api('/api/stop', {
         method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ rappid_uuid: rid }),
+        body: JSON.stringify({ instance_rappid: rid }),
       });
       toast(r.was_running ? 'Stopped (pid ' + r.pid + ')' : 'Was not running');
       setTimeout(refresh, 600);
@@ -477,23 +489,28 @@ function confirmThen({title, body}) {
 // because the path-traversal guard rejects anything that isn't a real
 // file under ~/.rapp/eggs/. Dispatch on shape now.
 async function showInspect(eggSource) {
-  const isUrl = /^https?:/i.test(eggSource);
+  const isUrl = /^https?:/i.test(eggSource)
+    || eggSource.startsWith('/starters/dist/');
   try {
     let manifest, fileTree, exportHref;
     if (isUrl) {
-      // Client-side parse — fetch the egg bytes, unzip in browser.
-      if (typeof JSZip === 'undefined') {
-        throw new Error('JSZip not loaded — refresh and try again');
-      }
       const r = await fetch(eggSource, { cache: 'no-cache' });
       if (!r.ok) throw new Error('fetch failed: HTTP ' + r.status);
       const buf = await r.arrayBuffer();
-      const zip = await JSZip.loadAsync(buf);
-      const mf = zip.file('manifest.json');
-      if (!mf) throw new Error('no manifest.json in egg');
-      manifest = JSON.parse(await mf.async('string'));
       fileTree = [];
-      zip.forEach((p, e) => { if (!e.dir) fileTree.push(p); });
+      const bytes = new Uint8Array(buf);
+      if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        if (typeof JSZip === 'undefined') {
+          throw new Error('JSZip not loaded — refresh and try again');
+        }
+        const zip = await JSZip.loadAsync(buf);
+        const mf = zip.file('manifest.json');
+        if (!mf) throw new Error('no manifest.json in egg');
+        manifest = JSON.parse(await mf.async('string'));
+        zip.forEach((p, e) => { if (!e.dir) fileTree.push(p); });
+      } else {
+        manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      }
       fileTree.sort();
       exportHref = eggSource;  // direct download link to the URL
     } else {
@@ -503,6 +520,7 @@ async function showInspect(eggSource) {
       fileTree = r.file_tree || [];
       exportHref = '/api/export-egg?path=' + encodeURIComponent(eggSource);
     }
+    $('inspect-close').addEventListener('click', () => $('inspect-dialog').close());
     $('inspect-body').textContent = JSON.stringify(manifest, null, 2);
     $('inspect-tree').innerHTML = fileTree.map(n =>
       '<li>' + escapeHtml(n) + '</li>'
@@ -1067,7 +1085,9 @@ async function uploadEgg(file) {
     const r = await fetch('/api/import-egg', { method: 'POST', body: fd });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
-    const mname = (d.manifest && (d.manifest.name || d.manifest.id || d.manifest.rappid)) || file.name;
+    const payload = (d.manifest && d.manifest.payload) || {};
+    const mname = payload.name || payload.rapp_id ||
+                  (d.manifest && d.manifest.rappid) || file.name;
     toast('🥚 Imported ' + mname + ' (' + (d.size_bytes / 1024).toFixed(1) + ' KB)');
     refresh();
   } catch (e) { toast(e.message, 'err'); }
@@ -1147,6 +1167,80 @@ $('lay-egg-dialog').addEventListener('close', async function () {
     refresh();
   } catch (e) { toast(e.message, 'err'); }
 });
+
+// ── Frontier desktop intelligence ───────────────────────────────────
+const desktopBridge = window.rappZooDesktop;
+let copilotBusy = false;
+let copilotAssistant = null;
+
+function copilotMessage(kind, text) {
+  const node = document.createElement('div');
+  node.className = 'copilot-message ' + kind;
+  node.textContent = text;
+  $('copilot-transcript').appendChild(node);
+  $('copilot-transcript').scrollTop = $('copilot-transcript').scrollHeight;
+  return node;
+}
+
+function setCopilotBusy(busy) {
+  copilotBusy = busy;
+  $('copilot-input').disabled = busy;
+  $('copilot-send').disabled = busy;
+  $('copilot-cancel').disabled = !busy;
+  $('copilot-status').textContent = busy ? 'thinking' : 'ready';
+}
+
+if (desktopBridge) {
+  $('btn-copilot').hidden = false;
+  desktopBridge.copilotStatus().then((status) => {
+    $('copilot-status').textContent = status.available ? 'ready' : 'CLI unavailable';
+    $('copilot-status').title = status.detail || '';
+    $('copilot-send').disabled = !status.available;
+  }).catch((error) => {
+    $('copilot-status').textContent = 'CLI unavailable';
+    $('copilot-status').title = error.message;
+    $('copilot-send').disabled = true;
+  });
+  desktopBridge.onCopilotChunk(({ text }) => {
+    if (!copilotBusy || !copilotAssistant) return;
+    copilotAssistant.textContent += text;
+    $('copilot-transcript').scrollTop = $('copilot-transcript').scrollHeight;
+  });
+  $('btn-copilot').addEventListener('click', () => {
+    $('copilot-dialog').showModal();
+    $('copilot-input').focus();
+  });
+  $('copilot-close').addEventListener('click', () => $('copilot-dialog').close());
+  $('copilot-cancel').addEventListener('click', async () => {
+    await desktopBridge.cancelCopilot(null);
+  });
+  $('copilot-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const prompt = $('copilot-input').value.trim();
+    if (!prompt || copilotBusy) return;
+    copilotMessage('user', prompt);
+    $('copilot-input').value = '';
+    copilotAssistant = copilotMessage('assistant', '');
+    setCopilotBusy(true);
+    try {
+      const result = await desktopBridge.askCopilot(prompt);
+      copilotAssistant.textContent = result.response;
+    } catch (error) {
+      copilotAssistant.textContent = 'Copilot CLI error: ' + error.message;
+    } finally {
+      copilotAssistant = null;
+      setCopilotBusy(false);
+    }
+  });
+}
+
+if ('serviceWorker' in navigator && location.protocol === 'http:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.warn('[rapp-zoo] service worker registration failed', error);
+    });
+  });
+}
 
 refresh();
 setInterval(refresh, 15000);

@@ -517,11 +517,11 @@
 <!-- ── Inspect (drag-drop / file-pick local parse) ────────────────────── -->
 <section class="tab-panel" id="panel-inspect" role="tabpanel">
   <div class="intro">
-    <h2>Inspect any <code>.egg</code> or <code>.card</code> — entirely in your browser</h2>
+    <h2>Preview any <code>.egg</code> or <code>.card</code> — entirely in your browser</h2>
     <p>
-      Drop a file below or click to pick one. Parsed locally via
+      Drop a file below or click to pick one. This static page previews structure via
       <a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a> for eggs, or by reading the
-      <code>__card__</code> header for holocards. Nothing uploads.
+      <code>__card__</code> header for holocards. Nothing uploads. Use the installed local zoo for full RAPP/1 integrity, viability, and signature verification.
     </p>
   </div>
   <label class="dropzone" id="dropzone">
@@ -549,7 +549,7 @@
       <code>/api/v1/</code> shape; the rapp-zoo is the user's universal control plane.
     </p>
     <p style="margin-top:10px">
-      For the full local control plane (drag-drop import, lay-egg, summon, hatch, start/stop running organisms)
+      For the full RAPP/1 local control plane (verified import, pack, summon, bond, start/stop)
       install the rapp-zoo rapp into your brainstem:
     </p>
     <pre style="background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: ui-monospace, monospace; font-size: 11px; overflow-x: auto; margin-top:10px;">brainstem hatch https://raw.githubusercontent.com/kody-w/RAPP_Store/main/api/v1/egg/rapp-zoo.egg</pre>
@@ -966,32 +966,35 @@ async function loadMine() {
     return;
   }
   const twinCards = twinList.map(t => {
-    const sprite = spriteFor(t.rappid_uuid, 'twin');
-    const dex = dexNumFor(t.rappid_uuid);
-    const live = (t.incarnations || []).find(i => i.live);
+    const artifact = t.artifact_rappid || t.rappid_uuid;
+    const instances = t.instances || t.incarnations || [];
+    const sprite = spriteFor(artifact, 'twin');
+    const dex = dexNumFor(artifact);
+    const live = instances.find(i => i.live);
     return `
       <div class="tcard r-${live ? 'ultra' : 'rare'}">
         <div class="tcard-head">
           <span class="tcard-dex">№${dex} · live</span>
-          <span class="tcard-hp"><span class="label">HP</span>${hpFor({kind:'twin', incarnations: t.incarnations || []})}</span>
+          <span class="tcard-hp"><span class="label">HP</span>${hpFor({kind:'twin', incarnations: instances})}</span>
         </div>
         <div class="tcard-art">${sprite}</div>
         <h3 class="tcard-name"><span class="type-icon">⌬</span>${escapeHtml(t.name || 'unnamed')}</h3>
         <div class="tcard-meta">
           <span class="pill kind-rapp">organism</span>
-          <span class="pill">${t.incarnation_count} incarnation${t.incarnation_count===1?'':'s'}</span>
+          <span class="pill">${instances.length} instance${instances.length===1?'':'s'}</span>
           ${live ? `<span class="pill live">live :${live.port}</span>` : '<span class="pill">offline</span>'}
         </div>
-        <div class="tcard-desc">${escapeHtml(t.rappid_uuid)}</div>
+        <div class="tcard-desc">${escapeHtml(artifact)}</div>
         <div class="tcard-foot">
           ${live ? `<a class="btn primary" href="http://localhost:${live.port}/" target="_blank">Open ↗</a>` : ''}
         </div>
       </div>`;
   }).join('');
   const eggCards = eggList.map(e => {
-    const dex = dexNumFor(e.rappid_uuid);
-    const sprite = spriteFor(e.rappid_uuid, 'default');
-    const schemaShort = (e.schema || '').replace('brainstem-egg/', '');
+    const artifact = e.artifact_rappid || e.rappid_uuid || 'unknown';
+    const dex = dexNumFor(artifact);
+    const sprite = spriteFor(artifact, 'default');
+    const schemaShort = e.schema ? `${e.schema}${e.variant ? ' · ' + e.variant : ''}` : 'invalid';
     return `
       <div class="tcard r-uncommon">
         <div class="tcard-head">
@@ -1004,7 +1007,7 @@ async function loadMine() {
           <span class="pill">${escapeHtml(schemaShort||'?')}</span>
           ${e.kernel_version ? `<span class="pill">k${escapeHtml(e.kernel_version)}</span>` : ''}
         </div>
-        <div class="tcard-desc">${escapeHtml(e.mtime)} · ${escapeHtml(e.rappid_uuid)}</div>
+        <div class="tcard-desc">${escapeHtml(e.mtime)} · ${escapeHtml(artifact)}</div>
       </div>`;
   }).join('');
   root.innerHTML = twinCards + eggCards;
@@ -1052,14 +1055,19 @@ async function inspectFile(file) {
         </div>`;
       return;
     }
-    // Default: treat as .egg (zip)
-    if (typeof JSZip === 'undefined') throw new Error('JSZip not loaded — refresh and try again');
-    const zip = await JSZip.loadAsync(file);
-    const manifestFile = zip.file('manifest.json');
-    if (!manifestFile) throw new Error('no manifest.json — not a valid egg');
-    const manifest = JSON.parse(await manifestFile.async('string'));
     const allFiles = [];
-    zip.forEach((p, e) => { if (!e.dir) allFiles.push(p); });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let manifest;
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+      if (typeof JSZip === 'undefined') throw new Error('JSZip not loaded — refresh and try again');
+      const zip = await JSZip.loadAsync(bytes);
+      const manifestFile = zip.file('manifest.json');
+      if (!manifestFile) throw new Error('no manifest.json — not a valid egg');
+      manifest = JSON.parse(await manifestFile.async('string'));
+      zip.forEach((p, e) => { if (!e.dir) allFiles.push(p); });
+    } else {
+      manifest = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes));
+    }
     allFiles.sort();
     out.innerHTML = `
       <div class="inspect-result">

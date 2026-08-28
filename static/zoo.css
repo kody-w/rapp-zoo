@@ -39,6 +39,10 @@ header {
   gap: 16px;
   flex-wrap: wrap;
 }
+header { -webkit-app-region: drag; }
+header button,
+header a,
+header input { -webkit-app-region: no-drag; }
 header h1 {
   margin: 0;
   font-size: 24px;
@@ -352,7 +356,8 @@ dialog {
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   padding: 24px;
-  min-width: 480px;
+  width: min(720px, calc(100vw - 24px));
+  min-width: 0;
   max-width: 720px;
   max-height: 80vh;
   overflow: auto;
@@ -414,6 +419,75 @@ dialog .checkbox {
   padding: 10px 14px;
 }
 .file-tree li { padding: 2px 0; }
+
+.copilot-dialog {
+  height: min(720px, calc(100vh - 32px));
+  display: none;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+.copilot-dialog[open] { display: grid; }
+.copilot-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.copilot-head h3 { margin-top: 3px; }
+.copilot-transcript {
+  overflow: auto;
+  padding: 16px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.copilot-message {
+  padding: 11px 13px;
+  border-radius: 8px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.copilot-message.user {
+  align-self: flex-end;
+  max-width: 85%;
+  background: rgba(88, 166, 255, .14);
+  border: 1px solid rgba(88, 166, 255, .28);
+}
+.copilot-message.assistant {
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+#copilot-form {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+#copilot-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 88px;
+  max-height: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.45;
+}
+#copilot-input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+
+@media (max-width: 640px) {
+  header { padding-top: max(10px, env(safe-area-inset-top)); }
+  .header-actions { gap: 4px; }
+  .header-actions .btn { padding: 5px 8px; }
+  main { padding: 14px 12px calc(20px + env(safe-area-inset-bottom)); }
+  nav.tabs { overflow-x: auto; justify-content: flex-start; }
+  dialog { padding: 16px; }
+  .copilot-dialog { height: calc(100vh - 16px); }
+}
 
 /* ── Toast ──────────────────────────────────────────────────────────── */
 .toast {

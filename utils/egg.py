@@ -1,70 +1,24 @@
-"""
-utils/egg.py — Brainstem Egg Cartridge format (brainstem-egg/2.0)
+"""Adapters that map brainstem layouts onto the single RAPP/1 egg format.
 
-Eggs are how a brainstem's contents become portable. A `.egg` is a zip
-archive with a typed manifest and a file tree that mirrors the brainstem
-layout. Pack one on machine A; unpack it on machine B; the digital
-organism (agent set, memory, chat tabs, rapps, state) shows up intact.
-
-The egg is THE local-first guarantee. Without it, the brainstem is locked
-to one disk. With it, the brainstem is a runtime that hosts whatever life
-you point at it — your twin, your work-self, a shared team brain — and
-that life is yours, in your hands, in a single file you control.
-
-Four cartridge types share one format:
-
-    rapplication   one agent + one ui + one service + one state scope
-    twin           all agents + cross-agent memory + chat tabs
-    snapshot       full brainstem dump (agents + services + ui + data)
-    swarm          a converged multi-agent singleton (existing rapp_store
-                   shape; preserved here for catalog compatibility)
-
-The unpacker dispatches on `type`. The pack/unpack logic is generic over
-a path-mapping table; each type just declares which paths to include.
-
-────────────────────────────────────────────────────────────────────────
-Egg layout on disk (after `unzip foo.egg`):
-
-    foo.egg
-    ├── manifest.json     {"schema":"brainstem-egg/2.0", "type":"twin", ...}
-    ├── agents/<file>.py
-    ├── services/<file>.py
-    ├── rapp_ui/<id>/...
-    └── data/<...>        (mirrors .brainstem_data/, secrets removed)
-
-────────────────────────────────────────────────────────────────────────
-Backward compatibility:
-
-  rapp-egg/1.0 (the legacy single-rapp format used by binder) is still
-  accepted by `unpack()`. The legacy reader extracts agent.py, service.py,
-  ui/* and state/* into the appropriate locations, exactly as the binder
-  did. Old eggs round-trip without conversion.
-
-────────────────────────────────────────────────────────────────────────
-Excluded from packing (always):
-
-  - .copilot_token, .copilot_session, voice.zip   (auth secrets)
-  - venv/, __pycache__/, .pytest_cache/           (environment artifacts)
-  - .brainstem_data/private/                      (explicit no-share)
-  - .DS_Store, Thumbs.db                          (OS noise)
-
-This module is a pure utility — no Flask, no service registration. It is
-imported by both the binder service (legacy compat) and brainstem.py
-(/agents/import auto-detect, /rapps/export/* endpoints).
+Packing delegates canonicalization, identity validation, deterministic ZIP
+serialization, and verification to ``rapp_protocol``. Normal consumers refuse
+retired egg schemas rather than silently repairing or reparenting them.
 """
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import io
 import json
 import os
+import pathlib
 import re
 import secrets
 import time
-import zipfile
 from typing import Optional
+
+try:
+    from . import rapp_protocol as rapp
+except ImportError:
+    import rapp_protocol as rapp
 
 # ── Paths (resolved relative to this file's brainstem root) ─────────────
 # utils/egg.py lives at .../rapp_brainstem/utils/egg.py — two dirname
@@ -75,99 +29,114 @@ _SERVICES_DIR = os.path.join(_BRAINSTEM_ROOT, "utils", "services")
 _DATA_DIR = os.path.join(_BRAINSTEM_ROOT, ".brainstem_data")
 _UI_BASE_DIR = os.path.join(_DATA_DIR, "rapp_ui")
 
-EGG_SCHEMA_V2 = "brainstem-egg/2.0"
-EGG_SCHEMA_V2_1 = "brainstem-egg/2.1"  # variant-repo aware (carries source pointer + brainstem pin)
-EGG_SCHEMA_V1 = "rapp-egg/1.0"  # legacy binder format
+EGG_SCHEMA = rapp.EGG_SCHEMA
 
-# ── §9 rapp/1-egg packing (stdlib-only, inlined from kody-w/rapp-1 · rapp.py) ──
-EGG_SCHEMA = "rapp/1-egg"
-def _egg_canonical(v):
-    import json as _j
-    if v is None or isinstance(v,(bool,int)): return _j.dumps(v)
-    if isinstance(v,float): raise ValueError("no floats")
-    if isinstance(v,str): return _j.dumps(v,ensure_ascii=False)
-    if isinstance(v,list): return "["+",".join(_egg_canonical(x) for x in v)+"]"
-    if isinstance(v,dict):
-        return "{"+",".join(_j.dumps(k,ensure_ascii=False)+":"+_egg_canonical(v[k]) for k in sorted(v))+"}"
-    raise ValueError(type(v))
-def _egg_hb(space,b):
-    import hashlib as _h; return _h.sha256(space.encode()+b"\x0a"+b).hexdigest()
-def _now_iso_ms():
-    from datetime import datetime,timezone
-    n=datetime.now(timezone.utc); return n.strftime("%Y-%m-%dT%H:%M:%S.")+f"{n.microsecond//1000:03d}Z"
+
 class _EggCollector:
-    def __init__(self): self.files={}; self.meta={}
-    def __enter__(self): return self
-    def __exit__(self,*a): return False
-    def writestr(self,name,data):
-        import json as _j
-        o=data.encode("utf-8") if isinstance(data,str) else data
-        if name=="manifest.json": self.meta=_j.loads(o); return
-        self.files[name]=o
-    def write(self,fn,arc):
-        with open(fn,"rb") as _f: self.files[arc]=_f.read()
-def _pack_v9(variant,rappid,created,files,payload):
-    import io as _io, zipfile as _z
-    contents=sorted(({"path":p,"hash":_egg_hb("rapp/1:egg",o)} for p,o in files.items()),
-                    key=lambda c:c["path"].encode("utf-8"))
-    manifest={"schema":EGG_SCHEMA,"variant":variant,"rappid":rappid,"created_utc":created,
-              "contents":contents,"payload":payload or {},"sig":None}
-    buf=_io.BytesIO()
-    with _z.ZipFile(buf,"w",_z.ZIP_STORED) as zz:
-        def _w(n,d):
-            zi=_z.ZipInfo(n,date_time=(1980,1,1,0,0,0)); zi.compress_type=_z.ZIP_STORED; zi.flag_bits|=0x800
-            zz.writestr(zi,d)
-        _w("manifest.json",_egg_canonical(manifest).encode("utf-8"))
-        for c in contents: _w(c["path"],files[c["path"]])
-    return buf.getvalue()
-def _finalize_egg(z,variant):
-    import json as _j
-    meta=z.meta; rid=meta.get("rappid"); files=dict(z.files)
-    if variant=="rapplication":
-        cand=next((n for n in sorted(files) if n.endswith("_agent.py") or n.split("/")[-1]=="agent.py"),None)
-        if cand: files["agent.py"]=files.pop(cand)
-        for n in [n for n in list(files) if "/" not in n and n.endswith(".py") and n!="agent.py"]:
-            files["src/"+n]=files.pop(n)
-        if "agent.py" not in files: variant="organism"
-    if variant=="organism":
-        import json as _j
-        files.setdefault("soul.md",b"# soul\n")
-        if "rappid.json" not in files:
-            files["rappid.json"]=(_j.dumps({"schema":"rapp/1","rappid":rid,"parent_rappid":meta.get("parent_rappid"),"kind":"organism"},indent=2)+"\n").encode()
-    if not rid or not re.match(r"^rappid:@[a-z0-9-]+/[a-z0-9-]+:[0-9a-f]{64}$", rid):
-        import hashlib as _h
-        content=b"".join(files[k] for k in sorted(files))
-        slug=re.sub(r"[^a-z0-9]+","-",str(meta.get("name") or meta.get("slug") or "thing").lower()).strip("-") or "thing"
-        rid=f"rappid:@kody-w/{slug}:"+_egg_hb("rapp/1:rappid",_h.sha256(content).digest())
-    payload={k:v for k,v in meta.items() if k not in ("schema","type","rappid","exported_at","created_at","created_utc")}
-    return _pack_v9(variant,rid,_now_iso_ms(),files,payload)
+    def __init__(self):
+        self.files: dict[str, bytes] = {}
+        self.meta: dict = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def writestr(self, name, data):
+        octets = data.encode("utf-8") if isinstance(data, str) else data
+        if name == "manifest.json":
+            self.meta = json.loads(octets)
+            return
+        self.files[name] = octets
+
+    def write(self, filename, arcname):
+        with open(filename, "rb") as handle:
+            self.files[arcname] = handle.read()
+
+
+def _identity_octets(rappid: str, meta: dict, kind: str) -> bytes:
+    identity = {
+        "schema": rapp.SPEC,
+        "rappid": rappid,
+        "parent_rappid": meta.get("parent_rappid")
+        or (meta.get("lineage") or {}).get("parent_rappid"),
+        "kind": kind,
+        "name": meta.get("name") or meta.get("id") or rapp.rappid_parts(rappid)["slug"],
+    }
+    return (json.dumps(identity, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def _finalize_egg(collector: _EggCollector, variant: str) -> bytes:
+    meta = dict(collector.meta)
+    files = dict(collector.files)
+    rid = meta.get("rappid") or (meta.get("source") or {}).get("rappid_uuid")
+    if not rapp.rappid_valid(rid):
+        raise ValueError("egg producer requires a stored, valid RAPP/1 artifact identity")
+
+    if variant == "rapplication":
+        candidates = [
+            path
+            for path in sorted(files)
+            if path.endswith("_agent.py") or path.split("/")[-1] == "agent.py"
+        ]
+        if len(candidates) != 1:
+            raise ValueError("rapplication requires exactly one source agent")
+        files["agent.py"] = files.pop(candidates[0])
+        for path in list(files):
+            if path.startswith("rapp_ui/") and path.endswith("/index.html"):
+                files["ui.html"] = files.pop(path)
+            elif path.startswith("rapp_ui/"):
+                files["state/ui/" + path.split("/", 2)[-1]] = files.pop(path)
+            elif path.startswith("data/"):
+                parts = path.split("/", 2)
+                files["state/" + (parts[2] if len(parts) > 2 else parts[-1])] = files.pop(path)
+            elif path.startswith("services/"):
+                files["src/" + path] = files.pop(path)
+        files.setdefault("rappid.json", _identity_octets(rid, meta, "rapplication"))
+    else:
+        for path in list(files):
+            if path.startswith("repo/"):
+                stripped = path[len("repo/"):]
+                if stripped in files:
+                    raise ValueError(f"duplicate organism path after repo/ removal: {stripped}")
+                files[stripped] = files.pop(path)
+        files.setdefault("rappid.json", _identity_octets(rid, meta, "organism"))
+        files.setdefault(
+            "soul.md",
+            f"# {meta.get('name') or rapp.rappid_parts(rid)['slug']}\n".encode("utf-8"),
+        )
+
+    payload = {
+        key: value
+        for key, value in meta.items()
+        if key
+        not in {
+            "schema",
+            "type",
+            "rappid",
+            "exported_at",
+            "created_at",
+            "created_utc",
+        }
+    }
+    payload.setdefault("layout", "variant-repo" if variant == "organism" else "rapplication")
+    return rapp.pack_egg(
+        variant,
+        rid,
+        rapp.utc_now_ms(),
+        files=files,
+        payload=payload,
+    )
 
 
 
-# ── RAPPID — perpetual, globally-unique digital identity ────────────────
+# ── Artifact identities used when packing ───────────────────────────────
 #
-# Every twin, rapp, and swarm has a RAPPID generated ONCE at first hatch.
-# The same identity travels inside every egg the entity ever produces, so
-# regardless of which brainstem hosts the organism — the original, a
-# backup, a clone on a friend's laptop, a re-hatch ten years from now —
-# anyone can verify "this is that twin." The host is mortal. The RAPPID
-# is not.
-#
-# Format:  rappid:<type>:<publisher>/<slug>:<entropy>
-#   type      twin | rapp | swarm
-#   publisher GitHub-style handle, e.g. @kody-w or @rapp
-#   slug      human-readable name within the publisher namespace
-#   entropy   16 hex chars from secrets.token_hex(8) — irreproducible
-#
-# Storage: .brainstem_data/identity.json
-#   { "twin": "rappid:twin:@kody-w/personal:f7a3b2c1d4e5a8b9",
-#     "rapps": {"kanban": "rappid:rapp:@kody-w/kanban:9d8e7f6a5b4c3d2e"} }
-#
-# A snapshot egg packs identity.json so the destination brainstem inherits
-# the source's RAPPIDs. Re-hatching ≠ new identity.
+# These mint-once records name the packed artifact. RAPP/1 rev-6 requires a
+# consumer to mint a separate live instance identity on each fresh hatch.
 
 _IDENTITY_FILE = os.path.join(_DATA_DIR, "identity.json")
-_RAPPID_RE = re.compile(r"^rappid:(twin|rapp|swarm):(@[\w-]+)/([\w-]+):([0-9a-f]{16})$")
 
 
 def _read_identity() -> dict:
@@ -193,21 +162,18 @@ def _write_identity(data: dict) -> None:
 
 def _make_rappid(type_: str, publisher: str, slug: str) -> str:
     """Generate a fresh RAPPID. Called ONCE per organism, ever."""
-    if not publisher.startswith("@"):
-        publisher = "@" + publisher
-    publisher = re.sub(r"[^@\w-]", "", publisher) or "@anon"
-    slug = re.sub(r"[^\w-]", "_", slug or "unnamed").strip("_") or "unnamed"
-    _o = re.sub(r"[^a-z0-9]+","-", publisher.lstrip("@").lower()).strip("-") or "anon"
-    _s = re.sub(r"[^a-z0-9]+","-", slug.lower()).strip("-") or "unnamed"
-    import hashlib as _h, uuid as _u
-    return f"rappid:@{_o}/{_s}:"+_h.sha256(b"rapp/1:rappid\n"+_u.uuid4().bytes).hexdigest()  # §6.2 keyless
+    del type_
+    owner = rapp.require_owner(publisher, default="kody-w")
+    return rapp.mint_rappid(owner, rapp.slugify(slug or "unnamed"))
 
 
-def get_or_create_twin_rappid(publisher: str = "@anon",
+def get_or_create_twin_rappid(publisher: str = "@kody-w",
                               slug: str = "personal") -> str:
     """Return this brainstem's twin RAPPID, minting one on first call."""
     ident = _read_identity()
-    if ident.get("twin") and _RAPPID_RE.match(ident["twin"]):
+    if ident.get("twin"):
+        if not rapp.rappid_valid(ident["twin"]):
+            raise ValueError("stored twin identity is legacy; re-anchor it before emitting an egg")
         return ident["twin"]
     new = _make_rappid("twin", publisher, slug)
     ident["twin"] = new
@@ -215,11 +181,15 @@ def get_or_create_twin_rappid(publisher: str = "@anon",
     return new
 
 
-def get_or_create_rapp_rappid(rapp_id: str, publisher: str = "@anon") -> str:
+def get_or_create_rapp_rappid(rapp_id: str, publisher: str = "@kody-w") -> str:
     """Return a rapp's RAPPID, minting one on first call. Per-rapp scope."""
     ident = _read_identity()
     rapps = ident.setdefault("rapps", {})
-    if rapps.get(rapp_id) and _RAPPID_RE.match(rapps[rapp_id]):
+    if rapps.get(rapp_id):
+        if not rapp.rappid_valid(rapps[rapp_id]):
+            raise ValueError(
+                f"stored identity for {rapp_id} is legacy; re-anchor it before emitting an egg"
+            )
         return rapps[rapp_id]
     new = _make_rappid("rapp", publisher, rapp_id)
     rapps[rapp_id] = new
@@ -229,17 +199,15 @@ def get_or_create_rapp_rappid(rapp_id: str, publisher: str = "@anon") -> str:
 
 def parse_rappid(rappid: str) -> Optional[dict]:
     """Decompose a RAPPID string into its components, or None if invalid."""
-    if not isinstance(rappid, str):
+    if not rapp.rappid_valid(rappid):
         return None
-    m = _RAPPID_RE.match(rappid)
-    if not m:
-        return None
+    parts = rapp.rappid_parts(rappid)
     return {
-        "type":      m.group(1),
-        "publisher": m.group(2),
-        "slug":      m.group(3),
-        "entropy":   m.group(4),
-        "rappid":    rappid,
+        "type": None,
+        "publisher": f"@{parts['owner']}",
+        "slug": parts["slug"],
+        "entropy": parts["hash"],
+        "rappid": rappid,
     }
 
 # Filenames / paths that NEVER enter an egg, regardless of type
@@ -249,10 +217,7 @@ _NEVER_PACK = (
     "voice.zip",
     ".DS_Store",
     "Thumbs.db",
-    # stream.json is the per-incarnation identifier — when a twin egg is
-    # summoned onto a new brainstem, the new brainstem mints its OWN
-    # stream_id but inherits the source's RAPPID. That's what makes
-    # parallel-omniscience clear: same twin, attributable streams.
+    # Runtime stream state is instance-local and is not part of the artifact.
     "stream.json",
 )
 _NEVER_PACK_DIRS = (
@@ -292,7 +257,7 @@ def _is_excluded(path_inside_brainstem: str) -> bool:
 
 # ── Pack helpers ────────────────────────────────────────────────────────
 
-def _add_tree(z: zipfile.ZipFile, src_root: str, arcname_prefix: str,
+def _add_tree(z: _EggCollector, src_root: str, arcname_prefix: str,
               file_filter=None) -> int:
     """Recursively add src_root → arcname_prefix/<rel>. Returns file count."""
     if not os.path.isdir(src_root):
@@ -324,11 +289,10 @@ def pack_rapplication(rapp_id: str, agent_filename: str,
                       service_filename: Optional[str] = None,
                       ui_filename: Optional[str] = None,
                       version: str = "?", name: Optional[str] = None,
-                      publisher: str = "@anon",
+                      publisher: str = "@kody-w",
                       parent_rappid: Optional[str] = None) -> bytes:
     """Pack a single installed rapplication into an egg."""
     rappid = get_or_create_rapp_rappid(rapp_id, publisher=publisher)
-    buf = io.BytesIO()
     with _EggCollector() as z:
         # agent.py
         if agent_filename:
@@ -351,7 +315,7 @@ def pack_rapplication(rapp_id: str, agent_filename: str,
         state_count = _add_tree(z, state_dir, f"data/{rapp_id}")
 
         manifest = {
-            "schema": EGG_SCHEMA_V2,
+            "schema": EGG_SCHEMA,
             "type": "rapplication",
             "rappid": rappid,
             "id": rapp_id,
@@ -381,23 +345,19 @@ def pack_rapplication(rapp_id: str, agent_filename: str,
 # tooling. For tooling-included, use snapshot.
 
 def pack_twin(twin_id: str, name: Optional[str] = None,
-              publisher: str = "@anon",
+              publisher: str = "@kody-w",
               parent_rappid: Optional[str] = None) -> bytes:
     """Pack the brainstem's agent set + cross-agent state into a twin egg.
 
-    The twin's RAPPID is read (or minted on first call) from
-    .brainstem_data/identity.json and embedded in the manifest. The
-    same RAPPID is preserved across every twin egg this brainstem
-    ever exports — so any future hatch traces back to this lineage.
+    The stored RAPPID names the resulting artifact. A fresh hatch mints a
+    separate instance RAPPID and records this egg's address in grown_from.
     """
     rappid = get_or_create_twin_rappid(publisher=publisher, slug=twin_id)
-    # Track incarnation count per RAPPID so the manifest carries lineage depth
     ident = _read_identity()
-    incarnations = int(ident.get("twin_incarnations", 0)) + 1
-    ident["twin_incarnations"] = incarnations
+    egg_exports = int(ident.get("egg_exports", 0)) + 1
+    ident["egg_exports"] = egg_exports
     _write_identity(ident)
 
-    buf = io.BytesIO()
     agent_count = 0
     state_count = 0
     with _EggCollector() as z:
@@ -426,7 +386,7 @@ def pack_twin(twin_id: str, name: Optional[str] = None,
                 state_count += 1
 
         manifest = {
-            "schema": EGG_SCHEMA_V2,
+            "schema": EGG_SCHEMA,
             "type": "twin",
             "rappid": rappid,
             "id": twin_id,
@@ -439,7 +399,7 @@ def pack_twin(twin_id: str, name: Optional[str] = None,
                 "publisher": publisher,
                 "parent_rappid": parent_rappid,
                 "hatched_on": "rapp-brainstem",
-                "incarnations": incarnations,
+                "egg_exports": egg_exports,
             },
         }
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
@@ -453,16 +413,14 @@ def pack_twin(twin_id: str, name: Optional[str] = None,
 # (modulo secrets and env).
 
 def pack_snapshot(snapshot_id: str, name: Optional[str] = None,
-                  publisher: str = "@anon",
+                  publisher: str = "@kody-w",
                   parent_rappid: Optional[str] = None) -> bytes:
     """Pack the entire brainstem (sans secrets/env) into a snapshot egg.
 
-    A snapshot carries the source brainstem's identity.json — so when the
-    destination unpacks it, the destination INHERITS the source's twin
-    RAPPID and rapp RAPPIDs. Re-hatching does not mint a new identity.
+    The source identity names the artifact. Every fresh installation still
+    receives its own instance identity under RAPP/1 §9.4.
     """
     twin_rappid = get_or_create_twin_rappid(publisher=publisher, slug=snapshot_id)
-    buf = io.BytesIO()
     counts = {"agents": 0, "services": 0, "ui": 0, "data": 0}
     with _EggCollector() as z:
         # All agents (incl. core — destination might not have them)
@@ -493,7 +451,7 @@ def pack_snapshot(snapshot_id: str, name: Optional[str] = None,
                                    file_filter=lambda rel: not _is_excluded(rel))
 
         manifest = {
-            "schema": EGG_SCHEMA_V2,
+            "schema": EGG_SCHEMA,
             "type": "snapshot",
             "rappid": twin_rappid,
             "id": snapshot_id,
@@ -518,202 +476,67 @@ def pack_snapshot(snapshot_id: str, name: Optional[str] = None,
 # ── Unpack ──────────────────────────────────────────────────────────────
 
 def is_egg_blob(blob: bytes) -> bool:
-    """Cheap check — does this look like an egg (zip with manifest.json)?"""
-    if len(blob) < 4 or blob[:4] != b"PK\x03\x04":
-        return False
+    """Return whether bytes parse as one of the six RAPP/1 egg variants."""
     try:
-        with zipfile.ZipFile(io.BytesIO(blob)) as z:
-            return "manifest.json" in z.namelist()
-    except Exception:
+        rapp.read_egg(blob)
+        return True
+    except (rapp.ProtocolError, ValueError):
         return False
 
 
 def unpack(blob: bytes, mode: str = "merge") -> dict:
-    """Extract an egg's contents to the brainstem.
-
-    mode:
-      - "merge"   : add files; existing files are overwritten (default)
-      - "replace" : (snapshot/twin only) caller is responsible for
-                    pre-emptively clearing destination dirs
-
-    Returns a result dict: {ok, type, id, files_restored, ...}.
-    """
-    if not is_egg_blob(blob):
-        return {"ok": False, "error": "not a valid egg (no manifest.json)"}
-
-    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+    """Verify an egg and install a rapplication into this brainstem."""
+    del mode
+    try:
+        verifier = rapp.signature_verifier_from_environment()
+        details = rapp.inspect_egg(blob, signature_verifier=verifier)
+    except (OSError, rapp.ProtocolError) as exc:
+        return {"ok": False, "error": str(exc)}
+    manifest = details["manifest"]
+    if manifest["variant"] != "rapplication":
+        return {
+            "ok": False,
+            "error": (
+                f"variant {manifest['variant']!r} is valid but cannot be installed "
+                "into an already-running brainstem"
+            ),
+            "manifest": manifest,
+        }
+    try:
         try:
-            manifest = json.loads(z.read("manifest.json"))
-        except Exception as e:
-            return {"ok": False, "error": f"invalid manifest.json: {e}"}
+            from . import bond
+        except ImportError:
+            import bond
 
-        schema = manifest.get("schema", "")
-        egg_type = manifest.get("type", "")
-        rapp_id = manifest.get("id", "")
-
-        if schema == EGG_SCHEMA_V1:
-            # Legacy single-rapp eggs from the old binder format.
-            return _unpack_v1_legacy(z, manifest)
-
-        if schema != EGG_SCHEMA_V2:
-            return {"ok": False, "error": f"unsupported schema: {schema!r}"}
-
-        if egg_type not in ("rapplication", "twin", "snapshot", "swarm"):
-            return {"ok": False, "error": f"unknown type: {egg_type!r}"}
-
-        return _unpack_v2(z, manifest, mode)
-
-
-def _unpack_v2(z: zipfile.ZipFile, manifest: dict, mode: str) -> dict:
-    """v2.0 unpacker — generic file-tree extraction with destination map."""
-    # Map src-tree-prefix → destination root on the local brainstem
-    DEST_MAP = {
-        "agents/":   _AGENTS_DIR,
-        "services/": _SERVICES_DIR,
-        "rapp_ui/":  _UI_BASE_DIR,
-        "data/":     _DATA_DIR,
-    }
-    counts = {"agents": 0, "services": 0, "ui": 0, "data": 0, "skipped": 0}
-    errors = []
-
-    for name in z.namelist():
-        if name == "manifest.json" or name.endswith("/"):
-            continue
-
-        # Find which dest tree this file belongs to
-        matched = None
-        for prefix, dest_root in DEST_MAP.items():
-            if name.startswith(prefix):
-                matched = (prefix, dest_root, name[len(prefix):])
-                break
-        if not matched:
-            counts["skipped"] += 1
-            continue
-        prefix, dest_root, rel = matched
-
-        # Path-traversal guard
-        if _is_excluded(rel):
-            counts["skipped"] += 1
-            continue
-        target = _safe_join(dest_root, rel)
-        if not target:
-            errors.append(f"path-traversal blocked: {name}")
-            continue
-
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        try:
-            with open(target, "wb") as f:
-                f.write(z.read(name))
-        except Exception as e:
-            errors.append(f"{name}: {e}")
-            continue
-
-        if   prefix == "agents/":   counts["agents"] += 1
-        elif prefix == "services/": counts["services"] += 1
-        elif prefix == "rapp_ui/":  counts["ui"] += 1
-        elif prefix == "data/":     counts["data"] += 1
-
-    return {
-        "ok": True,
-        "schema": manifest.get("schema"),
-        "type": manifest.get("type"),
-        "id": manifest.get("id"),
-        "name": manifest.get("name"),
-        "version": manifest.get("version"),
-        "agent_filename": manifest.get("agent_filename"),
-        "service_filename": manifest.get("service_filename"),
-        "ui_filename": manifest.get("ui_filename"),
-        "files_restored": counts,
-        "errors": errors,
-        "manifest": manifest,
-    }
-
-
-def _unpack_v1_legacy(z: zipfile.ZipFile, manifest: dict) -> dict:
-    """Legacy `rapp-egg/1.0` unpacker — the original binder format.
-
-    v1 eggs stored a single rapp at fixed paths: agent.py, service.py,
-    ui/*, state/*. The manifest carries the destination filenames.
-    Preserved verbatim so old eggs round-trip without conversion.
-    """
-    if manifest.get("type") != "rapplication":
-        return {"ok": False, "error": f"v1 egg type must be rapplication, got {manifest.get('type')!r}"}
-    rapp_id = manifest.get("id")
-    if not rapp_id:
-        return {"ok": False, "error": "v1 manifest missing id"}
-
-    agent_fn = manifest.get("agent_filename")
-    svc_fn = manifest.get("service_filename")
-    ui_fn = manifest.get("ui_filename")
-    counts = {"agents": 0, "services": 0, "ui": 0, "data": 0, "skipped": 0}
-
-    names = z.namelist()
-    if "agent.py" in names and agent_fn:
-        os.makedirs(_AGENTS_DIR, exist_ok=True)
-        with open(os.path.join(_AGENTS_DIR, agent_fn), "wb") as f:
-            f.write(z.read("agent.py"))
-        counts["agents"] += 1
-
-    if "service.py" in names and svc_fn:
-        os.makedirs(_SERVICES_DIR, exist_ok=True)
-        with open(os.path.join(_SERVICES_DIR, svc_fn), "wb") as f:
-            f.write(z.read("service.py"))
-        counts["services"] += 1
-
-    rapp_ui_dir = os.path.join(_UI_BASE_DIR, rapp_id)
-    for n in names:
-        if not n.startswith("ui/") or n.endswith("/"):
-            continue
-        rel = n[len("ui/"):]
-        target = _safe_join(rapp_ui_dir, rel)
-        if not target:
-            continue
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(target, "wb") as f:
-            f.write(z.read(n))
-        counts["ui"] += 1
-
-    rapp_state_dir = os.path.join(_DATA_DIR, rapp_id)
-    for n in names:
-        if not n.startswith("state/") or n.endswith("/"):
-            continue
-        rel = n[len("state/"):]
-        target = _safe_join(rapp_state_dir, rel)
-        if not target:
-            continue
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(target, "wb") as f:
-            f.write(z.read(n))
-        counts["data"] += 1
-
-    return {
-        "ok": True,
-        "schema": EGG_SCHEMA_V1,
-        "type": "rapplication",
-        "id": rapp_id,
-        "agent_filename": agent_fn,
-        "service_filename": svc_fn,
-        "ui_filename": ui_fn,
-        "files_restored": counts,
-        "errors": [],
-        "manifest": manifest,
-    }
+        return bond.unpack_rapplication(
+            blob,
+            _BRAINSTEM_ROOT,
+            instance_owner=os.environ.get("RAPP_OWNER"),
+            signature_verifier=verifier,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "manifest": manifest}
 
 
 # ── Convenience: introspect without unpacking ───────────────────────────
 
 def inspect(blob: bytes) -> dict:
-    """Read just the manifest from an egg blob — no extraction."""
-    if not is_egg_blob(blob):
-        return {"ok": False, "error": "not a valid egg"}
-    with zipfile.ZipFile(io.BytesIO(blob)) as z:
-        try:
-            return {"ok": True, "manifest": json.loads(z.read("manifest.json"))}
-        except Exception as e:
-            return {"ok": False, "error": f"invalid manifest: {e}"}
+    """Verify and inspect an egg without extracting it."""
+    try:
+        details = rapp.inspect_egg(
+            blob,
+            signature_verifier=rapp.signature_verifier_from_environment(),
+        )
+        return {
+            "ok": True,
+            "manifest": details["manifest"],
+            "egg_hash": details["egg_hash"],
+        }
+    except (OSError, rapp.ProtocolError) as exc:
+        return {"ok": False, "error": str(exc)}
 
 
-# ── Schema 2.1: variant-repo eggs (universal twin cartridge) ────────────
+# ── Variant-repo organism eggs ──────────────────────────────────────────
 #
 # A variant-repo egg captures the entire local-first twin layout: the
 # kernel snapshot at root, the agents dir, utils, installer, content
@@ -765,7 +588,7 @@ def _is_repo_excluded(rel_path: str) -> bool:
     return False
 
 
-def _walk_repo_tree(src: str, arc_prefix: str, z: zipfile.ZipFile) -> int:
+def _walk_repo_tree(src: str, arc_prefix: str, z: _EggCollector) -> int:
     """Add every non-excluded file under src to the zip at arc_prefix/. Returns count."""
     if not os.path.isdir(src):
         return 0
@@ -788,7 +611,7 @@ def pack_twin_from_repo(repo_path: str,
                         bundled_repo: bool = True,
                         bundled_state: bool = True,
                         attestation: Optional[dict] = None) -> bytes:
-    """Pack a hatched variant repo into a brainstem-egg/2.1 blob.
+    """Pack a hatched variant repo into a RAPP/1 organism egg.
 
     Layout produced inside the zip:
         manifest.json                  — schema 2.1, source + brainstem pin
@@ -814,7 +637,6 @@ def pack_twin_from_repo(repo_path: str,
 
     bs_block = rj.get("brainstem") or {}
 
-    buf = io.BytesIO()
     with _EggCollector() as z:
         repo_files = 0
         data_files = 0
@@ -836,9 +658,9 @@ def pack_twin_from_repo(repo_path: str,
             data_files = _walk_repo_tree(data_src, "data", z)
 
         manifest = {
-            "schema": EGG_SCHEMA_V2_1,
+            "schema": EGG_SCHEMA,
             "type": "twin",
-            "rappid": rj.get("name") and f"rappid:twin:@source/{rj['name']}:{secrets.token_hex(8)}" or None,
+            "rappid": rappid_uuid,
             "exported_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "source": {
                 "rappid_uuid": rappid_uuid,
@@ -859,83 +681,94 @@ def pack_twin_from_repo(repo_path: str,
             "attestation": attestation or rj.get("attestation"),
             "size_kb_approx": None,  # filled below
         }
-
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
 
-    blob = buf.getvalue()
-    return blob
+    return _finalize_egg(z, "organism")
 
 
-def summon_twin_egg(blob: bytes, host_root: str,
-                    keep_existing_kernel: bool = False) -> str:
-    """Materialize a brainstem-egg/2.1 blob into a workspace under host_root.
+def summon_twin_egg(
+    blob: bytes,
+    host_root: str,
+    keep_existing_kernel: bool = False,
+    *,
+    instance_owner: Optional[str] = None,
+    existing_workspace: Optional[str] = None,
+    signature_verifier=None,
+) -> str:
+    """Hatch a variant-repo organism with a fresh instance identity.
 
-    Workspace path: <host_root>/<rappid_uuid>/
-
-    The summon flow:
-      1. Read manifest, extract rappid_uuid.
-      2. Create or reuse <host_root>/<rappid_uuid>/.
-      3. Extract repo/ → workspace/.
-      4. Extract data/ → workspace/.brainstem_data/.
-      5. (if keep_existing_kernel) restore the workspace's previous brainstem.py
-         after extraction — used for the egg-based hatching cycle where the
-         host already swapped to a newer kernel before summon.
-
-    Returns the workspace absolute path.
+    Passing ``existing_workspace`` performs an in-place bond and preserves that
+    workspace's existing instance identity.
     """
-    if not is_egg_blob(blob):
-        raise ValueError("not a valid egg blob")
+    details = rapp.inspect_egg(blob, signature_verifier=signature_verifier)
+    manifest, files = details["manifest"], details["files"]
+    if manifest["variant"] != "organism":
+        raise ValueError("only organism eggs can be summoned as standalone twins")
+    if manifest["payload"].get("layout") not in (None, "variant-repo"):
+        raise ValueError("this organism egg uses the brainstem-instance layout")
 
-    with zipfile.ZipFile(io.BytesIO(blob), "r") as z:
-        try:
-            manifest = json.loads(z.read("manifest.json"))
-        except Exception as e:
-            raise ValueError(f"invalid egg manifest: {e}")
-
-        schema = manifest.get("schema")
-        if schema not in (EGG_SCHEMA_V2_1, EGG_SCHEMA_V2):
-            raise ValueError(f"unsupported egg schema for variant summon: {schema}")
-
-        source = manifest.get("source") or {}
-        rappid_uuid = source.get("rappid_uuid")
-        if not rappid_uuid:
-            raise ValueError("egg manifest has no source.rappid_uuid")
-
-        host = os.path.abspath(host_root)
-        workspace = os.path.join(host, rappid_uuid)
+    host = os.path.abspath(host_root)
+    os.makedirs(host, exist_ok=True)
+    if existing_workspace:
+        workspace = os.path.abspath(existing_workspace)
         os.makedirs(workspace, exist_ok=True)
+        instance_path = os.path.join(workspace, "rappid.json")
+        try:
+            existing_identity = json.loads(pathlib.Path(instance_path).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError("in-place bond requires an existing instance identity") from exc
+        if existing_identity.get("schema") != rapp.SPEC or not rapp.rappid_valid(
+            existing_identity.get("rappid")
+        ):
+            raise ValueError("in-place bond found a non-RAPP/1 instance identity")
+        instance_identity = existing_identity
+    else:
+        workspace = os.path.join(host, secrets.token_hex(16))
+        os.makedirs(workspace, exist_ok=False)
+        artifact_identity = rapp.strict_json_loads(files["rappid.json"])
+        parts = rapp.rappid_parts(manifest["rappid"])
+        owner = rapp.require_owner(instance_owner, default="kody-w")
+        instance_identity = {
+            "schema": rapp.SPEC,
+            "rappid": rapp.mint_rappid(
+                owner, rapp.slugify(f"{parts['slug']}-instance")
+            ),
+            "artifact_rappid": manifest["rappid"],
+            "grown_from": details["egg_hash"],
+            "born_at": rapp.utc_now_ms(),
+            "kind": "instance",
+            "name": artifact_identity.get("name") or parts["slug"],
+        }
+        pathlib.Path(workspace, "artifact-rappid.json").write_bytes(
+            files["rappid.json"]
+        )
 
-        # If the caller wants to preserve the workspace's existing kernel
-        # (the hatching-cycle usecase), stash it before extraction.
-        preserved_kernel: Optional[bytes] = None
-        if keep_existing_kernel:
-            kpath = os.path.join(workspace, "brainstem.py")
-            if os.path.exists(kpath):
-                with open(kpath, "rb") as f:
-                    preserved_kernel = f.read()
+    preserved_kernel: Optional[bytes] = None
+    kernel_path = os.path.join(workspace, "brainstem.py")
+    if keep_existing_kernel and os.path.isfile(kernel_path):
+        with open(kernel_path, "rb") as handle:
+            preserved_kernel = handle.read()
 
-        # Extract repo/ → workspace root
-        for name in z.namelist():
-            if name.startswith("repo/") and not name.endswith("/"):
-                rel = name[len("repo/"):]
-                target = _safe_join(workspace, rel)
-                if target is None:
-                    continue
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-                with z.open(name) as src, open(target, "wb") as dst:
-                    dst.write(src.read())
-            elif name.startswith("data/") and not name.endswith("/"):
-                rel = name[len("data/"):]
-                target = _safe_join(os.path.join(workspace, ".brainstem_data"), rel)
-                if target is None:
-                    continue
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-                with z.open(name) as src, open(target, "wb") as dst:
-                    dst.write(src.read())
+    for path, octets in files.items():
+        if path == "rappid.json":
+            continue
+        if path.startswith("data/"):
+            target = _safe_join(
+                os.path.join(workspace, ".brainstem_data"),
+                path[len("data/"):],
+            )
+        else:
+            target = _safe_join(workspace, path)
+        if target is None:
+            raise ValueError(f"verified egg path could not be materialized: {path}")
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as handle:
+            handle.write(octets)
 
-        # Restore preserved kernel if requested
-        if keep_existing_kernel and preserved_kernel is not None:
-            with open(os.path.join(workspace, "brainstem.py"), "wb") as f:
-                f.write(preserved_kernel)
-
-        return workspace
+    if keep_existing_kernel and preserved_kernel is not None:
+        with open(kernel_path, "wb") as handle:
+            handle.write(preserved_kernel)
+    pathlib.Path(workspace, "rappid.json").write_text(
+        json.dumps(instance_identity, indent=2, ensure_ascii=False) + "\n"
+    )
+    return workspace

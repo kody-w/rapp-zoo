@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <title>rapp-zoo — Pokédex</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/static/zoo.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='28'%3E🥚%3C/text%3E%3C/svg%3E">
 </head>
@@ -14,7 +19,7 @@
   <div class="drop-inner">
     <div class="drop-icon">🥚</div>
     <div class="drop-title">Drop a <code>.egg</code> to import</div>
-    <div class="drop-sub">Any organism cartridge — rapplication, twin, or full instance.</div>
+    <div class="drop-sub">Any verified RAPP/1 egg variant. Invalid or tampered eggs are refused.</div>
   </div>
 </div>
 
@@ -23,18 +28,19 @@
     <span class="sub">your local Pokédex of digital organisms</span>
   </h1>
   <div class="header-actions">
-    <button class="btn" id="btn-import" title="Pick a .egg file to import">⤓ Import .egg</button>
+    <button class="btn" id="btn-copilot" data-zoo-control="copilot.open" hidden>✦ Copilot</button>
+    <button class="btn" id="btn-import" data-zoo-control="egg.import" title="Pick a .egg file to import">⤓ Import .egg</button>
     <input type="file" id="file-import" accept=".egg" style="display:none">
-    <button class="btn" id="btn-refresh">↻</button>
+    <button class="btn" id="btn-refresh" data-zoo-control="collection.refresh">↻</button>
     <div class="health" id="health">…</div>
   </div>
 </header>
 
 <nav class="tabs" role="tablist">
-  <button class="tab is-active" data-tab="collection" role="tab">My collection</button>
-  <button class="tab" data-tab="starters" role="tab">Starters</button>
-  <button class="tab" data-tab="holocards" role="tab">Holocards</button>
-  <button class="tab" data-tab="discover" role="tab">Discover</button>
+  <button class="tab is-active" data-tab="collection" data-zoo-control="nav.collection" role="tab">My collection</button>
+  <button class="tab" data-tab="starters" data-zoo-control="nav.starters" role="tab">Starters</button>
+  <button class="tab" data-tab="holocards" data-zoo-control="nav.holocards" role="tab">Holocards</button>
+  <button class="tab" data-tab="discover" data-zoo-control="nav.discover" role="tab">Discover</button>
 </nav>
 
 <main>
@@ -45,7 +51,7 @@
   <div class="collection-row">
     <div class="collection-col">
       <div class="section-head">
-        <h2>Active organisms</h2>
+        <h2>Organism lineages and instances</h2>
         <span class="muted small" id="twins-count"></span>
       </div>
       <div id="twins" class="cards-grid">Loading…</div>
@@ -66,9 +72,9 @@
   <div class="starters-intro">
     <h2>Pick your starter rapplication</h2>
     <p class="muted">
-      Three archetype organisms ship with rapp-zoo. Click one to download its
-      <code>.egg</code> — then drag it into a brainstem (or back into this page)
-      to hatch. They're cartridges. The choice is yours; you can collect all three.
+      Three archetype organisms ship with rapp-zoo. Each download is a deterministic
+      <code>rapp/1-egg</code>. Hatching preserves its artifact identity and creates
+      a fresh instance identity linked by <code>grown_from</code>.
     </p>
   </div>
   <div id="starters" class="cards-grid">Loading…</div>
@@ -139,8 +145,27 @@
   <ul id="inspect-tree" class="file-tree"></ul>
   <div class="dialog-actions">
     <a class="btn" id="inspect-export" href="#" download>⬇ Download</a>
-    <button class="btn" onclick="document.getElementById('inspect-dialog').close()">Close</button>
+    <button class="btn" id="inspect-close">Close</button>
   </div>
+</dialog>
+
+<dialog id="copilot-dialog" class="copilot-dialog">
+  <div class="copilot-head">
+    <div>
+      <span class="muted small">LOCAL FRONTIER INTELLIGENCE</span>
+      <h3>Copilot CLI</h3>
+    </div>
+    <span id="copilot-status" class="pill">checking</span>
+  </div>
+  <div id="copilot-transcript" class="copilot-transcript" aria-live="polite"></div>
+  <form id="copilot-form">
+    <textarea id="copilot-input" data-zoo-control="copilot.prompt" rows="4" maxlength="12000" placeholder="Ask about this local collection, its eggs, or the next safe action."></textarea>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="copilot-cancel" data-zoo-control="copilot.cancel" disabled>Cancel</button>
+      <button type="button" class="btn" id="copilot-close">Close</button>
+      <button type="submit" class="btn primary" id="copilot-send" data-zoo-control="copilot.send">Ask Copilot</button>
+    </div>
+  </form>
 </dialog>
 
 <dialog id="confirm-dialog">
@@ -200,7 +225,7 @@
 <!-- JSZip — used by the Inspect modal to parse egg blobs client-side
      (works for catalog URLs + starter eggs that the backend's
      path-based manifest endpoint can't reach). Pinned to 3.10.1. -->
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="/static/vendor/jszip.min.js"></script>
 <script src="/static/zoo.js"></script>
 </body>
 </html>

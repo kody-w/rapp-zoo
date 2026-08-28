@@ -3,9 +3,8 @@ zoo.py — local-first Pokédex for digital organisms.
 
 A single small Flask process at localhost:7070 (configurable). Sits
 above the per-twin brainstems; never replaces them. The zoo's job is
-to list, lay-egg, summon, hatch, start, stop, IMPORT, and EXPORT
-organisms on this device — every scale (rapplications, twins, full
-brainstem instances).
+to list, pack, verify, summon, bond, start, stop, IMPORT, and EXPORT
+RAPP/1 artifacts and instances on this device.
 
 Design constraints:
 - Local-first: reads ~/.config/rapp/peers.json + ~/.rapp/{eggs,twins}/.
@@ -40,8 +39,9 @@ Routes:
                                       body: { repo_path }
     POST /api/summon                → materialize an egg into a workspace
                                       body: { egg_path, host_root?, keep_existing_kernel? }
-    POST /api/hatch                 → egg-based kernel update (lay → swap → re-summon)
-                                      body: { rappid_uuid, new_kernel }
+    POST /api/bond                  → in-place kernel update with identity preservation
+                                      body: { instance_rappid, new_kernel }
+    POST /api/hatch                 → compatibility alias for /api/bond
     POST /api/start                 → start a twin's brainstem
     POST /api/stop                  → stop a running twin
     POST /api/reveal                → open a workspace dir in the OS file manager
@@ -74,7 +74,8 @@ _STATIC_DIR = os.path.join(_HERE, "static")
 sys.path.insert(0, _UTILS_DIR)
 import egg                # noqa: E402
 import peer_registry      # noqa: E402
-import bond               # noqa: E402  — brainstem-egg/2.2-organism support
+import bond               # noqa: E402
+import rapp_protocol      # noqa: E402
 
 
 # ── Local file conventions ──────────────────────────────────────────────
@@ -101,7 +102,8 @@ def pids_dir() -> str:
 
 
 def _pid_file(rappid_uuid: str) -> str:
-    return os.path.join(pids_dir(), f"{rappid_uuid}.pid")
+    key = hashlib.sha256(rappid_uuid.encode("utf-8")).hexdigest()
+    return os.path.join(pids_dir(), f"{key}.pid")
 
 
 def _read_pid(rappid_uuid: str) -> int | None:
@@ -162,6 +164,26 @@ def _probe_health(port: int, timeout: float = 0.6) -> dict:
         return {"live": False}
 
 
+def _signature_verifier():
+    return rapp_protocol.signature_verifier_from_environment()
+
+
+def _verified_egg(blob: bytes) -> dict:
+    return rapp_protocol.inspect_egg(
+        blob,
+        signature_verifier=_signature_verifier(),
+    )
+
+
+def _find_peer(instance_rappid: str) -> dict | None:
+    for peer in peer_registry.load()["peers"]:
+        if peer.get("instance_rappid") == instance_rappid:
+            return peer
+        if peer.get("rappid_uuid") == instance_rappid:
+            return peer
+    return None
+
+
 # ── Flask app ───────────────────────────────────────────────────────────
 
 
@@ -186,39 +208,160 @@ def create_app() -> Flask:
             return abort(404)
         return send_from_directory(os.path.dirname(full), os.path.basename(full))
 
+    @app.route("/manifest.webmanifest")
+    def web_manifest():
+        return send_from_directory(
+            _STATIC_DIR,
+            "manifest.webmanifest",
+            mimetype="application/manifest+json",
+        )
+
+    @app.route("/sw.js")
+    def service_worker():
+        response = send_from_directory(
+            _STATIC_DIR,
+            "sw.js",
+            mimetype="application/javascript",
+        )
+        response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
+    @app.after_request
+    def security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "connect-src 'self' http://127.0.0.1:* http://localhost:* "
+            "https://raw.githubusercontent.com; "
+            "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+        )
+        return response
+
     @app.route("/api/health")
     def health():
         peers = peer_registry.load()["peers"]
         live_count = sum(1 for p in peers if _probe_health(p.get("port") or 0)["live"])
-        return jsonify({
+        response = jsonify({
             "name": "rapp-zoo",
             "status": "ok",
             "rapp_home": rapp_home(),
             "peer_count": len(peers),
             "live_count": live_count,
             "schema": "rapp-zoo-health/1.0",
+        })
+        desktop_token = os.environ.get("RAPP_ZOO_DESKTOP_TOKEN")
+        if desktop_token:
+            response.headers["X-RAPP-Zoo-Desktop"] = desktop_token
+        return response, 200
+
+    @app.route("/api/intelligence-context")
+    def intelligence_context():
+        """Path-free semantic state for the bounded desktop Copilot process."""
+        lineages = []
+        for artifact_rappid, peers in sorted(
+            peer_registry.group_by_lineage().items()
+        ):
+            lineages.append({
+                "artifact_rappid": artifact_rappid,
+                "name": next(
+                    (
+                        peer.get("twin_name")
+                        for peer in peers
+                        if peer.get("twin_name")
+                    ),
+                    rapp_protocol.rappid_parts(artifact_rappid)["slug"]
+                    if rapp_protocol.rappid_valid(artifact_rappid)
+                    else "unknown",
+                ),
+                "instances": [
+                    {
+                        "instance_rappid": (
+                            peer.get("instance_rappid")
+                            or peer.get("rappid_uuid")
+                        ),
+                        "scope": (
+                            "global"
+                            if peer.get("is_global")
+                            else "standalone"
+                            if peer.get("is_twin_only")
+                            else "project"
+                        ),
+                        "live": _probe_health(peer.get("port") or 0)["live"],
+                        "version": peer.get("version") or None,
+                    }
+                    for peer in peers
+                ],
+            })
+
+        egg_summaries = []
+        root = eggs_dir()
+        if os.path.isdir(root):
+            for directory, _, filenames in os.walk(root):
+                for filename in sorted(filenames):
+                    if not filename.endswith(".egg"):
+                        continue
+                    try:
+                        with open(os.path.join(directory, filename), "rb") as handle:
+                            details = _verified_egg(handle.read())
+                        manifest = details["manifest"]
+                        egg_summaries.append({
+                            "egg_hash": details["egg_hash"],
+                            "artifact_rappid": manifest["rappid"],
+                            "variant": manifest["variant"],
+                        })
+                    except Exception:
+                        continue
+        return jsonify({
+            "schema": "rapp-zoo-intelligence-context/1.0",
+            "health": {
+                "lineage_count": len(lineages),
+                "instance_count": sum(
+                    len(item["instances"]) for item in lineages
+                ),
+                "egg_count": len(egg_summaries),
+            },
+            "lineages": lineages,
+            "eggs": egg_summaries,
+            "visible_controls": [
+                "nav.collection",
+                "nav.starters",
+                "nav.holocards",
+                "nav.discover",
+                "collection.refresh",
+                "egg.import",
+                "copilot.open",
+            ],
         }), 200
 
     @app.route("/api/twins")
     def list_twins():
-        grouped = peer_registry.group_by_twin()
+        grouped = peer_registry.group_by_lineage()
         twins = []
-        for rappid_uuid, peers in sorted(grouped.items()):
+        for artifact_rappid, peers in sorted(grouped.items()):
             display_name = next(
                 (p.get("twin_name") for p in peers if p.get("twin_name")),
-                rappid_uuid[:8],
+                artifact_rappid[:8],
             )
             parent_repo = next(
                 (p.get("parent_repo") for p in peers if p.get("parent_repo")),
                 None,
             )
-            incarnations = []
+            instances = []
             for p in peers:
                 port = p.get("port") or 0
                 probe = _probe_health(port) if port else {"live": False}
-                pid = _read_pid(rappid_uuid)
-                incarnations.append({
+                instance_rappid = p.get("instance_rappid") or p.get("rappid_uuid")
+                pid = _read_pid(instance_rappid) if instance_rappid else None
+                instances.append({
                     "id": p.get("id"),
+                    "instance_rappid": instance_rappid,
+                    "artifact_rappid": p.get("artifact_rappid") or artifact_rappid,
+                    "grown_from": p.get("grown_from"),
                     "brainstem_dir": p.get("brainstem_dir"),
                     "port": port,
                     "is_global": bool(p.get("is_global")),
@@ -230,11 +373,14 @@ def create_app() -> Flask:
                     "pid": pid if pid and _pid_alive(pid) else None,
                 })
             twins.append({
-                "rappid_uuid": rappid_uuid,
+                "artifact_rappid": artifact_rappid,
+                "rappid_uuid": artifact_rappid,
                 "name": display_name,
                 "parent_repo": parent_repo,
+                "instance_count": len(peers),
                 "incarnation_count": len(peers),
-                "incarnations": incarnations,
+                "instances": instances,
+                "incarnations": instances,
             })
         return jsonify({"schema": "rapp-zoo-twins/1.0", "twins": twins}), 200
 
@@ -255,30 +401,38 @@ def create_app() -> Flask:
                         st = os.stat(full)
                     except OSError:
                         continue
-                    # Peek the manifest so the UI can distinguish 2.1
-                    # variant-repo eggs from 2.2 organism cartridges
-                    # (different summon paths, different display chips).
                     schema = None
-                    egg_type = None
+                    variant = None
                     kernel_version = None
+                    artifact_rappid = None
+                    egg_hash = None
+                    valid = False
+                    verification_error = None
                     try:
                         with open(full, "rb") as f:
                             blob = f.read()
-                        m = bond.inspect_egg(blob) if blob[:4] == b"PK\x03\x04" else None
-                        if m:
-                            schema = m.get("schema")
-                            egg_type = m.get("type")
-                            kernel_version = m.get("kernel_version")
-                    except Exception:
-                        pass
+                        details = _verified_egg(blob)
+                        m = details["manifest"]
+                        schema = m["schema"]
+                        variant = m["variant"]
+                        artifact_rappid = m["rappid"]
+                        egg_hash = details["egg_hash"]
+                        kernel_version = m["payload"].get("kernel_version")
+                        valid = True
+                    except Exception as exc:
+                        verification_error = str(exc)
                     out.append({
-                        "rappid_uuid": rid,
+                        "rappid_uuid": artifact_rappid or rid,
+                        "artifact_rappid": artifact_rappid,
                         "filename": fn,
                         "path": full,
                         "size_bytes": st.st_size,
                         "schema": schema,
-                        "type": egg_type,
+                        "variant": variant,
                         "kernel_version": kernel_version,
+                        "egg_hash": egg_hash,
+                        "valid": valid,
+                        "verification_error": verification_error,
                         "mtime": time.strftime(
                             "%Y-%m-%dT%H:%M:%SZ",
                             time.gmtime(st.st_mtime),
@@ -294,18 +448,12 @@ def create_app() -> Flask:
         if not repo_path or not os.path.isdir(repo_path):
             return jsonify({"error": "repo_path missing or not a directory"}), 400
 
-        # Layout dispatch: a brainstem-instance has rappid.json at the
-        # workspace root and the kernel under src/rapp_brainstem/ — that
-        # pack path is bond.pack_organism (schema 2.2). A variant repo
-        # has rappid.json + brainstem.py both at the same root — that's
-        # egg.pack_twin_from_repo (schema 2.1).
         rappid_at_root = os.path.exists(os.path.join(repo_path, "rappid.json"))
         kernel_at_root = os.path.exists(os.path.join(repo_path, "brainstem.py"))
         instance_src = os.path.join(repo_path, "src", "rapp_brainstem")
 
         try:
             if rappid_at_root and not kernel_at_root and os.path.isdir(instance_src):
-                # 2.2 organism (brainstem-instance) layout
                 kver_file = os.path.join(instance_src, "VERSION")
                 kver = "?"
                 if os.path.exists(kver_file):
@@ -314,20 +462,17 @@ def create_app() -> Flask:
                 blob = bond.pack_organism(repo_path, instance_src,
                                           kernel_version=kver)
             else:
-                # 2.1 variant-repo layout
                 blob = egg.pack_twin_from_repo(repo_path)
         except Exception as e:
             return jsonify({"error": f"pack failed: {e}"}), 500
 
         try:
-            with open(os.path.join(repo_path, "rappid.json")) as f:
-                rj = json.load(f)
-            rid = rj["rappid"]
+            details = _verified_egg(blob)
+            rid = details["manifest"]["rappid"]
+            egg_hash = details["egg_hash"]
         except Exception as e:
-            return jsonify({"error": f"could not read rappid.json: {e}"}), 500
+            return jsonify({"error": f"emitted egg failed RAPP/1 verification: {e}"}), 500
 
-        # Use the hex tail as the dir slug for 2.2 rappid strings; keep
-        # the raw value for 2.1 UUIDs (which already look like dir names).
         slug = rid.rsplit(":", 1)[-1] if ":" in rid else rid
         out_dir = os.path.join(eggs_dir(), slug)
         os.makedirs(out_dir, exist_ok=True)
@@ -337,7 +482,12 @@ def create_app() -> Flask:
             f.write(blob)
         return jsonify({
             "ok": True, "egg_path": out_path,
-            "rappid_uuid": rid, "size_bytes": len(blob),
+            "rappid_uuid": rid,
+            "artifact_rappid": rid,
+            "egg_hash": egg_hash,
+            "schema": rapp_protocol.EGG_SCHEMA,
+            "variant": details["manifest"]["variant"],
+            "size_bytes": len(blob),
         }), 200
 
     @app.route("/api/summon", methods=["POST"])
@@ -348,70 +498,125 @@ def create_app() -> Flask:
             return jsonify({"error": "egg_path missing or not a file"}), 400
         host_root = body.get("host_root") or twins_dir()
         keep = bool(body.get("keep_existing_kernel"))
-        os.makedirs(host_root, exist_ok=True)
+        owner = body.get("owner") or os.environ.get("RAPP_OWNER")
         try:
             with open(ep, "rb") as f:
                 blob = f.read()
         except Exception as e:
             return jsonify({"error": f"egg read failed: {e}"}), 500
 
-        # Schema dispatch — 2.1 variant-repo eggs go through the existing
-        # summon_twin_egg path; 2.2 organism cartridges (the kind the
-        # locally-hatched brainstem produces via `brainstem egg`) get
-        # unpacked by bond.unpack_organism into a per-rappid workspace
-        # whose layout mirrors a brainstem instance (rappid.json at the
-        # workspace root, kernel files under src/rapp_brainstem/).
         try:
-            manifest = bond.inspect_egg(blob)
+            details = _verified_egg(blob)
         except Exception as e:
-            return jsonify({"error": f"egg has no manifest: {e}"}), 400
+            return jsonify({"error": f"RAPP/1 egg refused: {e}"}), 422
 
-        schema = manifest.get("schema", "")
-        if schema == bond.SCHEMA:
-            # 2.2 organism cartridge
+        manifest = details["manifest"]
+        variant = manifest["variant"]
+        verifier = _signature_verifier()
+        if variant == "rapplication":
+            if not body.get("host_root") or not os.path.isdir(host_root):
+                return jsonify({
+                    "error": "rapplication summon requires host_root pointing at a brainstem src directory"
+                }), 400
             try:
-                ws = _summon_organism(blob, manifest, host_root)
+                result = bond.unpack_rapplication(
+                    blob,
+                    host_root,
+                    instance_owner=owner,
+                    signature_verifier=verifier,
+                )
             except Exception as e:
-                return jsonify({"error": f"organism summon failed: {e}"}), 500
-        else:
-            # 2.0 / 2.1 — existing variant-repo path
-            try:
-                ws = egg.summon_twin_egg(blob, host_root, keep_existing_kernel=keep)
-            except Exception as e:
-                return jsonify({"error": f"summon failed: {e}"}), 500
+                return jsonify({"error": f"rapplication summon failed: {e}"}), 500
+            return jsonify({
+                "ok": result["ok"],
+                "workspace": host_root,
+                "schema": manifest["schema"],
+                "variant": variant,
+                "artifact_rappid": result["artifact_rappid"],
+                "instance_rappid": result["instance_rappid"],
+                "grown_from": result["grown_from"],
+                "egg_hash": result["egg_hash"],
+            }), 200 if result["ok"] else 500
+        if variant != "organism":
+            return jsonify({
+                "error": (
+                    f"verified {variant} egg is inspectable/importable but is not "
+                    "a standalone organism"
+                )
+            }), 422
 
-        # Best-effort registration in the neighborhood
+        os.makedirs(host_root, exist_ok=True)
+        layout = manifest["payload"].get("layout")
         try:
-            rappid_path = os.path.join(ws, "rappid.json")
-            if not os.path.exists(rappid_path):
-                # 2.2 organism layout puts rappid.json at the workspace root
-                # but the kernel src lives under src/rapp_brainstem/
-                rappid_path = os.path.join(ws, "rappid.json")
-            with open(rappid_path) as f:
-                rj = json.load(f)
+            if layout == "brainstem-instance":
+                ws, result = _summon_organism(
+                    blob,
+                    host_root,
+                    instance_owner=owner,
+                    signature_verifier=verifier,
+                )
+            else:
+                ws = egg.summon_twin_egg(
+                    blob,
+                    host_root,
+                    keep_existing_kernel=keep,
+                    instance_owner=owner,
+                    signature_verifier=verifier,
+                )
+                with open(os.path.join(ws, "rappid.json"), encoding="utf-8") as handle:
+                    live_identity = json.load(handle)
+                result = {
+                    "artifact_rappid": manifest["rappid"],
+                    "instance_rappid": live_identity["rappid"],
+                    "grown_from": live_identity["grown_from"],
+                    "egg_hash": details["egg_hash"],
+                }
+        except Exception as e:
+            return jsonify({"error": f"organism summon failed: {e}"}), 500
+
+        try:
+            with open(os.path.join(ws, "rappid.json"), encoding="utf-8") as handle:
+                live_identity = json.load(handle)
             claimed = peer_registry.claimed_ports()
             port = next((p for p in range(7081, 7200) if p not in claimed), 0)
             peer_registry.upsert(
                 ws, port,
-                version=(rj.get("brainstem") or {}).get("version") or rj.get("kind"),
-                rappid_uuid=rj["rappid"],
-                twin_name=rj.get("name"),
-                parent_repo=rj.get("parent_repo"),
+                version=manifest["payload"].get("kernel_version")
+                or live_identity.get("kind"),
+                instance_rappid=result["instance_rappid"],
+                artifact_rappid=result["artifact_rappid"],
+                grown_from=result["grown_from"],
+                egg_hash=result["egg_hash"],
+                twin_name=live_identity.get("name"),
+                parent_repo=manifest["payload"].get("parent_repo")
+                or (manifest["payload"].get("source") or {}).get("repo"),
                 summoned_from=ep,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            return jsonify({
+                "error": f"organism materialized but registry update failed: {e}",
+                "workspace": ws,
+            }), 500
 
-        return jsonify({"ok": True, "workspace": ws,
-                        "schema": schema or "unknown"}), 200
+        return jsonify({
+            "ok": True,
+            "workspace": ws,
+            "schema": manifest["schema"],
+            "variant": variant,
+            "artifact_rappid": result["artifact_rappid"],
+            "instance_rappid": result["instance_rappid"],
+            "grown_from": result["grown_from"],
+            "egg_hash": result["egg_hash"],
+        }), 200
 
+    @app.route("/api/bond", methods=["POST"])
     @app.route("/api/hatch", methods=["POST"])
-    def hatch():
+    def bond_in_place():
         body = request.get_json(silent=True) or {}
-        rid = body.get("rappid_uuid")
+        rid = body.get("instance_rappid") or body.get("rappid_uuid")
         new_kernel = body.get("new_kernel")
         if not rid or not new_kernel:
-            return jsonify({"error": "rappid_uuid and new_kernel required"}), 400
+            return jsonify({"error": "instance_rappid and new_kernel required"}), 400
 
         # Resolve new_kernel to a brainstem.py file
         if os.path.isfile(new_kernel) and new_kernel.endswith("brainstem.py"):
@@ -425,21 +630,33 @@ def create_app() -> Flask:
         else:
             return jsonify({"error": f"cannot locate brainstem.py from {new_kernel}"}), 400
 
-        grouped = peer_registry.group_by_twin()
-        peers = grouped.get(rid) or []
-        if not peers:
-            return jsonify({"error": f"no peer for rappid_uuid {rid}"}), 404
-        # Prefer twin-only incarnation; fall back to first
-        peer = next((p for p in peers if p.get("is_twin_only")), peers[0])
+        peer = _find_peer(rid)
+        if not peer:
+            return jsonify({"error": f"no peer for instance_rappid {rid}"}), 404
         ws = peer.get("brainstem_dir")
         if not ws or not os.path.isdir(ws):
             return jsonify({"error": f"workspace not found: {ws}"}), 404
 
-        # Step 1: lay an egg
+        instance_src = os.path.join(ws, "src", "rapp_brainstem")
+        is_brainstem_instance = os.path.isdir(instance_src)
         try:
-            blob = egg.pack_twin_from_repo(ws)
+            if is_brainstem_instance:
+                version_path = os.path.join(instance_src, "VERSION")
+                version = (
+                    pathlib.Path(version_path).read_text().strip()
+                    if os.path.isfile(version_path)
+                    else "?"
+                )
+                blob = bond.pack_organism(ws, instance_src, version)
+                target_kernel = os.path.join(instance_src, "brainstem.py")
+            else:
+                blob = egg.pack_twin_from_repo(ws)
+                target_kernel = os.path.join(ws, "brainstem.py")
+            details = _verified_egg(blob)
             ts = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
-            out_dir = os.path.join(eggs_dir(), rid)
+            out_dir = os.path.join(
+                eggs_dir(), details["manifest"]["rappid"].rsplit(":", 1)[-1]
+            )
             os.makedirs(out_dir, exist_ok=True)
             ep = os.path.join(out_dir, f"{ts}.egg")
             with open(ep, "wb") as f:
@@ -447,43 +664,70 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": f"lay-egg step failed: {e}"}), 500
 
-        # Step 2: swap the kernel in place
         try:
-            shutil.copy2(kernel_file, os.path.join(ws, "brainstem.py"))
+            previous_kernel = (
+                pathlib.Path(target_kernel).read_bytes()
+                if os.path.isfile(target_kernel)
+                else None
+            )
+            os.makedirs(os.path.dirname(target_kernel), exist_ok=True)
+            shutil.copy2(kernel_file, target_kernel)
         except Exception as e:
             return jsonify({"error": f"kernel swap failed: {e}"}), 500
 
-        # Step 3: re-summon with --keep-kernel
         try:
-            ws_after = egg.summon_twin_egg(
-                blob, os.path.dirname(ws),
-                keep_existing_kernel=True,
-            )
+            if is_brainstem_instance:
+                result = bond.unpack_organism(
+                    blob,
+                    ws,
+                    instance_src,
+                    preserve_instance_identity=True,
+                    signature_verifier=_signature_verifier(),
+                )
+                ws_after = ws
+            else:
+                ws_after = egg.summon_twin_egg(
+                    blob,
+                    os.path.dirname(ws),
+                    keep_existing_kernel=True,
+                    existing_workspace=ws,
+                    signature_verifier=_signature_verifier(),
+                )
+                result = {"ok": True}
         except Exception as e:
-            return jsonify({"error": f"summon-back failed: {e}"}), 500
+            if previous_kernel is not None:
+                pathlib.Path(target_kernel).write_bytes(previous_kernel)
+            return jsonify({"error": f"bond restore failed; kernel rolled back: {e}"}), 500
+        if not result.get("ok"):
+            if previous_kernel is not None:
+                pathlib.Path(target_kernel).write_bytes(previous_kernel)
+            return jsonify({
+                "error": f"bond restore failed; kernel rolled back: {result.get('errors')}"
+            }), 500
 
         return jsonify({
             "ok": True, "egg_path": ep,
-            "workspace": ws_after, "kernel_swapped_from": kernel_file,
+            "workspace": ws_after,
+            "instance_rappid": rid,
+            "egg_hash": details["egg_hash"],
+            "kernel_swapped_from": kernel_file,
         }), 200
 
     @app.route("/api/start", methods=["POST"])
     def start_twin():
         body = request.get_json(silent=True) or {}
-        rid = body.get("rappid_uuid")
+        rid = body.get("instance_rappid") or body.get("rappid_uuid")
         if not rid:
-            return jsonify({"error": "rappid_uuid required"}), 400
+            return jsonify({"error": "instance_rappid required"}), 400
 
         existing_pid = _read_pid(rid)
         if existing_pid and _pid_alive(existing_pid):
             return jsonify({"ok": True, "already_running": True,
                             "pid": existing_pid}), 200
 
-        grouped = peer_registry.group_by_twin()
-        peers = grouped.get(rid) or []
-        if not peers:
+        peer = _find_peer(rid)
+        if not peer:
             return jsonify({"error": f"no peer for {rid}"}), 404
-        peer = next((p for p in peers if p.get("is_twin_only")), peers[0])
         ws = peer.get("brainstem_dir")
         if not ws or not os.path.isdir(ws):
             return jsonify({"error": f"workspace not found: {ws}"}), 404
@@ -508,9 +752,9 @@ def create_app() -> Flask:
     @app.route("/api/stop", methods=["POST"])
     def stop_twin():
         body = request.get_json(silent=True) or {}
-        rid = body.get("rappid_uuid")
+        rid = body.get("instance_rappid") or body.get("rappid_uuid")
         if not rid:
-            return jsonify({"error": "rappid_uuid required"}), 400
+            return jsonify({"error": "instance_rappid required"}), 400
         pid = _read_pid(rid)
         if not pid or not _pid_alive(pid):
             _clear_pid(rid)
@@ -545,24 +789,19 @@ def create_app() -> Flask:
             return jsonify({"error": "empty upload"}), 400
 
         blob = f.read()
-        if not blob[:4] == b"PK\x03\x04":
-            return jsonify({"error": "not a valid egg (no zip header)"}), 400
-
-        # Inspect first — refuse if no manifest, otherwise we'd save garbage.
         try:
-            manifest = bond.inspect_egg(blob)
+            details = _verified_egg(blob)
         except Exception as e:
-            return jsonify({"error": f"egg has no readable manifest: {e}"}), 400
+            return jsonify({"error": f"RAPP/1 egg refused: {e}"}), 422
+        manifest = details["manifest"]
 
-        # Place under eggs/imported/ so users can tell what they uploaded
-        # vs what the zoo laid via /api/lay-egg.
-        sha8 = hashlib.sha256(blob).hexdigest()[:8]
+        hash_prefix = details["egg_hash"][:12]
         safe_name = re.sub(r"[^\w.-]", "_", f.filename or "upload.egg")
         if not safe_name.endswith(".egg"):
             safe_name += ".egg"
         out_dir = os.path.join(eggs_dir(), "imported")
         os.makedirs(out_dir, exist_ok=True)
-        out_path = os.path.join(out_dir, f"{sha8}-{safe_name}")
+        out_path = os.path.join(out_dir, f"{hash_prefix}-{safe_name}")
         with open(out_path, "wb") as o:
             o.write(blob)
 
@@ -571,6 +810,7 @@ def create_app() -> Flask:
             "egg_path": out_path,
             "size_bytes": len(blob),
             "manifest": manifest,
+            "egg_hash": details["egg_hash"],
         }), 200
 
     @app.route("/api/export-egg")
@@ -602,22 +842,24 @@ def create_app() -> Flask:
         path = request.args.get("path", "")
         if not path or not os.path.isfile(path):
             return jsonify({"error": "?path= must point at an existing file"}), 400
+        path = os.path.abspath(path)
+        eggs_root = os.path.abspath(eggs_dir())
+        if not path.startswith(eggs_root + os.sep):
+            return jsonify({"error": "path must be inside eggs dir"}), 403
         try:
             with open(path, "rb") as f:
                 blob = f.read()
-            manifest = bond.inspect_egg(blob)
+            details = _verified_egg(blob)
         except Exception as e:
-            return jsonify({"error": str(e)}), 400
-        # Also list the file tree in the egg so the UI can show what's inside.
-        import io as _io
-        import zipfile as _zf
-        try:
-            with _zf.ZipFile(_io.BytesIO(blob)) as z:
-                names = sorted(z.namelist())
-        except Exception:
-            names = []
-        return jsonify({"ok": True, "manifest": manifest,
-                        "file_tree": names, "size_bytes": len(blob)}), 200
+            return jsonify({"error": str(e)}), 422
+        names = ["manifest.json", *sorted(details["files"])]
+        return jsonify({
+            "ok": True,
+            "manifest": details["manifest"],
+            "egg_hash": details["egg_hash"],
+            "file_tree": names,
+            "size_bytes": len(blob),
+        }), 200
 
     @app.route("/api/starters")
     def list_starters():
@@ -636,22 +878,25 @@ def create_app() -> Flask:
             path = os.path.join(starters_root, fn)
             try:
                 with open(path, "rb") as f:
-                    manifest = bond.inspect_egg(f.read())
+                    details = _verified_egg(f.read())
+                manifest = details["manifest"]
             except Exception:
                 continue
+            payload = manifest["payload"]
             # Type derived from the rapp_id → matches the source dir name
             # (work / play / regular). Hardcoded mapping is fine; only
             # 3 starters and they're stable.
             type_map = {"workday": "work", "playtime": "play", "journal": "regular"}
-            rapp_id = manifest.get("rapp_id") or fn.replace(".egg", "")
+            rapp_id = payload.get("rapp_id") or fn.replace(".egg", "")
             out.append({
                 "rapp_id":   rapp_id,
                 "type":      type_map.get(rapp_id, "regular"),
-                "name":      manifest.get("name") or rapp_id,
-                "version":   manifest.get("version"),
-                "publisher": manifest.get("publisher"),
-                "rappid":    manifest.get("rappid"),
-                "has_skin":  manifest.get("has_skin"),
+                "name":      payload.get("name") or rapp_id,
+                "version":   payload.get("version"),
+                "publisher": payload.get("publisher"),
+                "rappid":    manifest["rappid"],
+                "has_skin":  payload.get("has_skin"),
+                "egg_hash":  details["egg_hash"],
                 "egg_url":   f"/starters/dist/{fn}",
                 "size_bytes": os.path.getsize(path),
             })
@@ -771,8 +1016,14 @@ def create_app() -> Flask:
     return app
 
 
-def _summon_organism(blob: bytes, manifest: dict, host_root: str) -> str:
-    """Materialize a brainstem-egg/2.2-organism into <host_root>/<rappid_uuid>/.
+def _summon_organism(
+    blob: bytes,
+    host_root: str,
+    *,
+    instance_owner: str | None,
+    signature_verifier=None,
+) -> tuple[str, dict]:
+    """Materialize a verified brainstem-instance organism as a fresh instance.
 
     Workspace layout matches a locally-hatched brainstem instance:
         <ws>/rappid.json                      ← organism identity
@@ -789,22 +1040,19 @@ def _summon_organism(blob: bytes, manifest: dict, host_root: str) -> str:
     workspace's src/rapp_brainstem/ via the one-liner. The egg-on-fresh-
     kernel pattern is bond.py's whole reason for existing.
     """
-    rappid = manifest.get("rappid") or "unknown"
-    # Derive a directory-safe slug from the rappid string. bond.py rappids
-    # are the canonical Eternity form "rappid:@<owner>/<slug>:<hex>" (legacy
-    # envelope forms are still read) — use the hex tail after the last ":"
-    # so the workspace dir matches 2.1's ~/.rapp/twins/<uuid>/ shape.
-    slug = rappid.rsplit(":", 1)[-1] if ":" in rappid else rappid
-    if not slug or not re.match(r"^[\w-]+$", slug):
-        slug = hashlib.sha256((rappid or "unknown").encode()).hexdigest()[:16]
-
-    workspace = os.path.join(host_root, slug)
+    workspace = os.path.join(host_root, os.urandom(16).hex())
     src = os.path.join(workspace, "src", "rapp_brainstem")
     os.makedirs(src, exist_ok=True)
-    result = bond.unpack_organism(blob, workspace, src, overwrite_rappid=True)
+    result = bond.unpack_organism(
+        blob,
+        workspace,
+        src,
+        instance_owner=instance_owner,
+        signature_verifier=signature_verifier,
+    )
     if not result.get("ok"):
         raise RuntimeError(f"unpack errors: {result.get('errors')}")
-    return workspace
+    return workspace, result
 
 
 def main() -> None:
