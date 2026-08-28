@@ -24,3 +24,7 @@ Thumbs.db
 # Local secrets
 .env
 .env.local
+node_modules/
+release/
+dist/
+logs/

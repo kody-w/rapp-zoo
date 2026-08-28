@@ -32,7 +32,10 @@ import zipfile
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 _RAPP_BRAINSTEM = pathlib.Path(
-    "/Users/kodywildfeuer/Documents/GitHub/RAPP/rapp_brainstem"
+    os.environ.get(
+        "RAPP_BRAINSTEM_PATH",
+        "/Users/kodywildfeuer/Documents/GitHub/RAPP/rapp_brainstem",
+    )
 )
 
 
@@ -75,11 +78,12 @@ class _Iso:
 
     def __enter__(self):
         self._prev = {}
-        for k in ("XDG_CONFIG_HOME", "HOME", "RAPP_HOME"):
+        for k in ("XDG_CONFIG_HOME", "HOME", "RAPP_HOME", "RAPP_OWNER"):
             self._prev[k] = os.environ.get(k)
         os.environ["XDG_CONFIG_HOME"] = self.tmp
         os.environ["HOME"] = self.tmp
         os.environ["RAPP_HOME"] = os.path.join(self.tmp, ".rapp")
+        os.environ["RAPP_OWNER"] = "kody-w"
         return self
 
     def __exit__(self, *exc):
@@ -100,10 +104,26 @@ def _stage_cartridges() -> str:
     return tmp_agents
 
 
+def _register_protocol_shim():
+    utils_dir = _REPO_ROOT / "utils"
+    if str(utils_dir) not in sys.path:
+        sys.path.insert(0, str(utils_dir))
+    import rapp_protocol
+
+    sys.modules["utils.rapp_protocol"] = rapp_protocol
+    utils_pkg = sys.modules.get("utils")
+    if utils_pkg is not None:
+        setattr(utils_pkg, "rapp_protocol", rapp_protocol)
+    return rapp_protocol
+
+
 @unittest.skipUnless(HAVE_BRAINSTEM, "ancestor brainstem.py not available")
 class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
     """The most important contract test: do our cartridges load via the
     real brainstem's _load_agent_from_file()?"""
+
+    def setUp(self):
+        _register_protocol_shim()
 
     def test_summon_twin_agent_loads_and_registers(self):
         agents_dir = _stage_cartridges()
@@ -154,8 +174,9 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
                     twin_name="alice-test",
                     kind="personal",
                     description="for the contract test",
+                    owner="kody-w",
                 )
-                self.assertIn("Created personal twin", result)
+                self.assertIn("Created personal twin instance", result)
                 self.assertIn("alice-test", result)
                 self.assertIn("rappid", result)
 
@@ -175,8 +196,11 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
                 rj = json.loads((ws / "rappid.json").read_text())
                 self.assertEqual(rj["name"], "alice-test")
                 self.assertEqual(rj["kind"], "personal")
+                self.assertTrue(rj["rappid"].startswith("rappid:@kody-w/alice-test:"))
+                self.assertIsNone(rj["grown_from"])
                 self.assertEqual(rj["parent_rappid"],
-                                 "37ad22f5-ed6d-48b1-b8b4-61019f58a42b")
+                                 "rappid:@kody-w/wildhaven-ai-homes-twin:"
+                                 "df9c3f1f4b09d000720e93be4248d44213025ba5f76bf1180dc5d1ba0b0efd36")
 
                 # soul.md uses the personal template
                 soul = (ws / "soul.md").read_text()
@@ -191,17 +215,20 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
         agents_dir = _stage_cartridges()
         try:
             with _Iso():
-                # Step 1: pack a synthetic source twin into an .egg
-                from utils import egg as egg_module  # vendored in brainstem
-                source_repo = pathlib.Path(os.environ["HOME"]) / "source-repo"
-                source_repo.mkdir(parents=True)
+                protocol = _register_protocol_shim()
+                artifact_rappid = (
+                    "rappid:@kody-w/imported-twin:" + "d" * 64
+                )
                 rj_source = {
-                    "schema": "rapp-rappid/1.1",
-                    "rappid": "deadbeef-1111-2222-3333-444444444444",
-                    "parent_rappid": "37ad22f5-ed6d-48b1-b8b4-61019f58a42b",
+                    "schema": "rapp/1",
+                    "rappid": artifact_rappid,
+                    "parent_rappid": (
+                        "rappid:@kody-w/rapp:"
+                        "9a8f0a4b5a710e20f4d819a0f37d2a4c9f113b5e78fb3c29e70b54fff48a38f9"
+                    ),
                     "parent_repo": "https://github.com/example/parent.git",
                     "parent_commit": "abc",
-                    "born_at": "2026-05-04T00:00:00Z",
+                    "born_at": "2026-05-04T00:00:00.000Z",
                     "name": "imported-twin",
                     "role": "variant",
                     "kind": "memorial",
@@ -213,21 +240,23 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
                         "source_commit": "deadbeef",
                     },
                 }
-                (source_repo / "rappid.json").write_text(json.dumps(rj_source, indent=2))
-                (source_repo / "brainstem.py").write_text("# kernel\n")
-                (source_repo / "soul.md").write_text("# soul\nyou are imported-twin.\n")
-                (source_repo / "agents").mkdir()
-                (source_repo / "agents" / "basic_agent.py").write_text("# stub\n")
-                (source_repo / "utils").mkdir()
-                (source_repo / "utils" / "lineage_check.py").write_text("# stub\n")
-                (source_repo / "installer").mkdir()
-                (source_repo / "installer" / "VERSION").write_text("0.12.2\n")
-                (source_repo / ".brainstem_data").mkdir()
-                (source_repo / ".brainstem_data" / "memory.json").write_text(
-                    json.dumps({"facts": ["the imported twin's persistent memory"]})
+                blob = protocol.pack_egg(
+                    "organism",
+                    artifact_rappid,
+                    "2026-08-28T20:00:00.000Z",
+                    files={
+                        "rappid.json": (
+                            json.dumps(rj_source, indent=2) + "\n"
+                        ).encode(),
+                        "brainstem.py": b"# kernel\n",
+                        "soul.md": b"# soul\nyou are imported-twin.\n",
+                        "agents/custom_agent.py": b"class Custom: pass\n",
+                        "data/memory.json": json.dumps(
+                            {"facts": ["the imported twin's persistent memory"]}
+                        ).encode(),
+                    },
+                    payload={"layout": "variant-repo"},
                 )
-
-                blob = egg_module.pack_twin_from_repo(str(source_repo))
                 egg_path = pathlib.Path(os.environ["HOME"]) / "imported.egg"
                 egg_path.write_bytes(blob)
 
@@ -235,22 +264,32 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
                 cart_path = os.path.join(agents_dir, "hatch_egg_agent.py")
                 loaded = _brainstem._load_agent_from_file(cart_path)
                 instance = loaded["HatchEgg"]
-                result = instance.perform(egg_path=str(egg_path))
+                result = instance.perform(
+                    egg_path=str(egg_path),
+                    owner="kody-w",
+                )
 
-                self.assertIn("Hatched twin", result)
+                self.assertIn("Hatched organism instance", result)
                 self.assertIn("fully viable", result.lower())
-                self.assertIn("deadbeef-1111-2222-3333-444444444444", result)
+                self.assertIn(artifact_rappid, result)
 
                 # Step 3: verify the workspace is fully viable
                 rapp_home = pathlib.Path(os.environ["RAPP_HOME"])
                 workspaces = list((rapp_home / "twins").iterdir())
                 self.assertEqual(len(workspaces), 1)
                 ws = workspaces[0]
-                self.assertEqual(ws.name, "deadbeef-1111-2222-3333-444444444444")
 
-                # Identity preserved
                 rj_after = json.loads((ws / "rappid.json").read_text())
-                self.assertEqual(rj_after["rappid"], rj_source["rappid"])
+                artifact_after = json.loads(
+                    (ws / "artifact-rappid.json").read_text()
+                )
+                self.assertEqual(artifact_after["rappid"], artifact_rappid)
+                self.assertNotEqual(rj_after["rappid"], artifact_rappid)
+                self.assertEqual(rj_after["artifact_rappid"], artifact_rappid)
+                self.assertEqual(
+                    rj_after["grown_from"],
+                    protocol.egg_address(protocol.read_egg(blob)[0]),
+                )
                 self.assertEqual(rj_after["name"], "imported-twin")
 
                 # Memory survived

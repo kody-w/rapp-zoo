@@ -1,0 +1,11 @@
+{
+  "schema": "rapp/1-authority-pin",
+  "revision": "rev-6",
+  "repository": "https://github.com/kody-w/rapp-1",
+  "spec_path": "SPEC.md",
+  "spec_commit": "2d3e50df04d5beaf40045da244493503d16f7779",
+  "spec_sha256": "8212bbccaf86f2dc81bd07e2fcd5184f3a157f4eee162b13a698407684b6e134",
+  "reference_path": "rapp.py",
+  "reference_commit": "3d2ac167d4afad8a24e29d6da1a5126e9d8bc8aa",
+  "note": "The runtime implementation is vendored in utils/rapp_protocol.py, checked against the official verifier, and enforces the stricter normative ZIP flags and metadata required by SPEC §9.1."
+}

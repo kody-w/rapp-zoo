@@ -25,6 +25,7 @@ cat <<EOF
 [zoo] Installed at $INSTALL_DIR
 
 Next:
+  export RAPP_OWNER=<your-lowercase-github-login>
   bash $INSTALL_DIR/installer/start.sh
 
 Then open http://127.0.0.1:7070 in your browser.

@@ -34,9 +34,9 @@ import json
 import os
 import pathlib
 import re
-import time
 import uuid
 import hashlib
+from datetime import datetime, timezone
 
 # The brainstem registers a shim so this import resolves correctly when
 # loaded by _load_agent_from_file (see brainstem.py:_register_shims).
@@ -60,7 +60,8 @@ RAPP_SPECIES_ROOT_RAPPID = "rappid:@kody-w/rapp:9a8f0a4b5a710e20f4d819a0f37d2a4c
 # default (7070).
 TWIN_PORT_LOW, TWIN_PORT_HIGH = 7081, 7200
 
-NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
+NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+OWNER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 # ── Soul template library (embedded) ────────────────────────────────────
@@ -211,14 +212,17 @@ def _twins_dir() -> str:
 
 
 def _sluggify(name: str) -> str:
-    s = re.sub(r"[^a-z0-9_-]+", "-", name.lower()).strip("-")
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return s or "twin"
 
 
 def _validate_name(name: str) -> tuple[bool, str]:
     s = _sluggify(name)
-    if not NAME_RE.match(s):
-        return False, f"name '{name}' is not a valid slug (lowercase letters/digits/hyphens/underscores, max 63 chars)"
+    if len(s) > 100 or not NAME_RE.fullmatch(s):
+        return False, (
+            f"name '{name}' is not a valid RAPP slug "
+            "(lowercase letters, digits, and single hyphens; max 100 chars)"
+        )
     return True, s
 
 
@@ -281,7 +285,7 @@ class SummonTwinAgent(BasicAgent):
                     "twin_name": {
                         "type": "string",
                         "description": "A short slug name for the twin "
-                                       "(lowercase, hyphens or underscores ok). "
+                                       "(lowercase letters, digits, and hyphens). "
                                        "Examples: 'grandma-twin', 'cofounder-bot', "
                                        "'project-helios', 'cafe-jasmine'.",
                     },
@@ -301,6 +305,12 @@ class SummonTwinAgent(BasicAgent):
                                        "into soul.md, MANIFEST.md, and "
                                        "README.md as the seed text.",
                     },
+                    "owner": {
+                        "type": "string",
+                        "description": "Lowercase GitHub login that owns the "
+                                       "new instance RAPPID. Defaults to "
+                                       "RAPP_OWNER, then kody-w for this estate.",
+                    },
                 },
                 "required": ["twin_name", "kind"],
             },
@@ -311,6 +321,11 @@ class SummonTwinAgent(BasicAgent):
         twin_name = kwargs.get("twin_name") or ""
         kind = kwargs.get("kind") or "personal"
         description = kwargs.get("description") or ""
+        owner = (
+            kwargs.get("owner")
+            or os.environ.get("RAPP_OWNER")
+            or "kody-w"
+        ).lstrip("@")
 
         # Validate inputs
         ok, slug_or_err = _validate_name(twin_name)
@@ -320,13 +335,24 @@ class SummonTwinAgent(BasicAgent):
 
         if kind not in KINDS:
             return f"Error: unknown kind '{kind}'. Valid: {', '.join(KINDS)}"
+        if len(owner) > 39 or not OWNER_RE.fullmatch(owner):
+            return "Error: owner must be a lowercase GitHub login (1-39 characters)."
 
         # Mint the twin's identity: canonical §6.1 rappid, tail = Hb("rapp/1:rappid",
         # uuid4) (keyless, domain-separated); minted once, forever. A separate uuid
         # hex is the on-disk workspace key (a dir name is not an identity).
         _dir_key = uuid.uuid4().hex
-        rappid_uuid = f"rappid:@local/{twin_name}:" + hashlib.sha256(b"rapp/1:rappid\n" + uuid.uuid4().bytes).hexdigest()
-        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        rappid_uuid = (
+            f"rappid:@{owner}/{twin_name}:"
+            + hashlib.sha256(
+                b"rapp/1:rappid\n" + uuid.uuid4().bytes
+            ).hexdigest()
+        )
+        now_dt = datetime.now(timezone.utc)
+        now = (
+            now_dt.strftime("%Y-%m-%dT%H:%M:%S.")
+            + f"{now_dt.microsecond // 1000:03d}Z"
+        )
 
         # Decide the workspace path (keyed by the dir key, not the rappid string)
         workspace = pathlib.Path(_twins_dir()) / _dir_key
@@ -345,6 +371,8 @@ class SummonTwinAgent(BasicAgent):
             (workspace / "rappid.json").write_text(json.dumps({
                 "schema": "rapp/1",
                 "rappid": rappid_uuid,
+                "artifact_rappid": None,
+                "grown_from": None,
                 "parent_rappid": WILDHAVEN_RAPPID,
                 "parent_repo": WILDHAVEN_REPO,
                 "parent_commit": None,
@@ -393,30 +421,43 @@ class SummonTwinAgent(BasicAgent):
         registry_status = "skipped (peer_registry unavailable)"
         if peer_registry is not None:
             try:
-                peer_registry.upsert(
-                    str(workspace),
-                    port,
-                    rappid_uuid=rappid_uuid,
-                    twin_name=twin_name,
-                    parent_repo=WILDHAVEN_REPO,
-                    summoned_from="SummonTwin cartridge",
-                )
+                try:
+                    peer_registry.upsert(
+                        str(workspace),
+                        port,
+                        instance_rappid=rappid_uuid,
+                        artifact_rappid=None,
+                        grown_from=None,
+                        twin_name=twin_name,
+                        parent_repo=WILDHAVEN_REPO,
+                        summoned_from="SummonTwin cartridge",
+                    )
+                except TypeError:
+                    peer_registry.upsert(
+                        str(workspace),
+                        port,
+                        rappid_uuid=rappid_uuid,
+                        twin_name=twin_name,
+                        parent_repo=WILDHAVEN_REPO,
+                        summoned_from="SummonTwin cartridge",
+                    )
                 registry_status = f"registered at port {port}"
             except Exception as e:
                 registry_status = f"registry error: {e}"
 
         # Return a chat-friendly status string
         return (
-            f"Created {kind} twin '{twin_name}' (rappid {rappid_uuid}).\n"
+            f"Created {kind} twin instance '{twin_name}' (rappid {rappid_uuid}).\n"
             f"  Location:     {workspace}\n"
             f"  Estate:       {registry_status}\n"
             f"  Soul.md:      uses the {kind} template, with your description woven in\n"
             f"  Boot it:      SOUL_PATH={workspace}/soul.md "
             f"AGENTS_PATH={workspace}/agents ~/.brainstem/start.sh --port {port or '<available>'}\n"
             f"  Back it up:   the rapp-zoo Lay-egg button packs this twin "
-            f"into ~/.rapp/eggs/{rappid_uuid}/<timestamp>.egg\n"
+            f"as a content-addressed RAPP/1 artifact\n"
             f"\n"
             f"The user can edit soul.md to refine the twin's voice. The "
-            f"rappid is permanent — even after kernel updates, device "
-            f"transfers, and decades of egg roundtrips."
+            f"instance rappid is permanent across in-place kernel updates. "
+            f"A future hatch keeps the egg's artifact identity but mints a "
+            f"fresh instance rappid with grown_from lineage."
         )

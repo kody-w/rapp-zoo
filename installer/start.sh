@@ -22,7 +22,7 @@ else
     PYTHON="$LOCAL_VENV"
 fi
 
-if ! "$PYTHON" -c "import flask" 2>/dev/null; then
+if ! "$PYTHON" -c "import flask, cryptography" 2>/dev/null; then
     echo "[zoo] installing dependencies…"
     "${PYTHON%/python}/pip" install -r installer/requirements.txt -q
 fi

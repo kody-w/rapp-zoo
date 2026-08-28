@@ -16,8 +16,8 @@ else {
     $python = $localPy
 }
 
-# Ensure flask
-& $python -c "import flask" 2>$null
+# Ensure declared runtime dependencies
+& $python -c "import flask, cryptography" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[zoo] installing dependencies…" -ForegroundColor Yellow
     & "$($python -replace 'python.exe$', 'pip.exe')" install -r installer\requirements.txt -q

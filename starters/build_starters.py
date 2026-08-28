@@ -45,6 +45,8 @@ STARTERS = [
         "name": "Workday",
         "version": "0.1.0",
         "publisher": "@rapp",
+        "rappid": "rappid:@rapp/workday:8fdb4e6885a02a43127011095de2e97b7917144ac724be0cd4de33891d41578d",
+        "created_utc": "2026-08-28T20:00:00.000Z",
         "description": "Daybrief operator. Tight bullets, never paragraphs.",
         "category": "work",
     },
@@ -55,6 +57,8 @@ STARTERS = [
         "name": "Playtime",
         "version": "0.1.0",
         "publisher": "@rapp",
+        "rappid": "rappid:@rapp/playtime:63658dcd4ff9d36860d24d74d3c8d612fde9c882281576a4a12a4330fc809a1d",
+        "created_utc": "2026-08-28T20:00:00.000Z",
         "description": "Riff partner. Story prompts, what-if games, brainstorm fuel.",
         "category": "creative",
     },
@@ -65,6 +69,8 @@ STARTERS = [
         "name": "Journal",
         "version": "0.1.0",
         "publisher": "@rapp",
+        "rappid": "rappid:@rapp/journal:6ce20effd837e53a326dbd970254e5340c549dca928b855e3dd28f5082cdc34a",
+        "created_utc": "2026-08-28T20:00:00.000Z",
         "description": "A journal that talks back. One question at a time.",
         "category": "reflection",
     },
@@ -111,17 +117,21 @@ def build_one(starter: dict, out_path: Path) -> dict:
             name=starter["name"],
             version=starter["version"],
             publisher=starter["publisher"],
+            artifact_rappid=starter["rappid"],
+            born_at=starter["created_utc"],
+            created_utc=starter["created_utc"],
         )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(blob)
     manifest = bond.inspect_egg(blob)
+    payload = manifest["payload"]
     return {
         "rapp_id": starter["rapp_id"],
         "type": starter["type"],
         "out": str(out_path),
         "size_bytes": len(blob),
-        "has_skin": manifest.get("has_skin"),
-        "rappid": manifest.get("rappid"),
+        "has_skin": payload.get("has_skin"),
+        "rappid": manifest["rappid"],
     }
 
 

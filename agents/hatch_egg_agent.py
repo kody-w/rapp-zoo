@@ -1,41 +1,17 @@
-"""
-hatch_egg_agent.py — drop-in cartridge for hatching .egg cartridges into
-fully-viable local twins.
-
-Drop into ~/.brainstem/agents/. Restart brainstem. The LLM gets a tool
-called `HatchEgg`. Now in chat:
-
-    User: "I have my dad's twin egg on a USB stick at /Volumes/usb/dad.egg.
-           Hatch it on this machine."
-    Model: <calls HatchEgg(egg_path="/Volumes/usb/dad.egg")>
-    Tool result: "Hatched dad-twin (rappid 7bd3...). Twin lives at
-                  ~/.rapp/twins/7bd3.../, registered at port 7081, with
-                  state and lineage intact. Identity preserved across
-                  the substrate hop. Boot with SOUL_PATH=...
-                  ~/.brainstem/start.sh --port 7081."
-
-Per the static-ancestor / game-console model: this cartridge relies ONLY
-on the ancestor brainstem.py and its already-loaded utility modules
-(specifically the brainstem's vendored utils/egg.py and
-utils/peer_registry.py). No network, no clone, no kernel bundle —
-the brainstem already IS the kernel; the egg just adds the organism.
-
-A successfully-hatched twin is **fully viable**: its rappid.json is
-valid, its soul.md is present, its .brainstem_data state is restored,
-and any custom agents from the egg's repo/ payload are placed in the
-twin's workspace. Booting the brainstem with SOUL_PATH/AGENTS_PATH
-pointed at the workspace runs the twin completely.
-"""
+"""Drop-in brainstem tool for hatching verified RAPP/1 organism eggs."""
 
 from __future__ import annotations
 
 import json
 import os
 import pathlib
-import time
+import secrets
+import shutil
 
-# The brainstem's _register_shims sets this up for us.
 from agents.basic_agent import BasicAgent
+
+
+TWIN_PORT_LOW, TWIN_PORT_HIGH = 7081, 7200
 
 
 def _rapp_home() -> str:
@@ -46,32 +22,32 @@ def _twins_dir() -> str:
     return os.path.join(_rapp_home(), "twins")
 
 
-def _try_import_egg():
-    """The brainstem's vendored egg module — pack/unpack of brainstem-egg/2.x."""
+def _try_import_protocol():
     try:
-        from utils import egg  # type: ignore
-        return egg
+        from utils import rapp_protocol
+
+        return rapp_protocol
     except ImportError:
         try:
-            import egg  # type: ignore
-            return egg
+            import rapp_protocol
+
+            return rapp_protocol
         except ImportError:
             return None
 
 
 def _try_import_peer_registry():
     try:
-        from utils import peer_registry  # type: ignore
+        from utils import peer_registry
+
         return peer_registry
     except ImportError:
         try:
-            import peer_registry  # type: ignore
+            import peer_registry
+
             return peer_registry
         except ImportError:
             return None
-
-
-TWIN_PORT_LOW, TWIN_PORT_HIGH = 7081, 7200
 
 
 def _allocate_port(peer_registry) -> int:
@@ -87,13 +63,12 @@ def _allocate_port(peer_registry) -> int:
     return 0
 
 
-def _is_egg(path: pathlib.Path) -> bool:
-    """Quick magic-bytes check — eggs are zips."""
-    try:
-        with open(path, "rb") as f:
-            return f.read(4) == b"PK\x03\x04"
-    except OSError:
-        return False
+def _safe_target(root: pathlib.Path, relative: str) -> pathlib.Path:
+    target = (root / relative).resolve()
+    resolved_root = root.resolve()
+    if target != resolved_root and resolved_root not in target.parents:
+        raise ValueError(f"path escapes workspace: {relative}")
+    return target
 
 
 class HatchEggAgent(BasicAgent):
@@ -102,34 +77,23 @@ class HatchEggAgent(BasicAgent):
         self.metadata = {
             "name": self.name,
             "description": (
-                "Imports a .egg cartridge file and hatches it into a "
-                "fully-viable digital twin on this device. The hatched "
-                "twin's identity (rappid), memory (.brainstem_data), and "
-                "any local mutations are restored intact. Use when the "
-                "user wants to materialize a twin from a backup egg, "
-                "from another device's egg, or from a shared egg they "
-                "received from someone else. The egg must be a local file "
-                "path; download URLs to disk first if needed."
+                "Verifies a RAPP/1 organism egg and hatches it as a fresh local "
+                "instance. The egg's artifact RAPPID is preserved, while the "
+                "installation receives a new instance RAPPID whose grown_from "
+                "field records the egg address."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "egg_path": {
                         "type": "string",
-                        "description": "Absolute path to the .egg file on "
-                                       "this device. Must exist and be a "
-                                       "valid zip (egg files are zips with "
-                                       "manifest.json + repo/ + data/).",
+                        "description": "Absolute path to a RAPP/1 organism .egg file.",
                     },
-                    "keep_existing_kernel": {
-                        "type": "boolean",
-                        "description": "If true, preserve any brainstem.py "
-                                       "already at the workspace path "
-                                       "instead of restoring the kernel "
-                                       "from the egg. Use for the "
-                                       "egg-based hatching cycle (kernel "
-                                       "update via egg roundtrip). "
-                                       "Default false.",
+                    "owner": {
+                        "type": "string",
+                        "description": "Lowercase GitHub login for the new instance "
+                                       "identity. Defaults to RAPP_OWNER, then "
+                                       "kody-w for this estate.",
                     },
                 },
                 "required": ["egg_path"],
@@ -138,108 +102,159 @@ class HatchEggAgent(BasicAgent):
         super().__init__(name=self.name, metadata=self.metadata)
 
     def perform(self, **kwargs) -> str:
-        egg_path_str = kwargs.get("egg_path") or ""
-        keep_kernel = bool(kwargs.get("keep_existing_kernel"))
-
-        if not egg_path_str:
+        egg_path_value = kwargs.get("egg_path") or ""
+        if not egg_path_value:
             return "Error: egg_path is required."
-
-        egg_path = pathlib.Path(egg_path_str).expanduser()
-        if not egg_path.exists():
-            return f"Error: file not found: {egg_path}"
+        egg_path = pathlib.Path(egg_path_value).expanduser()
         if not egg_path.is_file():
-            return f"Error: not a file: {egg_path}"
-        if not _is_egg(egg_path):
-            return f"Error: {egg_path} is not a valid egg cartridge (missing zip magic bytes)."
+            return f"Error: file not found: {egg_path}"
 
-        egg = _try_import_egg()
-        if egg is None:
-            return ("Error: the brainstem's egg module is unavailable. "
-                    "This usually means the brainstem install is missing "
-                    "utils/egg.py — check ~/.brainstem/utils/egg.py and "
-                    "reinstall via: curl -fsSL https://kody-w.github.io/"
-                    "rapp-installer/install.sh | bash")
-
-        # Read manifest first so we can report back what we're hatching
-        try:
-            with open(egg_path, "rb") as f:
-                blob = f.read()
-            inspect = egg.inspect(blob) if hasattr(egg, "inspect") else None
-            manifest = (inspect or {}).get("manifest") or {}
-        except Exception as e:
-            return f"Error: could not read egg: {e}"
-
-        source = manifest.get("source") or {}
-        rappid_uuid = source.get("rappid_uuid")
-        if not rappid_uuid:
-            # Fallback: schema-2.0 eggs have rappid at the top level
-            rappid_uuid = manifest.get("rappid") or "<unknown>"
-
-        # Materialize via the brainstem's vendored summon function
-        try:
-            host_root = _twins_dir()
-            os.makedirs(host_root, exist_ok=True)
-            workspace_str = egg.summon_twin_egg(
-                blob, host_root,
-                keep_existing_kernel=keep_kernel,
+        protocol = _try_import_protocol()
+        if protocol is None:
+            return (
+                "Error: utils/rapp_protocol.py is required. Copy it from "
+                "rapp-zoo into the brainstem's utils/ directory with this cartridge."
             )
-            workspace = pathlib.Path(workspace_str)
-        except Exception as e:
-            return f"Error: summon failed: {e}"
 
-        # Read the workspace's rappid.json to confirm identity preserved
-        rj_path = workspace / "rappid.json"
-        rj_loaded = {}
-        if rj_path.exists():
-            try:
-                rj_loaded = json.loads(rj_path.read_text())
-            except json.JSONDecodeError:
-                pass
-        actual_rappid = rj_loaded.get("rappid") or rappid_uuid
-        twin_name = rj_loaded.get("name") or "<unnamed>"
+        try:
+            blob = egg_path.read_bytes()
+            verifier = protocol.signature_verifier_from_environment()
+            details = protocol.inspect_egg(blob, signature_verifier=verifier)
+        except Exception as exc:
+            return f"Error: RAPP/1 egg refused before extraction: {exc}"
 
-        # Verify viability: required files present
-        viability = {
-            "rappid.json":  rj_path.exists(),
-            "soul.md":      (workspace / "soul.md").exists(),
-        }
-        missing = [k for k, v in viability.items() if not v]
+        manifest = details["manifest"]
+        files = details["files"]
+        if manifest["variant"] != "organism":
+            return (
+                f"Error: HatchEgg materializes organism eggs, not "
+                f"{manifest['variant']!r} eggs."
+            )
 
-        # Register in the neighborhood
+        try:
+            owner = protocol.require_owner(
+                kwargs.get("owner") or os.environ.get("RAPP_OWNER"),
+                default="kody-w",
+            )
+            artifact_identity = protocol.strict_json_loads(files["rappid.json"])
+            artifact_parts = protocol.rappid_parts(manifest["rappid"])
+            instance_identity = {
+                "schema": protocol.SPEC,
+                "rappid": protocol.mint_rappid(
+                    owner,
+                    protocol.slugify(f"{artifact_parts['slug']}-instance"),
+                ),
+                "artifact_rappid": manifest["rappid"],
+                "grown_from": details["egg_hash"],
+                "born_at": protocol.utc_now_ms(),
+                "kind": "instance",
+                "name": artifact_identity.get("name") or artifact_parts["slug"],
+            }
+        except Exception as exc:
+            return f"Error: could not mint the instance identity: {exc}"
+
+        workspace = pathlib.Path(_twins_dir()) / secrets.token_hex(16)
+        try:
+            workspace.mkdir(parents=True, exist_ok=False)
+            (workspace / "artifact-rappid.json").write_bytes(files["rappid.json"])
+            layout = manifest["payload"].get("layout")
+            if layout == "brainstem-instance":
+                content_root = workspace / "src" / "rapp_brainstem"
+            else:
+                content_root = workspace
+            content_root.mkdir(parents=True, exist_ok=True)
+
+            for path, octets in files.items():
+                if path == "rappid.json":
+                    continue
+                if layout == "brainstem-instance":
+                    destinations = {
+                        "agents/": content_root / "agents",
+                        "organs/": content_root / "utils" / "organs",
+                        "senses/": content_root / "utils" / "senses",
+                        "services/": content_root / "utils" / "services",
+                        "data/": content_root / ".brainstem_data",
+                    }
+                    target = None
+                    if path in {"soul.md", ".env"}:
+                        target = _safe_target(content_root, path)
+                    else:
+                        for prefix, destination in destinations.items():
+                            if path.startswith(prefix):
+                                target = _safe_target(
+                                    destination, path[len(prefix):]
+                                )
+                                break
+                    if target is None:
+                        continue
+                elif path.startswith("data/"):
+                    target = _safe_target(
+                        workspace / ".brainstem_data",
+                        path[len("data/"):],
+                    )
+                else:
+                    target = _safe_target(workspace, path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(octets)
+            (workspace / "rappid.json").write_text(
+                json.dumps(instance_identity, indent=2, ensure_ascii=False) + "\n"
+            )
+        except Exception as exc:
+            shutil.rmtree(workspace, ignore_errors=True)
+            return f"Error: verified egg could not be materialized: {exc}"
+
+        soul_path = (
+            workspace / "src" / "rapp_brainstem" / "soul.md"
+            if manifest["payload"].get("layout") == "brainstem-instance"
+            else workspace / "soul.md"
+        )
+        agents_path = (
+            workspace / "src" / "rapp_brainstem" / "agents"
+            if manifest["payload"].get("layout") == "brainstem-instance"
+            else workspace / "agents"
+        )
+        if not soul_path.is_file():
+            shutil.rmtree(workspace, ignore_errors=True)
+            return f"Error: verified egg hatch is not viable; missing {soul_path}"
+
         peer_registry = _try_import_peer_registry()
         port = _allocate_port(peer_registry)
         registry_status = "skipped (peer_registry unavailable)"
-        if peer_registry is not None and not missing:
+        if peer_registry is not None:
             try:
-                peer_registry.upsert(
-                    str(workspace),
-                    port,
-                    version=(rj_loaded.get("brainstem") or {}).get("version"),
-                    rappid_uuid=actual_rappid,
-                    twin_name=twin_name,
-                    parent_repo=rj_loaded.get("parent_repo"),
-                    summoned_from=str(egg_path),
-                )
+                try:
+                    peer_registry.upsert(
+                        str(workspace),
+                        port,
+                        instance_rappid=instance_identity["rappid"],
+                        artifact_rappid=manifest["rappid"],
+                        grown_from=details["egg_hash"],
+                        egg_hash=details["egg_hash"],
+                        twin_name=instance_identity["name"],
+                        parent_repo=manifest["payload"].get("parent_repo"),
+                        summoned_from=str(egg_path),
+                    )
+                except TypeError:
+                    peer_registry.upsert(
+                        str(workspace),
+                        port,
+                        rappid_uuid=instance_identity["rappid"],
+                        twin_name=instance_identity["name"],
+                        parent_repo=manifest["payload"].get("parent_repo"),
+                        summoned_from=str(egg_path),
+                    )
                 registry_status = f"registered at port {port}"
-            except Exception as e:
-                registry_status = f"registry error: {e}"
-
-        if missing:
-            return (
-                f"Hatched but NOT viable — missing required files: "
-                f"{', '.join(missing)}. Workspace at {workspace}. "
-                f"Re-pack the egg from a complete twin and try again."
-            )
+            except Exception as exc:
+                registry_status = f"registry error: {exc}"
 
         return (
-            f"Hatched twin '{twin_name}' (rappid {actual_rappid}) — fully viable.\n"
-            f"  Workspace:    {workspace}\n"
-            f"  Source egg:   {egg_path}\n"
-            f"  Estate:       {registry_status}\n"
-            f"  Boot it:      SOUL_PATH={workspace}/soul.md "
-            f"AGENTS_PATH={workspace}/agents ~/.brainstem/start.sh --port {port or '<available>'}\n"
-            f"\n"
-            f"Identity preserved across the substrate hop. Memory + mutations "
-            f"intact. Same rappid as wherever this egg was packed; this is the "
-            f"same twin, materialized here."
+            f"Hatched organism instance '{instance_identity['name']}' — fully viable.\n"
+            f"  Workspace:       {workspace}\n"
+            f"  Artifact RAPPID: {manifest['rappid']}\n"
+            f"  Instance RAPPID: {instance_identity['rappid']}\n"
+            f"  grown_from:      {details['egg_hash']}\n"
+            f"  Estate:          {registry_status}\n"
+            f"  Boot it:         SOUL_PATH={soul_path} "
+            f"AGENTS_PATH={agents_path} ~/.brainstem/start.sh "
+            f"--port {port or '<available>'}"
         )

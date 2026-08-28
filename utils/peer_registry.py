@@ -6,9 +6,9 @@ its claimed port + brainstem dir at a shared XDG path so subsequent
 installs can pick non-conflicting ports, and a running brainstem can
 discover its peers without a tree search.
 
-Registry schema (forever-additive, like the /chat envelope):
+Registry schema:
     {
-      "schema": "rapp-peers/1.0",
+      "schema": "rapp-peers/1.2",
       "peers": [
         {
           "id":             "<sha256(brainstem_dir)[:12]>",
@@ -17,7 +17,10 @@ Registry schema (forever-additive, like the /chat envelope):
           "is_global":      false,
           "project_name":   "my-project",
           "installed_at":   "2026-04-26T20:30:00Z",
-          "version":        "0.12.2"
+          "version":        "0.12.2",
+          "instance_rappid": "rappid:@owner/slug-instance:<64hex>",
+          "artifact_rappid": "rappid:@owner/slug:<64hex>",
+          "grown_from":      "<rapp/1:egg-manifest hash>"
         }, ...
       ]
     }
@@ -35,18 +38,22 @@ import time
 from typing import Optional
 
 
-SCHEMA = "rapp-peers/1.1"
+SCHEMA = "rapp-peers/1.2"
 
-# Schema 1.1 (additive over 1.0):
+# Schema 1.2 separates the artifact named by an egg from the live instance
+# created by hatching it, per RAPP/1 §9.4.
 #   New optional fields per peer entry:
-#     - rappid_uuid    str | None  — the twin's repo rappid (from rappid.json)
+#     - instance_rappid str | None — this live installation's mint-once identity
+#     - artifact_rappid str | None — the packed organism identity
+#     - grown_from      str | None — RAPP egg address that created the instance
+#     - egg_hash        str | None — alias of grown_from for UI/search
 #     - twin_name      str | None  — human label
 #     - parent_repo    str | None  — for lineage display
 #     - summoned_from  str | None  — egg URL/path the twin came from (None = native install)
 #     - summoned_at    str | None  — ISO timestamp of summon (defaults to installed_at)
 #     - is_twin_only   bool        — true when the install lives at ~/.rapp/twins/<rappid>/
 #
-# Old 1.0 ledgers load cleanly via load() with new fields defaulting to None/False.
+# `rappid_uuid` remains a read/write alias for existing local ledgers.
 
 
 def registry_path() -> str:
@@ -105,8 +112,13 @@ def _is_twin_only(brainstem_dir: str) -> bool:
 
 
 def _migrate_entry(p: dict) -> dict:
-    """Add 1.1 fields with safe defaults to a 1.0-era entry. In-place."""
-    p.setdefault("rappid_uuid", None)
+    """Add current fields with safe defaults to an older local entry."""
+    instance_rappid = p.get("instance_rappid") or p.get("rappid_uuid")
+    p["instance_rappid"] = instance_rappid
+    p["rappid_uuid"] = instance_rappid
+    p.setdefault("artifact_rappid", None)
+    p.setdefault("grown_from", None)
+    p.setdefault("egg_hash", p.get("grown_from"))
     p.setdefault("twin_name", None)
     p.setdefault("parent_repo", None)
     p.setdefault("summoned_from", None)
@@ -135,22 +147,21 @@ def load() -> dict:
         return {"schema": SCHEMA, "peers": []}
 
 
-def group_by_twin() -> dict:
-    """Return a dict mapping rappid_uuid → list of peer entries that share that
-    rappid. Peers without rappid_uuid are skipped (not part of the estate).
-
-    Multiple peers under the same rappid_uuid represent parallel-omniscience
-    incarnations — same twin running in multiple scopes (global + project,
-    or global + twin-only) on this device.
-    """
+def group_by_lineage() -> dict:
+    """Group instances by artifact identity without merging live identities."""
     data = load()
     grouped: dict = {}
     for p in data["peers"]:
-        rid = p.get("rappid_uuid")
-        if not rid:
+        lineage = p.get("artifact_rappid") or p.get("instance_rappid")
+        if not lineage:
             continue
-        grouped.setdefault(rid, []).append(p)
+        grouped.setdefault(lineage, []).append(p)
     return grouped
+
+
+def group_by_twin() -> dict:
+    """Compatibility alias for callers migrating to artifact lineage."""
+    return group_by_lineage()
 
 
 def _save(data: dict) -> None:
@@ -163,16 +174,22 @@ def _save(data: dict) -> None:
 
 
 def upsert(brainstem_dir: str, port: int, version: Optional[str] = None,
-           rappid_uuid: Optional[str] = None,
+           instance_rappid: Optional[str] = None,
+           artifact_rappid: Optional[str] = None,
+           grown_from: Optional[str] = None,
+           egg_hash: Optional[str] = None,
            twin_name: Optional[str] = None,
            parent_repo: Optional[str] = None,
            summoned_from: Optional[str] = None,
-           summoned_at: Optional[str] = None) -> dict:
+           summoned_at: Optional[str] = None,
+           rappid_uuid: Optional[str] = None) -> dict:
     """Add or update a peer entry. Idempotent — repeat installs at the same dir overwrite cleanly.
 
-    Twin-aware fields (rappid_uuid, twin_name, parent_repo, summoned_from,
-    summoned_at) are optional. Leave them None for legacy/native installs.
+    Identity and lineage fields are optional for native installs. `rappid_uuid`
+    is accepted as an older alias of `instance_rappid`.
     """
+    instance_rappid = instance_rappid or rappid_uuid
+    grown_from = grown_from or egg_hash
     abs_dir = os.path.abspath(brainstem_dir)
     pid = _peer_id(abs_dir)
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -185,8 +202,11 @@ def upsert(brainstem_dir: str, port: int, version: Optional[str] = None,
         "project_name": _project_name(abs_dir),
         "installed_at": now,
         "version": version or "",
-        # Twin-aware (1.1) — None means "not a summoned twin / legacy install".
-        "rappid_uuid": rappid_uuid,
+        "instance_rappid": instance_rappid,
+        "artifact_rappid": artifact_rappid,
+        "grown_from": grown_from,
+        "egg_hash": grown_from,
+        "rappid_uuid": instance_rappid,
         "twin_name": twin_name,
         "parent_repo": parent_repo,
         "summoned_from": summoned_from,

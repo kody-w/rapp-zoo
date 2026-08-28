@@ -1,0 +1,50 @@
+name: RAPP/1 compliance
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Check out pinned protocol and ancestor
+        run: |
+          git clone https://github.com/kody-w/rapp-1.git "$RUNNER_TEMP/rapp-1"
+          git -C "$RUNNER_TEMP/rapp-1" checkout 3d2ac167d4afad8a24e29d6da1a5126e9d8bc8aa
+          git clone https://github.com/kody-w/RAPP.git "$RUNNER_TEMP/RAPP"
+          git -C "$RUNNER_TEMP/RAPP" checkout f97ed45fba0cf087b73b938ab2a6c529afe2ac57
+
+      - name: Install existing dependencies
+        run: |
+          python -m pip install -r installer/requirements.txt
+          python -m pip install -r "$RUNNER_TEMP/RAPP/rapp_brainstem/requirements.txt"
+          npm ci
+
+      - name: Run integrated suite
+        env:
+          RAPP_OWNER: kody-w
+          RAPP_BRAINSTEM_PATH: ${{ runner.temp }}/RAPP/rapp_brainstem
+          RAPP1_REFERENCE_PATH: ${{ runner.temp }}/rapp-1/rapp.py
+        run: bash tests/run.sh
+
+      - name: Run official artifact checker
+        run: python "$RUNNER_TEMP/rapp-1/rapp_check.py" .
+
+      - name: Run Frontier desktop suite
+        run: npm test
+
+      - name: Package desktop directory
+        run: npm run dist:dir

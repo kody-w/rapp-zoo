@@ -1,0 +1,73 @@
+{
+  "name": "rapp-zoo",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Frontier Electron shell and mobile PWA for the RAPP/1 organism zoo.",
+  "author": "@kody-w",
+  "main": "desktop/main.mjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "desktop": "electron .",
+    "desktop:dev": "RAPP_ZOO_DESKTOP_DEV=1 electron .",
+    "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/copilot-bridge.mjs && node --check desktop/zoo-supervisor.mjs",
+    "test:desktop": "node --test desktop/tests/*.test.mjs",
+    "test": "npm run check:desktop && npm run test:desktop",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "43.2.0",
+    "electron-builder": "^26.0.12",
+    "jszip": "3.10.1"
+  },
+  "build": {
+    "appId": "io.github.kody-w.rapp-zoo",
+    "productName": "RAPP Zoo",
+    "asar": true,
+    "asarUnpack": [
+      "agents/**/*",
+      "holocards/**/*",
+      "installer/**/*",
+      "starters/**/*",
+      "static/**/*",
+      "utils/**/*",
+      "RAPP1_AUTHORITY.json",
+      "zoo.py"
+    ],
+    "icon": "docs/icon-512.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "agents/**/*",
+      "holocards/**/*",
+      "installer/**/*",
+      "starters/**/*",
+      "static/**/*",
+      "utils/**/*",
+      "docs/icon-512.png",
+      "RAPP1_AUTHORITY.json",
+      "README.md",
+      "LICENSE",
+      "zoo.py",
+      "package.json"
+    ],
+    "mac": {
+      "target": "zip",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
+  }
+}
