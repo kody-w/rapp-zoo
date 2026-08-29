@@ -288,10 +288,11 @@
         verified_ancestor: true,
       };
     };
-    const manifest = api.validateOutput(input.authored, {
+    api.validateOutput(input.authored, {
       baseState: input.base?.state,
       ancestorResolver,
     });
+    const manifest = api.compileSceneManifest(input.authored, true);
     const historyManifests = {};
     for (const [holoId, snapshot] of snapshots) {
       if (snapshot.manifest) {

@@ -9,6 +9,14 @@ const source = fs.readFileSync(
   path.resolve(here, "../../static/zoo.js"),
   "utf8",
 ).replace(/\r\n/g, "\n");
+const indexSource = fs.readFileSync(
+  path.resolve(here, "../../static/index.html"),
+  "utf8",
+);
+const styleSource = fs.readFileSync(
+  path.resolve(here, "../../static/zoo.css"),
+  "utf8",
+);
 
 function functionBody(name) {
   const start = source.indexOf(`function ${name}(`);
@@ -57,4 +65,15 @@ test("live Holo activation evidence is persisted outside the sandbox", () => {
   assert.match(source, /api\('\/api\/holo\/activate'/);
   assert.match(source, /departure_logical_ms/);
   assert.match(source, /departure_manifest_hash/);
+});
+
+test("desktop VC docks a Holo-specific Copilot panel without Studio deploy", () => {
+  assert.match(source, /function setCopilotPanel/);
+  assert.match(source, /document\.body\.classList\.add\('desktop-vc'\)/);
+  assert.match(source, /setCopilotPanel\(true\)/);
+  assert.match(styleSource, /body\.desktop-vc\.copilot-dock-open/);
+  assert.match(indexSource, /HOLO\/1 AGENT MODE/);
+  assert.match(indexSource, /Explain the current Holo Wake/);
+  assert.match(indexSource, /Emit the next Holo\/1 state/);
+  assert.doesNotMatch(indexSource, /Copilot Studio/i);
 });

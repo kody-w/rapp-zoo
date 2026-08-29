@@ -12,6 +12,10 @@ const runtimeSource = fs.readFileSync(
   path.join(root, "static/hologram-runtime.js"),
   "utf8",
 );
+const protocolSource = fs.readFileSync(
+  path.join(root, "static/holo-protocol.js"),
+  "utf8",
+);
 const viewerSource = fs.readFileSync(
   path.join(root, "holograms/viewer.html"),
   "utf8",
@@ -288,6 +292,26 @@ function loadHooks(protocol) {
   return context.RappHoloPlayerTest;
 }
 
+function loadActualHooks() {
+  const context = vm.createContext({
+    console,
+    RappHoloProtocol: null,
+    TextEncoder,
+  });
+  context.window = context;
+  context.globalThis = context;
+  vm.runInContext(protocolSource, context, {
+    filename: "static/holo-protocol.js",
+  });
+  vm.runInContext(runtimeSource, context, {
+    filename: "static/hologram-runtime.js",
+  });
+  return {
+    hooks: context.RappHoloPlayerTest,
+    protocol: context.RappHoloProtocol,
+  };
+}
+
 function update(holoId, authored, extra = {}) {
   return {
     schema: "rapp-holo-player-update/1",
@@ -351,7 +375,7 @@ test("renderer orchestration calls the shared low-level protocol helpers", () =>
   const protocol = {
     validateOutput(authored) {
       calls.push("validateOutput");
-      return manifest(authored);
+      return authored;
     },
     compileSceneManifest(authored) {
       calls.push("compileSceneManifest");
@@ -384,8 +408,37 @@ test("renderer orchestration calls the shared low-level protocol helpers", () =>
   assert.equal(controller.acceptUpdate(update(A, output())), true);
   controller.evaluateAt(0);
   assert.ok(calls.includes("validateOutput"));
+  assert.ok(calls.includes("compileSceneManifest"));
   assert.ok(calls.includes("localSustainTime"));
   assert.ok(calls.includes("selectFlipbook"));
+});
+
+test("real validator output is compiled before raster planning", () => {
+  const { hooks, protocol } = loadActualHooks();
+  const controller = hooks.createController({ protocol, now: () => 0 });
+  const authored = output({
+    nodes: [{
+      id: "nonhuman-fold",
+      parent: null,
+      type: "primitive",
+      visible: true,
+      transform: transform(),
+      geometry: {
+        shape: "icosahedron",
+        radius: 1200,
+        detail: 1,
+      },
+      material: material("solid", "#36D9C8DD"),
+    }],
+  });
+
+  assert.equal(controller.acceptUpdate(update(A, authored)), true);
+  const state = plain(controller.snapshot(0));
+  const plan = plain(hooks.rasterPlan(state.evaluated_manifest));
+
+  assert.equal(state.compiled_manifest.schema, "rapp-holo-compiled/1");
+  assert.equal(plan.environment.clear_color, authored.state.environment.clear_color);
+  assert.equal(plan.layers[0].nodes[0].id, "nonhuman-fold");
 });
 
 test("arbitrary non-humanoid IR is preserved without renderer-authored nodes", () => {

@@ -1545,7 +1545,30 @@ function setCopilotBusy(busy) {
   $('copilot-status').textContent = busy ? 'thinking' : 'ready';
 }
 
+function setCopilotPanel(open) {
+  const dialog = $('copilot-dialog');
+  const docked = Boolean(
+    desktopBridge
+    && window.matchMedia('(min-width: 1100px)').matches
+  );
+  if (!open) {
+    document.body.classList.remove('copilot-dock-open');
+    if (dialog.open) dialog.close();
+    return;
+  }
+  if (dialog.open) dialog.close();
+  if (docked) {
+    document.body.classList.add('copilot-dock-open');
+    dialog.show();
+  } else {
+    document.body.classList.remove('copilot-dock-open');
+    dialog.showModal();
+  }
+  $('copilot-input').focus();
+}
+
 if (desktopBridge) {
+  document.body.classList.add('desktop-vc');
   $('btn-copilot').hidden = false;
   desktopBridge.brainstemStatus().then((status) => {
     const ready = status.state === 'ready';
@@ -1567,12 +1590,17 @@ if (desktopBridge) {
     $('copilot-send').disabled = status.state !== 'ready' || copilotBusy;
   });
   $('btn-copilot').addEventListener('click', () => {
-    $('copilot-dialog').showModal();
-    $('copilot-input').focus();
+    setCopilotPanel(!$('copilot-dialog').open);
   });
-  $('copilot-close').addEventListener('click', () => $('copilot-dialog').close());
+  $('copilot-close').addEventListener('click', () => setCopilotPanel(false));
   $('copilot-cancel').addEventListener('click', async () => {
     await desktopBridge.cancelBrainstem(null);
+  });
+  document.querySelectorAll('[data-copilot-prompt]').forEach(button => {
+    button.addEventListener('click', () => {
+      $('copilot-input').value = button.dataset.copilotPrompt;
+      $('copilot-form').requestSubmit();
+    });
   });
   $('copilot-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1600,6 +1628,9 @@ if (desktopBridge) {
       setCopilotBusy(false);
     }
   });
+  if (window.matchMedia('(min-width: 1100px)').matches) {
+    setCopilotPanel(true);
+  }
 }
 
 if ('serviceWorker' in navigator && location.protocol === 'http:') {

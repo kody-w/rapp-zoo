@@ -203,10 +203,23 @@
 <dialog id="copilot-dialog" class="copilot-dialog">
   <div class="copilot-head">
     <div>
-      <span class="muted small">APP-OWNED OPERATING ENGINE</span>
-      <h3>RAPP Brainstem · GitHub Copilot</h3>
+      <span class="muted small">HOLO/1 AGENT MODE</span>
+      <h3>GitHub Copilot</h3>
     </div>
     <span id="copilot-status" class="pill">checking</span>
+  </div>
+  <div class="copilot-intro">
+    <strong>Holo Zoo Copilot</strong>
+    <p>
+      Operate the local Zoo, inspect immutable flipbooks, and ask the AI to
+      express its next Holo/1 state during this same turn.
+    </p>
+    <div class="copilot-suggestions">
+      <button type="button" data-copilot-prompt="Explain the current Holo Wake and any stale or blind turns.">Explain the current Holo Wake</button>
+      <button type="button" data-copilot-prompt="Inspect the current immutable Holo/1 flipbook and describe its visual continuity.">Inspect the current flipbook</button>
+      <button type="button" data-copilot-prompt="Express your next Holo/1 state for this turn using any visual form you choose.">Emit the next Holo/1 state</button>
+      <button type="button" data-copilot-prompt="Run the Holo/1 conformance checks and report any refusal evidence.">Run Holo/1 conformance</button>
+    </div>
   </div>
   <div id="copilot-transcript" class="copilot-transcript" aria-live="polite"></div>
   <form id="copilot-form">
