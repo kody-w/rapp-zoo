@@ -55,8 +55,8 @@ has never emitted one, the stage is empty.
 
 The Zoo accepts:
 
-1. Live verified `body.hologram` frames from a local Brainstem.
-2. Live verified `body.hologram` frames from a remote RAPP stream.
+1. Live verified Holo/1 `body.pulse` frames from a local Brainstem.
+2. Live verified Holo/1 `body.pulse` frames from a remote RAPP stream.
 3. Imported Holo/1 history with source evidence and optional producer provenance.
 4. Player activation records for exact-session replay.
 5. Legacy bottle records in a separate non-Holo/1 exhibit.
@@ -71,7 +71,7 @@ The live habitat follows one subject RAPPID:
 
 - subscribe to its body stream;
 - verify every body successor;
-- identify accepted `body.hologram` events;
+- identify accepted `body.pulse` events by `rapp-holo-record/1` payload;
 - update the authoritative holo head;
 - compile and activate the next playable holo;
 - keep the current performance running until another update arrives.
@@ -154,7 +154,7 @@ The Zoo stores distinct records:
 |---|---|
 | Source memory frames | Proof of the original assistant turn |
 | Body frames | Authoritative RAPP biography |
-| Holo index | Derived ordered view of `body.hologram` frames |
+| Holo index | Derived ordered view of Holo/1 `body.pulse` frames |
 | Authoritative holo head | Newest durably accepted holo |
 | Player activation log | Device-specific live timing and departure pose |
 | Player-active state | What this display currently renders |
@@ -232,7 +232,7 @@ The migration order is:
 1. Freeze the current bottle renderer as the legacy exhibit.
 2. Remove the second creative model call from the AI-self path.
 3. Add original-turn `emit_hologram`.
-4. Register and accept `body.hologram`.
+4. Accept registered `body.pulse` frames carrying `rapp-holo-record/1`.
 5. Add append-only source/body history.
 6. Add authoritative and player-active head separation.
 7. Add the neutral Holo/1 interpreter.

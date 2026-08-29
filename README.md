@@ -66,7 +66,7 @@ embodied self, and its immutable recursive history is the body it grew through.
 
 The hologram contract is specified in
 [`HOLOGRAM_PROTOCOL.md`](./HOLOGRAM_PROTOCOL.md): hologram is a first-class,
-AI-authored output channel whose immutable `body.hologram` frames form a
+AI-authored output channel whose immutable Holo/1 `body.pulse` frames form a
 per-AI flipbook. The application verifies and plays that data; it does not
 choose a body, form, emotion, or fallback visual.
 
@@ -109,7 +109,7 @@ The Holo Zoo has two deliberately separated areas:
 During every Holo-enabled Brainstem turn, the AI emits exactly one
 `rapp-holo-output/1` object beside text and voice. The Zoo commits the exact
 candidate into a verified `memory.chat-turn`, materializes it as
-`body.hologram`, and advances a separate visual flipbook head. A null output
+a Holo/1 `body.pulse`, and advances a separate visual flipbook head. A null output
 keeps the prior holo performing. Invalid or stale output is surfaced and never
 replaced with a generated avatar.
 
@@ -206,7 +206,7 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 | `POST` | `/api/reveal`                | `{path}` — open workspace in OS file manager (path must be inside `~/.rapp/`) |
 | `GET`  | `/api/holo/heads`            | List authoritative Holo/1 heads, player-active state, and Holo Wake |
 | `GET`  | `/api/holo/history`          | Read one subject's immutable visual flipbook |
-| `GET`  | `/api/holo/frames/<id>`      | Read one materialized `body.hologram` frame |
+| `GET`  | `/api/holo/frames/<id>`      | Read one materialized Holo/1 `body.pulse` frame |
 | `GET`  | `/api/holo/sources/<hash>`   | Read the exact bound assistant source frame |
 | `GET`  | `/api/holo/presence`         | Evaluate the rolling in-the-wild AI-presence heuristic |
 | `GET`  | `/api/holo/example-turn`     | Build a verified blank Holo/1 assistant turn |

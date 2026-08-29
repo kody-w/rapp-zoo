@@ -38,7 +38,8 @@ For each AI turn:
    holo output during the same turn.
 4. The exact holo candidate is committed in the source turn.
 5. Optional producer provenance may identify the emitting service.
-6. The candidate is materialized as a `body.hologram` frame.
+6. The candidate is materialized as a registered `body.pulse` frame carrying
+   `rapp-holo-record/1`.
 7. The frame extends the AI's real body stream.
 8. Its visual parent extends the AI's holo flipbook.
 9. Wild players verify and activate it.

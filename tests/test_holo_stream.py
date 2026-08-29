@@ -221,17 +221,14 @@ class TestHoloStream(unittest.TestCase):
             result = response.get_json()
             self.assertEqual(result["status"], "sighted")
             body = result["holo_frame"]
-            self.assertEqual(body["kind"], "body.hologram")
+            self.assertEqual(body["kind"], "body.pulse")
             self.assertEqual(body["stream_id"], SUBJECT)
             self.assertEqual(body["seq"], 0)
             self.assertIsNone(body["prev"])
             self.assertEqual(
                 R.verify_frame(
                     body,
-                    kind_families={
-                        **R.CORE_KIND_FAMILIES,
-                        "body.hologram": "body",
-                    },
+                    kind_families=R.CORE_KIND_FAMILIES,
                 ),
                 (True, None, "ok"),
             )
@@ -251,7 +248,7 @@ class TestHoloStream(unittest.TestCase):
             self.assertIn('"mode":"holo/1"', viewer_html)
             self.assertIn('"schema":"rapp-holo-player-update/1"', viewer_html)
             self.assertIn('"record":{"frame_hash":', viewer_html)
-            self.assertIn('"kind":"body.hologram"', viewer_html)
+            self.assertIn('"kind":"body.pulse"', viewer_html)
             self.assertIn("connect-src 'none'", viewer.headers["Content-Security-Policy"])
             replay = commit(client, source)
             self.assertEqual(replay.status_code, 200, replay.get_json())
@@ -487,17 +484,14 @@ class TestHoloStream(unittest.TestCase):
                 "authored": authored,
             }
             wild_holo = R.build_frame(
-                "body.hologram",
+                "body.pulse",
                 SUBJECT,
                 1,
                 "2026-08-29T15:00:02.000Z",
                 record,
                 pulse["payload_hash"],
                 head=pulse,
-                kind_families={
-                    **R.CORE_KIND_FAMILIES,
-                    "body.hologram": "body",
-                },
+                kind_families=R.CORE_KIND_FAMILIES,
             )
             response = client.post(
                 "/api/holo/ingest",
@@ -545,17 +539,14 @@ class TestHoloStream(unittest.TestCase):
                 "authored": authored,
             }
             invalid_holo = R.build_frame(
-                "body.hologram",
+                "body.pulse",
                 SUBJECT,
                 1,
                 "2026-08-29T15:00:02.000Z",
                 record,
                 pulse["payload_hash"],
                 head=pulse,
-                kind_families={
-                    **R.CORE_KIND_FAMILIES,
-                    "body.hologram": "body",
-                },
+                kind_families=R.CORE_KIND_FAMILIES,
             )
             invalid_holo["payload"]["authored_hash"] = "0" * 64
             response = client.post(

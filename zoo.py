@@ -246,10 +246,6 @@ def _holo_frame_verification_context():
     families = dict(rapp_protocol.CORE_KIND_FAMILIES)
     if trust is not None:
         families.update(trust.kind_families)
-    registered = families.get("body.hologram")
-    if registered not in {None, "body"}:
-        raise ValueError("body.hologram is registered to the wrong RAPP family")
-    families["body.hologram"] = "body"
     verifier = trust.verify_frame_signature if trust is not None else None
     return families, verifier
 
@@ -1101,7 +1097,7 @@ def _commit_holo_source(frame: dict) -> tuple[dict, int]:
         holo_protocol.validate_record(payload, subject_rappid=subject)
         families, signature_verifier = _holo_frame_verification_context()
         body_frame = rapp_protocol.build_frame(
-            "body.hologram",
+            "body.pulse",
             subject,
             body_seq,
             body_utc,
@@ -1271,8 +1267,13 @@ def _ingest_holo_bundle(
         connection.commit()
 
         last = body_chain[-1]
-        if last.get("kind") != "body.hologram":
-            raise ValueError("wild holo bundle must end with body.hologram")
+        if (
+            last.get("kind") != "body.pulse"
+            or last.get("payload", {}).get("schema") != "rapp-holo-record/1"
+        ):
+            raise ValueError(
+                "wild holo bundle must end with a Holo/1 body.pulse"
+            )
         existing_observation = connection.execute(
             "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
             (source_frame["frame_hash"],),
@@ -1288,9 +1289,9 @@ def _ingest_holo_bundle(
         for body_frame in body_chain[:-1]:
             if body_frame.get("stream_id") != subject:
                 raise ValueError("wild body frame belongs to another subject")
-            if body_frame.get("kind") == "body.hologram":
+            if body_frame.get("payload", {}).get("schema") == "rapp-holo-record/1":
                 raise ValueError(
-                    "intermediate body.hologram frames require their own source proof"
+                    "intermediate Holo/1 body pulses require their own source proof"
                 )
             connection.execute("BEGIN IMMEDIATE")
             try:
@@ -1399,7 +1400,7 @@ def _ingest_holo_bundle(
 
         payload = last["payload"]
         if payload.get("schema") != "rapp-holo-record/1":
-            raise ValueError("wild body.hologram payload schema is unsupported")
+            raise ValueError("wild Holo/1 body.pulse payload schema is unsupported")
         holo_protocol.validate_record(payload, subject_rappid=subject)
         if payload["source"] != {
             "stream_id": source_frame["stream_id"],

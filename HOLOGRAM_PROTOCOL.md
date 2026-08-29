@@ -4,7 +4,7 @@
 
 **Status:** Draft protocol contract  
 **RAPP authority:** `rapp/1` rev-6, pinned by `RAPP1_AUTHORITY.json`  
-**Proposed registered frame kind:** `body.hologram` in the `body` family  
+**RAPP frame kind:** registered core kind `body.pulse`  
 **Authored output schema:** `rapp-holo-output/1`  
 **Render IR:** `rapp-holo-ir/1`  
 **Materialized record schema:** `rapp-holo-record/1`
@@ -70,7 +70,7 @@ data:
 The invariant substrate stays fixed:
 
 ```text
-verified source -> exact AI output -> immutable body.hologram
+verified source -> exact AI output -> immutable Holo/1 body.pulse
                 -> visual head -> deterministic player -> Holo Wake
 ```
 
@@ -202,19 +202,20 @@ An optional detached-JWS statement identifying a producer that vouches for the
 source and authored digest. It is provenance, not the Holo Wake itself.
 
 **Holo frame**  
-A verified `body.hologram` RAPP frame materialized from the already-committed
-authored output.
+A verified `body.pulse` RAPP frame whose payload is
+`rapp-holo-record/1`, materialized from the already-committed authored output.
 
 **Holo ID**  
-The `frame_hash` of the materialized `body.hologram` frame.
+The `frame_hash` of the materialized Holo/1 body pulse.
 
 **Body head**  
 The highest verified frame in the subject's complete RAPP body stream. It may
 be a hologram frame or another registered body event.
 
 **Holo head**  
-The newest accepted `body.hologram` frame in that body stream. It is a derived
-view over the body stream, not a replacement for the RAPP body head.
+The newest accepted `body.pulse` carrying `rapp-holo-record/1` in that body
+stream. It is a derived view over the body stream, not a replacement for the
+RAPP body head.
 
 **Authoritative holo head**  
 The newest durably accepted holo frame, whether or not a particular display can
@@ -319,25 +320,17 @@ an asynchronous RAPP body frame, consistent with RAPP/1 section 8.
 
 ## 5. RAPP frame placement
 
-`body.hologram` is a new registered kind on the existing eleven-key `rapp/1`
-frame. It is bound to the `body` family. The frame's `stream_id` is the subject
-organism's RAPPID.
+Holo/1 uses the already-registered `body.pulse` kind on the existing eleven-key
+`rapp/1` frame. Its closed `rapp-holo-record/1` payload distinguishes the Holo
+event from other body pulses. The frame's `stream_id` is the subject organism's
+RAPPID.
 
 It does not create a new envelope or a competing protocol frame.
-
-The RAPP kind registry entry is:
-
-```json
-{
-  "kind": "body.hologram",
-  "family": "body"
-}
-```
 
 ```json
 {
   "spec": "rapp/1",
-  "kind": "body.hologram",
+  "kind": "body.pulse",
   "stream_id": "rappid:@owner/subject:64-lowercase-hex",
   "seq": 42,
   "utc": "2026-04-20T12:34:56.789Z",
@@ -382,7 +375,8 @@ There are two valid orders:
 1. **Body order** uses outer `seq` and `prev`. It includes every event in the
    organism's body stream and is verified against the actual body head.
 2. **Holo order** uses payload `holo_seq` and `visual_parent`. It includes only
-   `body.hologram` events and creates the visual flipbook.
+   `body.pulse` events carrying `rapp-holo-record/1` and creates the visual
+   flipbook.
 
 A consumer MUST NOT verify a RAPP body frame against the holo head. The holo
 head is not a RAPP chain head.
@@ -1111,7 +1105,7 @@ The authoritative commit then occurs inside one per-body-stream transaction:
 4. Assign the next outer body `seq` and `prev`.
 5. Assign `holo_seq = previous holo_seq + 1`, or zero at holo genesis.
 6. Set `visual_parent` to the current holo ID, or null at holo genesis.
-7. Construct and verify the complete `body.hologram` frame.
+7. Construct and verify the complete Holo/1 `body.pulse` frame.
 8. Atomically publish the body-log entry and advance the body/holo head index.
 9. Commit durable storage.
 
@@ -1385,7 +1379,7 @@ protocol.
 
 - an original-turn `emit_hologram` output channel;
 - exact candidate capture inside the source turn;
-- `body.hologram` kind registration;
+- Holo/1 `body.pulse` payload recognition;
 - a neutral, bounded `rapp-holo-ir/1` validator;
 - an append-only body-frame store;
 - a derived per-subject holo head and contiguous `holo_seq`;
@@ -1417,7 +1411,8 @@ An implementation is not Holo/1 conformant unless all of these are true:
 6. The source frame is retrievable and independently verifiable in its memory
    history.
 7. The materialized copy is canonically identical.
-8. Every holo is an immutable `body.hologram` RAPP frame.
+8. Every holo is an immutable registered `body.pulse` RAPP frame carrying
+   `rapp-holo-record/1`.
 9. The body frame extends the actual body head through one linearizable append
     authority.
 10. The holo sequence and visual parent form a separate contiguous flipbook.
