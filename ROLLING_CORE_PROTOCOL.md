@@ -284,7 +284,45 @@ prior core head active and records the break in the Holo Wake.
 
 ---
 
-## 11. The Holo Wake
+## 11. Breath keys and sleep
+
+A usable AI provider credential is the Rapter's **breath key**.
+
+```text
+no usable key     -> sleeping
+key being tested  -> waking
+verified key      -> awake and able to produce ticks
+revoked/offline/
+budget exhausted  -> breath held, then sleeping
+```
+
+While awake, a bounded breathing loop may create source experiences and ask the
+AI to author successor core states even between human messages. Every breath is
+a real verified tick; the UI never animates a fake liveness indicator in place
+of one.
+
+Direct mode uses the owner's locally secured OpenAI-compatible credential and
+can breathe only while the device runtime is permitted to execute. Wild mode
+uses a scoped Rapterbox token and prepaid compute to keep breathing when a
+mobile operating system suspends the local app.
+
+Removing the key, pausing the organism, losing network/model access, or
+exhausting the configured budget stops new ticks. The Rapter sleeps with its
+last core and complete history intact.
+
+A breathing loop MUST have:
+
+- an explicit cadence or event trigger;
+- per-tick and aggregate token ceilings;
+- a spending/compute ceiling;
+- visible pause and wake controls;
+- refusal backoff;
+- no retry storm;
+- no secret in frames, logs, exports, or Holo state.
+
+---
+
+## 12. The Holo Wake
 
 The **Holo Wake** is the measured trail left by a Rolling Core that keeps up
 with live experience.
@@ -304,7 +342,7 @@ The Wake can indicate `ai-present-likely`, `unassisted-human-likely`, or
 
 ---
 
-## 12. Flocks
+## 13. Flocks
 
 One organism is a **Rapter**.
 
@@ -322,7 +360,7 @@ A shared fantasy-draft frame is one example:
 
 ---
 
-## 13. Failure and fork behavior
+## 14. Failure and fork behavior
 
 A conformant implementation refuses:
 
@@ -347,7 +385,7 @@ Refusal never causes:
 
 ---
 
-## 14. Conformance
+## 15. Conformance
 
 A Rolling Core/1 implementation must prove:
 
@@ -368,7 +406,7 @@ A Rolling Core/1 implementation must prove:
 
 ---
 
-## 15. Product map
+## 16. Product map
 
 - **RAPP/1** — the wire and trust rules.
 - **Rolling Core/1** — the organism's immutable growth lifecycle.
@@ -380,7 +418,7 @@ A Rolling Core/1 implementation must prove:
 
 ---
 
-## 16. Core sentence
+## 17. Core sentence
 
 **A Rolling Core is a Rapter growing frame by frame: each verified experience
 becomes one immutable completed self, the newest self becomes the living head,

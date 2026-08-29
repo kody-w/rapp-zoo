@@ -2,8 +2,8 @@
 
 ## Lockup
 
-**Rolling Cores**  
-*Everything autocomplete on an organism.*  
+**Holo Zoo: Rolling Cores**<br>
+*Everything autocomplete on an organism.*<br>
 Powered by RAPP/1. From Rapterbox.
 
 ## Vocabulary
@@ -14,8 +14,8 @@ Powered by RAPP/1. From Rapterbox.
 | **Rappter** | A flock of Rapters |
 | **RAPP/1** | The protocol and trust substrate |
 | **Rolling Core** | One Rapter's frame-by-frame embodied self |
-| **Rolling Cores** | The consumer app and product category |
-| **Holo Zoo** | The habitat, player, archive, and conformance lab |
+| **Rolling Cores** | The underlying product system, category, and business |
+| **Holo Zoo** | The consumer app, habitat, player, archive, and conformance lab |
 | **SHAPEE** | The Rapter's optional seeded key-tooth side-profile tile |
 | **Growl** | The Rapter's original completed MIDI piano identity |
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
@@ -81,6 +81,35 @@ the product has achieved artificial general intelligence.
 - Red is reserved for refusal, stale state, forks, and broken Wake evidence.
 - SHAPEE silhouettes should read as key profiles, not corporate logos.
 - Never default the organism to a human body.
+
+## Master sigil
+
+The Rolling Cores / Holo Zoo master mark is a canonical SHAPEE:
+
+```json
+{
+  "shape": "shapee",
+  "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+  "width": 2400,
+  "height": 1800,
+  "depth": 180,
+  "teeth": 16,
+  "relief": 420
+}
+```
+
+This fixed seed is the flock-level sigil. Individual Rapters use their own
+AI-authored SHAPEE seeds, making every organism recognizable while preserving a
+shared visual grammar.
+
+Use the master sigil for:
+
+- app icon and splash;
+- Rapterbox listing badges;
+- verified Rolling Core Capsule marks;
+- official Rapter Credit records;
+- loading and empty states;
+- monochrome stamps and small favicons.
 
 ## Voice
 

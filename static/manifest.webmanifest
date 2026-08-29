@@ -1,6 +1,6 @@
 {
-  "name": "Rolling Cores",
-  "short_name": "Rolling Cores",
+  "name": "Holo Zoo: Rolling Cores",
+  "short_name": "Holo Zoo",
   "description": "Everything autocomplete on an organism. A Holo Zoo powered by RAPP/1.",
   "start_url": "/",
   "scope": "/",

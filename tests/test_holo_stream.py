@@ -134,6 +134,17 @@ def commit(client, frame):
 
 
 class TestHoloStream(unittest.TestCase):
+    def test_holo_profile_uses_only_registered_rapp_frame_kinds(self):
+        for relative in (
+            "zoo.py",
+            "README.md",
+            "HOLOGRAM_PROTOCOL.md",
+            "HOLO_ZOO.md",
+            "HOLO_IN_THE_WILD.md",
+        ):
+            source = (ROOT / relative).read_text().replace("\r\n", "\n")
+            self.assertNotIn("body.hologram", source)
+
     def test_fantasy_draft_example_is_verified_and_seats_both_rappters(self):
         with IsolatedHome():
             response = zoo.create_app().test_client().get(
@@ -225,13 +236,7 @@ class TestHoloStream(unittest.TestCase):
             self.assertEqual(body["stream_id"], SUBJECT)
             self.assertEqual(body["seq"], 0)
             self.assertIsNone(body["prev"])
-            self.assertEqual(
-                R.verify_frame(
-                    body,
-                    kind_families=R.CORE_KIND_FAMILIES,
-                ),
-                (True, None, "ok"),
-            )
+            self.assertEqual(R.verify_frame(body), (True, None, "ok"))
             self.assertEqual(body["payload"]["authored"], source["payload"]["outputs"]["holo"])
             self.assertEqual(
                 body["payload"]["authored_hash"],
@@ -491,7 +496,6 @@ class TestHoloStream(unittest.TestCase):
                 record,
                 pulse["payload_hash"],
                 head=pulse,
-                kind_families=R.CORE_KIND_FAMILIES,
             )
             response = client.post(
                 "/api/holo/ingest",
@@ -546,7 +550,6 @@ class TestHoloStream(unittest.TestCase):
                 record,
                 pulse["payload_hash"],
                 head=pulse,
-                kind_families=R.CORE_KIND_FAMILIES,
             )
             invalid_holo["payload"]["authored_hash"] = "0" * 64
             response = client.post(

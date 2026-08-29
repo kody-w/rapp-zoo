@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "io.github.kody-w.rapp-zoo",
-    "productName": "Rolling Cores",
+    "productName": "Holo Zoo",
     "asar": true,
     "asarUnpack": [
       "agents/**/*",

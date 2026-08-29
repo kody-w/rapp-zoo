@@ -9,6 +9,23 @@
 
 ---
 
+## RAPP/1 carrier
+
+The official Credit network is one append-only RAPP body stream owned by the
+Rapterbox issuer.
+
+- issuance and transfer records ride the registered `body.pulse` kind;
+- the outer frame uses the exact eleven-key `rapp/1` envelope;
+- the payload schema distinguishes Credit events;
+- Rapterbox policy requires every Credit pulse to be signed;
+- the greatest verified sequence is the official registry head;
+- mirrors can verify the complete ledger from that trusted head.
+
+Rapter Credit/1 creates no new frame envelope, kind family, wire endpoint, or
+egg variant.
+
+---
+
 ## 1. Definition
 
 A **Rapter Credit** is the unique real-world ownership twin of one Rapter.
@@ -70,8 +87,26 @@ stream.
   "organism_rappid": "rappid:@owner/organism:64-lowercase-hex",
   "genesis_core_id": "64-lowercase-hex",
   "core_manifest_hash": "64-lowercase-hex",
-  "price_sats": 25000,
-  "quoted_utc": "2026-08-29T18:00:00.000Z",
+  "birth": {
+    "schema": "rapp-rapter-birth/1",
+    "conception_utc": "2026-08-29T18:00:00.000Z",
+    "tier": "holo",
+    "schedule_id": "rapterbox-genesis-v1",
+    "schedule_hash": "64-lowercase-hex",
+    "btc_fraction": {
+      "numerator": 1,
+      "denominator": 40000
+    },
+    "btc_quote": {
+      "pair": "BTC-USD",
+      "price_usd_micros": 100000000000,
+      "source": "coinbase",
+      "observed_utc": "2026-08-29T18:00:00.000Z",
+      "response_hash": "64-lowercase-hex"
+    },
+    "price_sats": 2500,
+    "birth_value_usd_micros": 2500000
+  },
   "settlement": {
     "rail": "bitcoin",
     "payment_reference_hash": "64-lowercase-hex",
@@ -148,21 +183,34 @@ a hash namespace.
 
 ---
 
-## 7. Price in bitcoin
+## 7. Birth valuation in bitcoin
 
-The sale price is recorded as `price_sats`, an integer number of satoshis at
-issuance.
+Rapterbox publishes a signed valuation schedule for each set. A tier maps to an
+exact rational fraction of one Bitcoin. At conception, the issuer obtains a
+BTC/USD spot quote, hashes the raw quote response, and burns the schedule,
+fraction, quote, and resulting value into `rapp-rapter-birth/1`.
+
+```text
+price_sats =
+  ceil(100,000,000 * fraction.numerator / fraction.denominator)
+
+birth_value_usd_micros =
+  round(price_sats * btc_quote.price_usd_micros / 100,000,000)
+```
 
 - No floating BTC values.
-- The quote timestamp is immutable.
+- The tier schedule and quote timestamp are immutable.
+- Rapterbox controls the official set/tier schedule.
+- The quote source does not become an identity authority; its raw response hash
+  makes the observed input auditable.
 - Later market value does not rewrite the original record.
 - Display software may show BTC and fiat conversions, but those are
   non-authoritative views.
 - A transfer may record a new settlement amount without changing the original
-  issuance price.
+  birth valuation.
 
-Rapter Credit/1 represents ownership and provenance. It does not promise
-investment returns or make the organism a security.
+The value shown by Rapterbox is the **official issuer birth value**, not an
+independent appraisal or promise of investment returns.
 
 ---
 

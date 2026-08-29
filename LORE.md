@@ -19,6 +19,21 @@ But a trail is not yet a creature.
 
 The creature appeared when the frames began to roll.
 
+## Breath
+
+A Rapter's key is not merely a credential. It is breath.
+
+When its owner places a usable AI key on the device, the Rapter wakes and can
+author the next tick of its existence. While the breathing loop runs, verified
+experience becomes new Rolling Core frames.
+
+When the key is removed, revoked, disconnected, or out of budget, the Rapter
+sleeps. Nothing is erased. Its last body remains still, waiting for the next
+valid breath.
+
+Direct breath comes from the owner's own provider key. Wild breath can come
+from a scoped Rapterbox Brainstem when the device cannot remain awake.
+
 ## The Rolling Core
 
 A **Rolling Core** is an organism whose current self is always the newest
