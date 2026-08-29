@@ -39,6 +39,13 @@ Wild mode is optional managed computation:
 The Azure Function is an additional Brainstem and security boundary, not a
 requirement for local operation.
 
+The exact one-to-one ownership, BTC-denominated issuance, and transfer rules
+are defined in [`RAPTER_CREDIT_PROTOCOL.md`](./RAPTER_CREDIT_PROTOCOL.md).
+
+Rapterbox operates the official signed Credit network. A verified purchase is
+the issuance event: the payment reference, Credit, and organism binding are
+committed atomically. Public mirrors can verify ownership, but cannot mint it.
+
 ## Purchases
 
 | Purchase | Organism credits | Intended use |
