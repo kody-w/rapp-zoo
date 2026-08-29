@@ -42,6 +42,21 @@ An owned Rapter can be opened offline, exported, backed up, AirDropped, and
 re-imported into the phone's Holo Zoo. Managed compute is optional and sold
 separately from the organism.
 
+## The offer
+
+> **Meet Rapters for free. Buy the one you value. Own its Rolling Core locally.
+> Live with it for 30 days. If it is not yours, return it and it rejoins the
+> Rapterbox market.**
+
+Supporting lines:
+
+- One purchase. One Rapter. One official Credit.
+- Its birth value is fixed in sats.
+- Its memories stay immutable.
+- Its body keeps growing.
+- Its local capsule is yours while the official Credit is yours.
+- No subscription is required to open an organism you own.
+
 ## Positioning
 
 **Short**

@@ -96,9 +96,6 @@ Commercially, the lanes remain separate:
 
 The shared world and naming canon is in [`LORE.md`](./LORE.md).
 The product vocabulary and launch copy are in [`BRAND.md`](./BRAND.md).
-The local-ownership, one-time purchase, and optional compute model is in
-[`COMMERCIAL.md`](./COMMERCIAL.md).
-The company-wide product focus is in [`NORTH_STAR.md`](./NORTH_STAR.md).
 The one-to-one organism ownership record is specified in
 [`RAPTER_CREDIT_PROTOCOL.md`](./RAPTER_CREDIT_PROTOCOL.md).
 The organism lifecycle is specified in
