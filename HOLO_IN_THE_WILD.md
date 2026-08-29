@@ -132,14 +132,13 @@ complex hologram.
 The reference observer uses eight consecutive holo-enabled assistant turns.
 For each turn it records:
 
-- whether a holo candidate arrived before the next assistant turn committed;
+- the measured original-turn latency and the configured Holo deadline;
 - whether `base_holo_id` matched the current authoritative head;
 - whether the exact source inclusion was verified;
 - whether all history references resolved;
 - whether transition continuity was valid;
-- whether deterministic replay reproduced the same manifest and pose;
-- how much protocol structure was authored;
-- end-to-end output latency.
+- whether independent deterministic compilation reproduced the same canonical
+  manifest hash;
 
 Reference classifications:
 
