@@ -1,0 +1,54 @@
+{
+  "schema": "rapp-holo-output/1",
+  "base_holo_id": null,
+  "ir_version": "rapp-holo-ir/1",
+  "renderer_contract": "rapp-holo-renderer/1",
+  "state": {
+    "camera": {
+      "projection": "perspective",
+      "position": [
+        0,
+        0,
+        5000
+      ],
+      "target": [
+        0,
+        0,
+        0
+      ],
+      "up": [
+        0,
+        1000,
+        0
+      ],
+      "near": 1,
+      "far": 100000,
+      "fov_mdeg": 60000,
+      "ortho_height": null
+    },
+    "environment": {
+      "clear_color": "#00000000",
+      "fog": null
+    },
+    "nodes": []
+  },
+  "transition": {
+    "duration_ms": 0,
+    "easing": "linear",
+    "default": "cut",
+    "nodes": []
+  },
+  "performance": {
+    "clock": "rapp-holo-logical-ms/1",
+    "sustain": {
+      "duration_ms": 0,
+      "repeat": "hold",
+      "tracks": [],
+      "flipbook": []
+    }
+  },
+  "accessibility": {
+    "description": "No visual state.",
+    "reduced_motion": "hold"
+  }
+}

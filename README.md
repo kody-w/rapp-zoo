@@ -57,6 +57,22 @@ Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers
 
 ## Holograms and RAR DOGGs
 
+The next hologram contract is specified in
+[`HOLOGRAM_PROTOCOL.md`](./HOLOGRAM_PROTOCOL.md): hologram is a first-class,
+AI-authored output channel whose immutable `body.hologram` frames form a
+per-AI flipbook. The application verifies and plays that data; it does not
+choose a body, form, emotion, or fallback visual. The bottle behavior described
+below is the released legacy implementation and must not be treated as the
+AI's Holo/1 self.
+
+The product split is explicit:
+
+- [`HOLO_ZOO.md`](./HOLO_ZOO.md) defines the local player, collection,
+  flipbook, debugger, and conformance lab.
+- [`HOLO_IN_THE_WILD.md`](./HOLO_IN_THE_WILD.md) defines live Holo/1 output
+  across RAPP streams and the rolling signal that an AI-capable computational
+  participant is present.
+
 The Holograms tab supports two related but different things:
 
 - **3D character holograms** — procedural bodies whose stable appearance is seeded by an artifact RAPPID or egg address.
