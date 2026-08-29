@@ -74,8 +74,8 @@ function applyPatches(value, patches) {
 function validate(kind, value, context) {
   if (kind === "output") {
     return H.validateOutput(value, {
-      baseState: context.base_state,
-      ancestorResolver: context.ancestors,
+      base: context.base_state,
+      ancestorIds: context.ancestors,
     });
   }
   const options = {
@@ -95,7 +95,11 @@ test("classic script exposes one frozen dependency-free protocol global", () => 
   assert.ok(H);
   assert.equal(Object.isFrozen(H), true);
   assert.equal(typeof H.validateOutput, "function");
+  assert.equal(typeof H.compileManifest, "function");
   assert.equal(typeof H.validateRecord, "function");
+  assert.equal(H.validate_output, H.validateOutput);
+  assert.equal(H.compile_manifest, H.compileManifest);
+  assert.equal(H.authored_hash, H.authoredHash);
   assert.doesNotMatch(source, /\beval\s*\(|\bfetch\s*\(|XMLHttpRequest|import\s*\(/);
   assert.doesNotMatch(source, /https?:\/\//);
 });
@@ -111,7 +115,15 @@ test("shared fixture corpus has identical accept/refuse and manifest hashes", ()
     const context = resolveReferences(corpus.contexts[fixture.context]);
     const before = clone(value);
     if (fixture.accept) {
-      const manifest = validate(fixture.kind, value, context);
+      const result = validate(fixture.kind, value, context);
+      let manifest = result;
+      if (fixture.kind === "output") {
+        assert.equal(result, value, fixture.name);
+        manifest = H.compileManifest(value, {
+          base: context.base_state,
+          ancestorIds: context.ancestors,
+        });
+      }
       assert.equal(
         H.domainHash("rapp-holo/1:compiled", manifest),
         fixture.manifest_hash,
@@ -201,10 +213,22 @@ test("unverified ancestor and invalid round divisor are refused", () => {
   context.ancestors["a".repeat(64)].verified_ancestor = false;
   assert.throws(
     () => H.validateOutput(value, {
-      baseState: context.base_state,
-      ancestorResolver: context.ancestors,
+      base: context.base_state,
+      ancestorIds: context.ancestors,
     }),
     /verified strict/,
   );
   assert.throws(() => H.roundDiv(1, 0));
+});
+
+
+test("stable adapters accept an output base and ancestor ID set", () => {
+  const value = clone(corpus.documents["historical-flipbook"]);
+  const base = corpus.documents["multi-node-non-humanoid-scene"];
+  const ancestorIds = new Set(["a".repeat(64), "b".repeat(64)]);
+  assert.equal(H.validateOutput(value, { base, ancestorIds }), value);
+  assert.equal(
+    H.compileManifest(value, { base, ancestorIds }).schema,
+    "rapp-holo-compiled/1",
+  );
 });

@@ -352,9 +352,9 @@ def canonical_authored_bytes(authored: dict) -> bytes:
     return encoded
 
 
-def authored_hash(authored: dict) -> str:
-    canonical_authored_bytes(authored)
-    return H("rapp-holo/1:authored", authored)
+def authored_hash(value: dict) -> str:
+    canonical_authored_bytes(value)
+    return H("rapp-holo/1:authored", value)
 
 
 def domain_hash(space: str, value) -> str:
@@ -843,10 +843,19 @@ def _resolver_value(
         raise HoloProtocolError(f"ancestor resolver failed for {holo_id}: {exc}") from exc
     if value is None:
         _fail("performance.sustain.flipbook", f"ancestor {holo_id} is unavailable")
-    result = _object(value, {"state", "verified_ancestor"}, f"ancestor[{holo_id}]")
+    if type(value) is not dict or set(value) not in (
+        {"verified_ancestor"},
+        {"state", "verified_ancestor"},
+    ):
+        _fail(
+            f"ancestor[{holo_id}]",
+            "must contain verified_ancestor and optional state",
+        )
+    result = value
     if result["verified_ancestor"] is not True:
         _fail(f"ancestor[{holo_id}]", "must be a verified strict visual ancestor")
-    _validate_state(result["state"], f"ancestor[{holo_id}].state")
+    if "state" in result:
+        _validate_state(result["state"], f"ancestor[{holo_id}].state")
     return result
 
 
@@ -885,10 +894,12 @@ def _validate_flipbook(
         previous_time = at_ms
         if holo_id != "self" and holo_id not in referenced and resolver is not None:
             resolved = _resolver_value(holo_id, resolver)
-            try:
-                size = len(canonical(resolved["state"]).encode("utf-8"))
-            except ProtocolError as exc:
-                raise HoloProtocolError(str(exc)) from exc
+            size = 0
+            if "state" in resolved:
+                try:
+                    size = len(canonical(resolved["state"]).encode("utf-8"))
+                except ProtocolError as exc:
+                    raise HoloProtocolError(str(exc)) from exc
             referenced[holo_id] = size
     if entries and repeat == "loop":
         first = entries[0]
@@ -965,7 +976,7 @@ def _validate_accessibility(value, path: str) -> None:
     _enum(obj["reduced_motion"], {"hold", "crossfade"}, f"{path}.reduced_motion")
 
 
-def validate_output(
+def _validate_output_manifest(
     authored: dict,
     *,
     base_state: Optional[dict] = None,
@@ -1006,6 +1017,90 @@ def validate_output(
     )
     _validate_accessibility(obj["accessibility"], "accessibility")
     return compile_scene_manifest(obj, _validated=True)
+
+
+def _base_state(base) -> Optional[dict]:
+    if base is None:
+        return None
+    if type(base) is not dict:
+        _fail("base", "must be a Holo output, record, or scene state")
+    keys = set(base)
+    if keys == OUTPUT_KEYS:
+        return base["state"]
+    if keys == RECORD_KEYS:
+        authored = _object(base["authored"], OUTPUT_KEYS, "base.authored")
+        return authored["state"]
+    if keys == {"camera", "environment", "nodes"}:
+        return base
+    _fail("base", "must be a Holo output, record, or scene state")
+
+
+def _ancestor_payload(value, path: str) -> dict:
+    if value is True:
+        return {"verified_ancestor": True}
+    if type(value) is not dict:
+        _fail(path, "must identify a verified ancestor")
+    keys = set(value)
+    if keys in ({"verified_ancestor"}, {"state", "verified_ancestor"}):
+        return value
+    if keys == OUTPUT_KEYS:
+        return {"state": value["state"], "verified_ancestor": True}
+    if keys == RECORD_KEYS:
+        authored = _object(value["authored"], OUTPUT_KEYS, f"{path}.authored")
+        return {"state": authored["state"], "verified_ancestor": True}
+    if keys == {"camera", "environment", "nodes"}:
+        return {"state": value, "verified_ancestor": True}
+    _fail(path, "must identify a verified ancestor")
+
+
+def _ancestor_resolver(ancestor_ids):
+    if ancestor_ids is None or callable(ancestor_ids):
+        return ancestor_ids
+    if isinstance(ancestor_ids, Mapping):
+        resolved = {}
+        for holo_id, value in ancestor_ids.items():
+            _hex64(holo_id, "ancestor_ids key")
+            resolved[holo_id] = _ancestor_payload(
+                value,
+                f"ancestor_ids[{holo_id}]",
+            )
+        return resolved
+    if isinstance(ancestor_ids, (str, bytes)):
+        _fail("ancestor_ids", "must be an iterable of holo IDs or a mapping")
+    try:
+        values = list(ancestor_ids)
+    except TypeError:
+        _fail("ancestor_ids", "must be an iterable of holo IDs or a mapping")
+    resolved = {}
+    for index, holo_id in enumerate(values):
+        _hex64(holo_id, f"ancestor_ids[{index}]")
+        resolved[holo_id] = {"verified_ancestor": True}
+    return resolved
+
+
+def compile_manifest(
+    value: dict,
+    *,
+    base=None,
+    ancestor_ids=None,
+) -> dict:
+    """Validate one authored output and compile its canonical scene manifest."""
+    return _validate_output_manifest(
+        value,
+        base_state=_base_state(base),
+        ancestor_resolver=_ancestor_resolver(ancestor_ids),
+    )
+
+
+def validate_output(
+    value: dict,
+    *,
+    base=None,
+    ancestor_ids=None,
+) -> dict:
+    """Validate one authored output and return that exact object unchanged."""
+    compile_manifest(value, base=base, ancestor_ids=ancestor_ids)
+    return value
 
 
 def _normalize_vector(value: list[int]) -> list[int]:
@@ -1086,7 +1181,7 @@ def _compiled_geometry(node: dict):
 def compile_scene_manifest(authored: dict, *, _validated: bool = False) -> dict:
     """Compile a canonical, fixed-point logical scene manifest."""
     if not _validated:
-        validate_output(authored)
+        _validate_output_manifest(authored)
     state = authored["state"]
     camera = copy.deepcopy(state["camera"])
     camera["normalized_up"] = _normalize_vector(camera["up"])
@@ -1271,7 +1366,7 @@ def validate_record(
             subject_rappid,
             "record.producer_provenance",
         )
-    return validate_output(
+    return _validate_output_manifest(
         obj["authored"],
         base_state=base_state,
         ancestor_resolver=ancestor_resolver,
@@ -1285,6 +1380,7 @@ __all__ = [
     "S",
     "authored_hash",
     "canonical_authored_bytes",
+    "compile_manifest",
     "compile_scene_manifest",
     "domain_hash",
     "easing",

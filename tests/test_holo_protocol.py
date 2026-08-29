@@ -55,8 +55,8 @@ def validate(kind, value, context):
     if kind == "output":
         return H.validate_output(
             value,
-            base_state=context.get("base_state"),
-            ancestor_resolver=context.get("ancestors"),
+            base=context.get("base_state"),
+            ancestor_ids=context.get("ancestors"),
         )
     options = {
         "subject_rappid": context["subject_rappid"],
@@ -79,7 +79,16 @@ class TestHoloProtocolFixtures(unittest.TestCase):
                 context = resolve_references(CORPUS["contexts"][case["context"]])
                 before = copy.deepcopy(value)
                 if case["accept"]:
-                    manifest = validate(case["kind"], value, context)
+                    result = validate(case["kind"], value, context)
+                    if case["kind"] == "output":
+                        self.assertIs(result, value)
+                        manifest = H.compile_manifest(
+                            value,
+                            base=context.get("base_state"),
+                            ancestor_ids=context.get("ancestors"),
+                        )
+                    else:
+                        manifest = result
                     self.assertEqual(
                         H.domain_hash("rapp-holo/1:compiled", manifest),
                         case["manifest_hash"],
@@ -134,9 +143,24 @@ class TestHoloProtocolFixtures(unittest.TestCase):
         with self.assertRaisesRegex(H.HoloProtocolError, "verified strict"):
             H.validate_output(
                 value,
-                base_state=context["base_state"],
-                ancestor_resolver=context["ancestors"],
+                base=context["base_state"],
+                ancestor_ids=context["ancestors"],
             )
+
+    def test_stable_adapters_accept_output_base_and_ancestor_id_set(self):
+        value = copy.deepcopy(CORPUS["documents"]["historical-flipbook"])
+        base = CORPUS["documents"]["multi-node-non-humanoid-scene"]
+        ancestor_ids = {"a" * 64, "b" * 64}
+        self.assertIs(
+            H.validate_output(value, base=base, ancestor_ids=ancestor_ids),
+            value,
+        )
+        self.assertEqual(
+            H.compile_manifest(value, base=base, ancestor_ids=ancestor_ids)[
+                "schema"
+            ],
+            "rapp-holo-compiled/1",
+        )
 
 
 class TestHoloProtocolHelpers(unittest.TestCase):

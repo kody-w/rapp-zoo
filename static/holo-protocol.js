@@ -845,11 +845,24 @@
     if (value === null || value === undefined) {
       fail("performance.sustain.flipbook", `ancestor ${id} is unavailable`);
     }
-    const result = objectValue(value, ["state", "verified_ancestor"], `ancestor[${id}]`);
+    if (
+      value === null
+      || typeof value !== "object"
+      || Array.isArray(value)
+      || !(
+        sameKeys(value, ["verified_ancestor"])
+        || sameKeys(value, ["state", "verified_ancestor"])
+      )
+    ) {
+      fail(`ancestor[${id}]`, "must contain verified_ancestor and optional state");
+    }
+    const result = value;
     if (result.verified_ancestor !== true) {
       fail(`ancestor[${id}]`, "must be a verified strict visual ancestor");
     }
-    validateState(result.state, `ancestor[${id}].state`);
+    if (Object.hasOwn(result, "state")) {
+      validateState(result.state, `ancestor[${id}].state`);
+    }
     return result;
   }
 
@@ -879,7 +892,12 @@
       if (item.holo_id !== "self" && !referenced.has(item.holo_id)
           && resolver !== null && resolver !== undefined) {
         const resolved = resolverValue(item.holo_id, resolver);
-        referenced.set(item.holo_id, utf8(canonical(resolved.state)).length);
+        referenced.set(
+          item.holo_id,
+          Object.hasOwn(resolved, "state")
+            ? utf8(canonical(resolved.state)).length
+            : 0,
+        );
       }
     });
     if (entries.length > 0 && repeat === "loop") {
@@ -1034,7 +1052,7 @@
   }
 
   function compileSceneManifest(authored, validated = false) {
-    if (!validated) validateOutput(authored);
+    if (!validated) validateOutputManifest(authored);
     const state = authored.state;
     const camera = clone(state.camera);
     camera.normalized_up = normalizeVector(camera.up);
@@ -1073,7 +1091,7 @@
     return manifest;
   }
 
-  function validateOutput(authored, options = {}) {
+  function validateOutputManifest(authored, options = {}) {
     canonicalAuthoredBytes(authored);
     const object = objectValue(authored, OUTPUT_KEYS, "authored");
     if (object.schema !== "rapp-holo-output/1") fail("authored.schema", "must be rapp-holo-output/1");
@@ -1098,6 +1116,90 @@
     validatePerformance(object.performance, stateInfo.nodes, options.ancestorResolver, "performance");
     validateAccessibility(object.accessibility, "accessibility");
     return compileSceneManifest(object, true);
+  }
+
+  function baseState(base) {
+    if (base === undefined || base === null) return null;
+    if (typeof base !== "object" || Array.isArray(base)) {
+      fail("base", "must be a Holo output, record, or scene state");
+    }
+    if (sameKeys(base, OUTPUT_KEYS)) return base.state;
+    if (sameKeys(base, RECORD_KEYS)) {
+      const authored = objectValue(base.authored, OUTPUT_KEYS, "base.authored");
+      return authored.state;
+    }
+    if (sameKeys(base, ["camera", "environment", "nodes"])) return base;
+    fail("base", "must be a Holo output, record, or scene state");
+  }
+
+  function ancestorPayload(value, path) {
+    if (value === true) return { verified_ancestor: true };
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      fail(path, "must identify a verified ancestor");
+    }
+    if (
+      sameKeys(value, ["verified_ancestor"])
+      || sameKeys(value, ["state", "verified_ancestor"])
+    ) {
+      return value;
+    }
+    if (sameKeys(value, OUTPUT_KEYS)) {
+      return { state: value.state, verified_ancestor: true };
+    }
+    if (sameKeys(value, RECORD_KEYS)) {
+      const authored = objectValue(value.authored, OUTPUT_KEYS, `${path}.authored`);
+      return { state: authored.state, verified_ancestor: true };
+    }
+    if (sameKeys(value, ["camera", "environment", "nodes"])) {
+      return { state: value, verified_ancestor: true };
+    }
+    fail(path, "must identify a verified ancestor");
+  }
+
+  function ancestorResolver(ancestorIds) {
+    if (ancestorIds === undefined || ancestorIds === null
+        || typeof ancestorIds === "function") {
+      return ancestorIds;
+    }
+    if (typeof ancestorIds === "string") {
+      fail("ancestorIds", "must be an iterable of holo IDs or a mapping");
+    }
+    if (!Array.isArray(ancestorIds) && typeof ancestorIds === "object"
+        && !(Symbol.iterator in ancestorIds)) {
+      const resolved = Object.create(null);
+      for (const [id, value] of Object.entries(ancestorIds)) {
+        hex64(id, "ancestorIds key");
+        resolved[id] = ancestorPayload(value, `ancestorIds[${id}]`);
+      }
+      return resolved;
+    }
+    if (typeof ancestorIds[Symbol.iterator] !== "function") {
+      fail("ancestorIds", "must be an iterable of holo IDs or a mapping");
+    }
+    const resolved = Object.create(null);
+    let index = 0;
+    for (const id of ancestorIds) {
+      hex64(id, `ancestorIds[${index}]`);
+      resolved[id] = { verified_ancestor: true };
+      index += 1;
+    }
+    return resolved;
+  }
+
+  function compileManifest(value, options = {}) {
+    const base = Object.hasOwn(options, "base") ? options.base : options.baseState;
+    const ids = Object.hasOwn(options, "ancestorIds")
+      ? options.ancestorIds
+      : options.ancestorResolver;
+    return validateOutputManifest(value, {
+      baseState: baseState(base),
+      ancestorResolver: ancestorResolver(ids),
+    });
+  }
+
+  function validateOutput(value, options = {}) {
+    compileManifest(value, options);
+    return value;
   }
 
   function rappidValid(value) {
@@ -1259,7 +1361,7 @@
     if (object.producer_provenance !== null) {
       validateProvenance(object.producer_provenance, object, subjectRappid, "record.producer_provenance");
     }
-    return validateOutput(object.authored, {
+    return validateOutputManifest(object.authored, {
       baseState: options.baseState,
       ancestorResolver: options.ancestorResolver,
     });
@@ -1383,6 +1485,7 @@
     authoredHash,
     canonical,
     canonicalAuthoredBytes,
+    compileManifest,
     compileSceneManifest,
     domainHash,
     easing,
@@ -1393,5 +1496,8 @@
     selectFlipbook,
     validateOutput,
     validateRecord,
+    authored_hash: authoredHash,
+    compile_manifest: compileManifest,
+    validate_output: validateOutput,
   });
 }(typeof window === "undefined" ? globalThis : window));
