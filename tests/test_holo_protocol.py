@@ -66,7 +66,9 @@ def validate(kind, value, context):
     }
     if "expected_visual_parent" in context:
         options["expected_visual_parent"] = context["expected_visual_parent"]
-    return H.validate_record(value, **options)
+    options["base"] = options.pop("base_state")
+    options["ancestor_ids"] = options.pop("ancestor_resolver")
+    return H.validate_bound_record(value, **options)
 
 
 class TestHoloProtocolFixtures(unittest.TestCase):
@@ -161,6 +163,25 @@ class TestHoloProtocolFixtures(unittest.TestCase):
             ],
             "rapp-holo-compiled/1",
         )
+
+    def test_stable_record_adapter_preserves_exact_payload(self):
+        record = copy.deepcopy(CORPUS["documents"]["valid-successor-record"])
+        self.assertIs(H.validate_record(record), record)
+        subject = CORPUS["contexts"]["successor-record"]["subject_rappid"]
+        self.assertIs(
+            H.validate_record(record, subject_rappid=subject),
+            record,
+        )
+        historical = copy.deepcopy(record)
+        historical["authored"] = copy.deepcopy(
+            CORPUS["documents"]["historical-flipbook"]
+        )
+        historical["authored_hash"] = H.authored_hash(historical["authored"])
+        historical["producer_provenance"] = None
+        self.assertIs(H.validate_record(historical), historical)
+        wrong_subject = f"rappid:@kody-w/other:{'2' * 64}"
+        with self.assertRaisesRegex(H.HoloProtocolError, "body subject"):
+            H.validate_record(record, subject_rappid=wrong_subject)
 
 
 class TestHoloProtocolHelpers(unittest.TestCase):

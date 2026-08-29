@@ -87,7 +87,7 @@ function validate(kind, value, context) {
   if (Object.hasOwn(context, "expected_visual_parent")) {
     options.expectedVisualParent = context.expected_visual_parent;
   }
-  return H.validateRecord(value, options);
+  return H.validateBoundRecord(value, options);
 }
 
 
@@ -97,7 +97,9 @@ test("classic script exposes one frozen dependency-free protocol global", () => 
   assert.equal(typeof H.validateOutput, "function");
   assert.equal(typeof H.compileManifest, "function");
   assert.equal(typeof H.validateRecord, "function");
+  assert.equal(typeof H.validateBoundRecord, "function");
   assert.equal(H.validate_output, H.validateOutput);
+  assert.equal(H.validate_record, H.validateRecord);
   assert.equal(H.compile_manifest, H.compileManifest);
   assert.equal(H.authored_hash, H.authoredHash);
   assert.doesNotMatch(source, /\beval\s*\(|\bfetch\s*\(|XMLHttpRequest|import\s*\(/);
@@ -230,5 +232,28 @@ test("stable adapters accept an output base and ancestor ID set", () => {
   assert.equal(
     H.compileManifest(value, { base, ancestorIds }).schema,
     "rapp-holo-compiled/1",
+  );
+});
+
+
+test("stable record adapter preserves the exact payload", () => {
+  const record = clone(corpus.documents["valid-successor-record"]);
+  assert.equal(H.validateRecord(record), record);
+  assert.equal(
+    H.validateRecord(record, {
+      subjectRappid: corpus.contexts["successor-record"].subject_rappid,
+    }),
+    record,
+  );
+  const historical = clone(record);
+  historical.authored = clone(corpus.documents["historical-flipbook"]);
+  historical.authored_hash = H.authoredHash(historical.authored);
+  historical.producer_provenance = null;
+  assert.equal(H.validateRecord(historical), historical);
+  assert.throws(
+    () => H.validateRecord(record, {
+      subjectRappid: `rappid:@kody-w/other:${"2".repeat(64)}`,
+    }),
+    /body subject/,
   );
 });

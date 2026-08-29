@@ -927,6 +927,7 @@ def _validate_performance(
     nodes: Mapping[str, dict],
     ancestor_resolver,
     path: str,
+    require_ancestor_resolution: bool = True,
 ) -> None:
     obj = _object(value, {"clock", "sustain"}, path)
     if obj["clock"] != "rapp-holo-logical-ms/1":
@@ -967,7 +968,13 @@ def _validate_performance(
         keyframe_count += len(track["keyframes"])
     if keyframe_count > 4096:
         _fail(f"{path}.sustain.tracks", "aggregate keyframes exceed 4096")
-    _validate_flipbook(flipbook, duration, repeat, ancestor_resolver)
+    _validate_flipbook(
+        flipbook,
+        duration,
+        repeat,
+        ancestor_resolver,
+        require_resolver=require_ancestor_resolution,
+    )
 
 
 def _validate_accessibility(value, path: str) -> None:
@@ -983,6 +990,7 @@ def _validate_output_manifest(
     ancestor_resolver: Optional[
         Callable[[str], Optional[dict]] | Mapping[str, dict]
     ] = None,
+    require_ancestor_resolution: bool = True,
 ) -> dict:
     """Validate an exact authored output and return its compiled manifest."""
     canonical_authored_bytes(authored)
@@ -1014,6 +1022,7 @@ def _validate_output_manifest(
         state_info["nodes"],
         ancestor_resolver,
         "performance",
+        require_ancestor_resolution,
     )
     _validate_accessibility(obj["accessibility"], "accessibility")
     return compile_scene_manifest(obj, _validated=True)
@@ -1307,19 +1316,19 @@ def _validate_provenance(value, record: dict, subject_rappid: str, path: str) ->
 _UNSET = object()
 
 
-def validate_record(
+def _validate_record_manifest(
     record: dict,
     *,
-    subject_rappid: str,
-    source_binding: dict,
+    subject_rappid: Optional[str] = None,
+    source_binding: Optional[dict] = None,
     expected_visual_parent=_UNSET,
     base_state: Optional[dict] = None,
     ancestor_resolver: Optional[
         Callable[[str], Optional[dict]] | Mapping[str, dict]
     ] = None,
+    require_ancestor_resolution: bool = True,
 ) -> dict:
-    """Validate a source-bound materialized Holo/1 record without persistence."""
-    if not rappid_valid(subject_rappid):
+    if subject_rappid is not None and not rappid_valid(subject_rappid):
         _fail("subject_rappid", "must be a valid RAPPID")
     obj = _object(record, RECORD_KEYS, "record")
     if obj["schema"] != "rapp-holo-record/1":
@@ -1332,7 +1341,7 @@ def validate_record(
         _fail("record", "holo genesis and visual_parent rules disagree")
     source = _validate_source(obj["source"], "record.source")
     source_subject, _ = _memory_stream(source["stream_id"], "record.source.stream_id")
-    if source_subject != subject_rappid:
+    if subject_rappid is not None and source_subject != subject_rappid:
         _fail("record.source.stream_id", "source subject must equal body subject")
     _hex64(obj["authored_hash"], "record.authored_hash")
     _object(obj["authored"], OUTPUT_KEYS, "record.authored")
@@ -1340,37 +1349,73 @@ def validate_record(
         _fail("record.authored_hash", "does not match H(rapp-holo/1:authored, authored)")
     if obj["authored"]["base_holo_id"] != visual_parent:
         _fail("record.authored.base_holo_id", "must equal visual_parent")
-    binding = _object(
-        source_binding,
-        {"stream_id", "seq", "frame_hash", "authored"},
-        "source_binding",
-    )
-    expected_source = _validate_source(
-        {key: binding[key] for key in ("stream_id", "seq", "frame_hash")},
-        "source_binding",
-    )
-    if source != expected_source:
-        _fail("record.source", "does not match the exact verified source binding")
-    try:
-        same_authored = canonical(binding["authored"]) == canonical(obj["authored"])
-    except ProtocolError as exc:
-        raise HoloProtocolError(str(exc)) from exc
-    if not same_authored:
-        _fail("record.authored", "differs from the exact source candidate")
+    if source_binding is not None:
+        binding = _object(
+            source_binding,
+            {"stream_id", "seq", "frame_hash", "authored"},
+            "source_binding",
+        )
+        expected_source = _validate_source(
+            {key: binding[key] for key in ("stream_id", "seq", "frame_hash")},
+            "source_binding",
+        )
+        if source != expected_source:
+            _fail("record.source", "does not match the exact verified source binding")
+        try:
+            same_authored = canonical(binding["authored"]) == canonical(obj["authored"])
+        except ProtocolError as exc:
+            raise HoloProtocolError(str(exc)) from exc
+        if not same_authored:
+            _fail("record.authored", "differs from the exact source candidate")
     if expected_visual_parent is not _UNSET and visual_parent != expected_visual_parent:
         _fail("record.visual_parent", "is stale relative to the authoritative holo head")
     if obj["producer_provenance"] is not None:
         _validate_provenance(
             obj["producer_provenance"],
             obj,
-            subject_rappid,
+            subject_rappid or source_subject,
             "record.producer_provenance",
         )
     return _validate_output_manifest(
         obj["authored"],
         base_state=base_state,
         ancestor_resolver=ancestor_resolver,
+        require_ancestor_resolution=require_ancestor_resolution,
     )
+
+
+def validate_bound_record(
+    record: dict,
+    *,
+    subject_rappid: str,
+    source_binding: dict,
+    expected_visual_parent=_UNSET,
+    base=None,
+    ancestor_ids=None,
+) -> dict:
+    """Validate a record with exact source, subject, head, base, and ancestry evidence."""
+    return _validate_record_manifest(
+        record,
+        subject_rappid=subject_rappid,
+        source_binding=source_binding,
+        expected_visual_parent=expected_visual_parent,
+        base_state=_base_state(base),
+        ancestor_resolver=_ancestor_resolver(ancestor_ids),
+    )
+
+
+def validate_record(
+    record: dict,
+    *,
+    subject_rappid=None,
+) -> dict:
+    """Validate one rapp-holo-record/1 payload and return it unchanged."""
+    _validate_record_manifest(
+        record,
+        subject_rappid=subject_rappid,
+        require_ancestor_resolution=False,
+    )
+    return record
 
 
 __all__ = [
@@ -1390,5 +1435,6 @@ __all__ = [
     "round_div",
     "select_flipbook",
     "validate_output",
+    "validate_bound_record",
     "validate_record",
 ]

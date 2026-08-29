@@ -917,7 +917,13 @@
     }
   }
 
-  function validatePerformance(value, nodes, ancestorResolver, path) {
+  function validatePerformance(
+    value,
+    nodes,
+    ancestorResolver,
+    path,
+    requireAncestorResolution = true,
+  ) {
     const object = objectValue(value, ["clock", "sustain"], path);
     if (object.clock !== "rapp-holo-logical-ms/1") fail(`${path}.clock`, "unsupported performance clock");
     const sustain = objectValue(object.sustain, ["duration_ms", "repeat", "tracks", "flipbook"], `${path}.sustain`);
@@ -941,7 +947,13 @@
       keyframeCount += track.keyframes.length;
     });
     if (keyframeCount > 4096) fail(`${path}.sustain.tracks`, "aggregate keyframes exceed 4096");
-    validateFlipbook(flipbook, duration, repeat, ancestorResolver);
+    validateFlipbook(
+      flipbook,
+      duration,
+      repeat,
+      ancestorResolver,
+      requireAncestorResolution,
+    );
   }
 
   function validateAccessibility(value, path) {
@@ -1113,7 +1125,13 @@
       object.base_holo_id === null,
       "transition",
     );
-    validatePerformance(object.performance, stateInfo.nodes, options.ancestorResolver, "performance");
+    validatePerformance(
+      object.performance,
+      stateInfo.nodes,
+      options.ancestorResolver,
+      "performance",
+      options.requireAncestorResolution !== false,
+    );
     validateAccessibility(object.accessibility, "accessibility");
     return compileSceneManifest(object, true);
   }
@@ -1319,10 +1337,13 @@
     });
   }
 
-  function validateRecord(record, options = {}) {
+  function validateRecordManifest(record, options = {}) {
     const subjectRappid = options.subjectRappid;
     const sourceBinding = options.sourceBinding;
-    if (!rappidValid(subjectRappid)) fail("subjectRappid", "must be a valid RAPPID");
+    if (subjectRappid !== undefined && subjectRappid !== null
+        && !rappidValid(subjectRappid)) {
+      fail("subjectRappid", "must be a valid RAPPID");
+    }
     const object = objectValue(record, RECORD_KEYS, "record");
     if (object.schema !== "rapp-holo-record/1") fail("record.schema", "must be rapp-holo-record/1");
     const holoSeq = integer(object.holo_seq, "record.holo_seq", 0, MAX_SAFE_INTEGER);
@@ -1332,7 +1353,8 @@
     }
     const source = validateSource(object.source, "record.source");
     const [sourceSubject] = memoryStream(source.stream_id, "record.source.stream_id");
-    if (sourceSubject !== subjectRappid) {
+    if (subjectRappid !== undefined && subjectRappid !== null
+        && sourceSubject !== subjectRappid) {
       fail("record.source.stream_id", "source subject must equal body subject");
     }
     hex64(object.authored_hash, "record.authored_hash");
@@ -1343,15 +1365,17 @@
     if (object.authored.base_holo_id !== object.visual_parent) {
       fail("record.authored.base_holo_id", "must equal visual_parent");
     }
-    const binding = objectValue(sourceBinding, ["stream_id", "seq", "frame_hash", "authored"], "sourceBinding");
-    const expectedSource = validateSource({
-      stream_id: binding.stream_id, seq: binding.seq, frame_hash: binding.frame_hash,
-    }, "sourceBinding");
-    if (canonical(source) !== canonical(expectedSource)) {
-      fail("record.source", "does not match the exact verified source binding");
-    }
-    if (canonical(binding.authored) !== canonical(object.authored)) {
-      fail("record.authored", "differs from the exact source candidate");
+    if (sourceBinding !== undefined && sourceBinding !== null) {
+      const binding = objectValue(sourceBinding, ["stream_id", "seq", "frame_hash", "authored"], "sourceBinding");
+      const expectedSource = validateSource({
+        stream_id: binding.stream_id, seq: binding.seq, frame_hash: binding.frame_hash,
+      }, "sourceBinding");
+      if (canonical(source) !== canonical(expectedSource)) {
+        fail("record.source", "does not match the exact verified source binding");
+      }
+      if (canonical(binding.authored) !== canonical(object.authored)) {
+        fail("record.authored", "differs from the exact source candidate");
+      }
     }
     const expectedParent = Object.prototype.hasOwnProperty.call(options, "expectedVisualParent")
       ? options.expectedVisualParent : UNSET;
@@ -1359,12 +1383,49 @@
       fail("record.visual_parent", "is stale relative to the authoritative holo head");
     }
     if (object.producer_provenance !== null) {
-      validateProvenance(object.producer_provenance, object, subjectRappid, "record.producer_provenance");
+      validateProvenance(
+        object.producer_provenance,
+        object,
+        subjectRappid ?? sourceSubject,
+        "record.producer_provenance",
+      );
     }
     return validateOutputManifest(object.authored, {
       baseState: options.baseState,
       ancestorResolver: options.ancestorResolver,
+      requireAncestorResolution: options.requireAncestorResolution,
     });
+  }
+
+  function validateBoundRecord(record, options = {}) {
+    if (!Object.hasOwn(options, "subjectRappid")) {
+      fail("subjectRappid", "is required for bound record validation");
+    }
+    if (!Object.hasOwn(options, "sourceBinding")) {
+      fail("sourceBinding", "is required for bound record validation");
+    }
+    const base = Object.hasOwn(options, "base") ? options.base : options.baseState;
+    const ids = Object.hasOwn(options, "ancestorIds")
+      ? options.ancestorIds
+      : options.ancestorResolver;
+    const boundOptions = {
+      subjectRappid: options.subjectRappid,
+      sourceBinding: options.sourceBinding,
+      baseState: baseState(base),
+      ancestorResolver: ancestorResolver(ids),
+    };
+    if (Object.hasOwn(options, "expectedVisualParent")) {
+      boundOptions.expectedVisualParent = options.expectedVisualParent;
+    }
+    return validateRecordManifest(record, boundOptions);
+  }
+
+  function validateRecord(record, options = {}) {
+    validateRecordManifest(record, {
+      subjectRappid: options.subjectRappid,
+      requireAncestorResolution: false,
+    });
+    return record;
   }
 
   function parseJson(raw) {
@@ -1495,9 +1556,11 @@
     roundDiv,
     selectFlipbook,
     validateOutput,
+    validateBoundRecord,
     validateRecord,
     authored_hash: authoredHash,
     compile_manifest: compileManifest,
     validate_output: validateOutput,
+    validate_record: validateRecord,
   });
 }(typeof window === "undefined" ? globalThis : window));
