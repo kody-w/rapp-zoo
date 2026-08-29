@@ -10,37 +10,11 @@
     return JSON.parse(JSON.stringify(value));
   }
 
-  function asError(result, fallback) {
-    if (!result || (result.ok !== false && result.valid !== false)) return null;
-    const errors = result.errors || result.error || fallback;
-    return new Error(Array.isArray(errors) ? errors.join("; ") : String(errors));
-  }
-
-  function protocolResult(result, label) {
-    const error = asError(result, `${label} refused the holo`);
-    if (error) throw error;
-    if (result && Object.hasOwn(result, "value")) return result.value;
-    return result;
-  }
-
-  async function departureManifestHash(
-    manifest,
-    api = root.RappHoloProtocol,
-    cryptoApi = root.crypto,
-  ) {
-    if (typeof api?.canonical !== "function") {
-      throw new Error("RappHoloProtocol canonicalization is unavailable.");
+  function departureManifestHash(manifest, api = root.RappHoloProtocol) {
+    if (typeof api?.domainHash !== "function") {
+      throw new Error("RappHoloProtocol departure hashing is unavailable.");
     }
-    if (typeof cryptoApi?.subtle?.digest !== "function") {
-      throw new Error("SHA-256 is unavailable for Holo/1 activation evidence.");
-    }
-    const bytes = new TextEncoder().encode(
-      `rapp-holo/1:departure\n${api.canonical(manifest)}`,
-    );
-    const digest = await cryptoApi.subtle.digest("SHA-256", bytes);
-    return [...new Uint8Array(digest)]
-      .map((value) => value.toString(16).padStart(2, "0"))
-      .join("");
+    return api.domainHash("rapp-holo/1:departure", manifest);
   }
 
   function activeMessage(evidence, manifestHash) {
@@ -63,6 +37,12 @@
       player_id: playerId || null,
       authoritative_holo_id: state.authoritative_holo_id,
       player_active_holo_id: state.player_active_holo_id,
+      substrate: "rapp/1",
+      player_mode: "rolling-core-capsule",
+      storefront: "rapterbox",
+      ownership_model: "one-time-local",
+      offline_capable: true,
+      cloud_compute_required: false,
     };
   }
 
@@ -77,6 +57,170 @@
       ),
       error: String(error?.message || error),
     };
+  }
+
+  function completedGrowl(growl, api = root.RappHoloProtocol) {
+    if (typeof api?.growlEvents !== "function") {
+      throw new Error("RappHoloProtocol growlEvents is unavailable.");
+    }
+    const events = api.growlEvents(clone(growl));
+    if (!Array.isArray(events) || events.length > 2080) {
+      throw new Error("RappHoloProtocol returned an invalid growl event list.");
+    }
+    for (let index = 0; index < events.length; index += 1) {
+      const event = events[index];
+      if (
+        !event
+        || !Number.isInteger(event.pitch)
+        || event.pitch < 0
+        || event.pitch > 127
+        || !Number.isInteger(event.delta_onset)
+        || event.delta_onset < 0
+        || !Number.isInteger(event.duration)
+        || event.duration < 1
+        || !Number.isInteger(event.velocity)
+        || event.velocity < 1
+        || event.velocity > 127
+      ) {
+        throw new Error("RappHoloProtocol returned an invalid growl event.");
+      }
+      if (
+        index > 0
+        && event.delta_onset === 0
+        && event.pitch < events[index - 1].pitch
+      ) {
+        throw new Error("RappHoloProtocol returned an unsorted growl chord.");
+      }
+    }
+    return clone(events);
+  }
+
+  function growlPreset(program) {
+    const presets = [
+      { name: "mellow", waveform: "triangle", attack_us: 4000, release_us: 90000 },
+      { name: "round", waveform: "sine", attack_us: 3000, release_us: 110000 },
+      { name: "bright", waveform: "triangle", attack_us: 2000, release_us: 60000 },
+      { name: "reed", waveform: "sine", attack_us: 6000, release_us: 75000 },
+    ];
+    return clone(presets[program % presets.length]);
+  }
+
+  function growlStepUs(growl, api) {
+    if (Number.isInteger(growl.step_microseconds)) {
+      return growl.step_microseconds;
+    }
+    if (Number.isInteger(growl.step_milliseconds)) {
+      return growl.step_milliseconds * 1000;
+    }
+    if (
+      Number.isInteger(growl.tempo_milli_bpm)
+      && Number.isInteger(growl.ticks_per_quarter)
+    ) {
+      return api.roundDiv(
+        60000000000,
+        growl.tempo_milli_bpm * growl.ticks_per_quarter,
+      );
+    }
+    if (
+      Number.isInteger(growl.tempo_milli_bpm)
+      && Number.isInteger(growl.steps_per_beat)
+    ) {
+      return api.roundDiv(
+        60000000000,
+        growl.tempo_milli_bpm * growl.steps_per_beat,
+      );
+    }
+    throw new Error("Holo/1 growl has no explicit timing quantum.");
+  }
+
+  function growlSchedule(growl, api = root.RappHoloProtocol) {
+    const events = completedGrowl(growl, api);
+    const stepUs = growlStepUs(growl, api);
+    const preset = growlPreset(growl.program);
+    let durationUs = 0;
+    let onsetSteps = 0;
+    const scheduled = events.map((event) => {
+      onsetSteps += event.delta_onset;
+      const startUs = onsetSteps * stepUs;
+      const eventDurationUs = event.duration * stepUs;
+      durationUs = Math.max(durationUs, startUs + eventDurationUs);
+      return {
+        ...event,
+        start_us: startUs,
+        duration_us: eventDurationUs,
+        frequency_hz: 440 * (2 ** ((event.pitch - 69) / 12)),
+        gain: event.velocity / 127,
+      };
+    });
+    return {
+      schema: "rapp-holo-growl-schedule/1",
+      program: growl.program,
+      preset,
+      step_us: stepUs,
+      duration_us: durationUs,
+      events: scheduled,
+    };
+  }
+
+  function createGrowlPlayer(options = {}) {
+    const api = options.protocol || root.RappHoloProtocol;
+    const AudioContextClass = options.AudioContextClass
+      || root.AudioContext
+      || root.webkitAudioContext;
+    let context = null;
+    let playingUntil = 0;
+    return Object.freeze({
+      async play(growl, playback = {}) {
+        if (playback.user_gesture !== true) {
+          throw new Error("Holo/1 growl playback requires an explicit user gesture.");
+        }
+        if (typeof AudioContextClass !== "function") {
+          throw new Error("WebAudio is unavailable for Holo/1 growl playback.");
+        }
+        const schedule = growlSchedule(growl, api);
+        context ||= new AudioContextClass();
+        if (context.state === "suspended" && typeof context.resume === "function") {
+          await context.resume();
+        }
+        if (context.currentTime < playingUntil) {
+          throw new Error("Holo/1 growl playback is already active.");
+        }
+        const origin = context.currentTime;
+        for (const event of schedule.events) {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          const startsAt = origin + event.start_us / 1000000;
+          const stopsAt = startsAt + event.duration_us / 1000000;
+          const attackEndsAt = startsAt + Math.min(
+            schedule.preset.attack_us,
+            event.duration_us,
+          ) / 1000000;
+          const releaseStartsAt = stopsAt - Math.min(
+            schedule.preset.release_us,
+            event.duration_us,
+          ) / 1000000;
+          const peak = event.gain * .12;
+          oscillator.type = schedule.preset.waveform;
+          oscillator.frequency.setValueAtTime(event.frequency_hz, startsAt);
+          gain.gain.setValueAtTime(0, startsAt);
+          gain.gain.linearRampToValueAtTime(peak, attackEndsAt);
+          gain.gain.linearRampToValueAtTime(peak * .25, Math.max(
+            attackEndsAt,
+            releaseStartsAt,
+          ));
+          gain.gain.linearRampToValueAtTime(0, stopsAt);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(startsAt);
+          oscillator.stop(stopsAt);
+        }
+        playingUntil = origin + schedule.duration_us / 1000000;
+        return clone(schedule);
+      },
+      schedule(growl) {
+        return growlSchedule(growl, api);
+      },
+    });
   }
 
   function protocolColor(value) {
@@ -271,65 +415,48 @@
     for (const snapshot of input.history) {
       if (snapshots.has(snapshot.holo_id)) {
         const existing = snapshots.get(snapshot.holo_id);
+        let existingValue = existing.state;
+        let snapshotValue = snapshot.state;
+        if (existing.authored && snapshot.authored) {
+          existingValue = existing.authored;
+          snapshotValue = snapshot.authored;
+        }
+        if (existing.record && snapshot.record) {
+          existingValue = existing.record;
+          snapshotValue = snapshot.record;
+        }
         if (
-          JSON.stringify(existing.state || existing.manifest)
-          !== JSON.stringify(snapshot.state || snapshot.manifest)
+          api.canonical(existingValue) !== api.canonical(snapshotValue)
         ) {
           throw new Error(`Conflicting resolved snapshot ${snapshot.holo_id}.`);
         }
       }
       snapshots.set(snapshot.holo_id, snapshot);
     }
-    const ancestorResolver = (holoId) => {
-      const snapshot = snapshots.get(holoId);
-      if (!snapshot) return null;
-      return {
-        state: clone(snapshot.state),
-        verified_ancestor: true,
-      };
-    };
+    if (snapshots.size > 64) {
+      throw new Error("Holo/1 recursive history exceeds 64 unique frames.");
+    }
+    const ancestorIds = Object.fromEntries([...snapshots].map(
+      ([holoId, snapshot]) => [
+        holoId,
+        clone(snapshot.record || snapshot.authored || snapshot.state),
+      ],
+    ));
     api.validateOutput(input.authored, {
-      baseState: input.base?.state,
-      ancestorResolver,
+      base: clone(input.base?.authored || input.base?.state || null),
+      ancestorIds,
     });
-    const manifest = api.compileSceneManifest(input.authored, true);
+    const manifest = api.compileSceneManifest(input.authored);
     const historyManifests = {};
+    const historyAuthored = {};
     for (const [holoId, snapshot] of snapshots) {
-      if (snapshot.manifest) {
-        historyManifests[holoId] = clone(snapshot.manifest);
-      } else if (snapshot.authored) {
-        historyManifests[holoId] = api.compileSceneManifest(snapshot.authored, true);
-      } else {
-        historyManifests[holoId] = api.compileSceneManifest({
-          schema: "rapp-holo-output/1",
-          base_holo_id: null,
-          ir_version: "rapp-holo-ir/1",
-          renderer_contract: "rapp-holo-renderer/1",
-          state: snapshot.state,
-          transition: {
-            duration_ms: 0,
-            easing: "linear",
-            default: "cut",
-            nodes: [],
-          },
-          performance: {
-            clock: "rapp-holo-logical-ms/1",
-            sustain: {
-              duration_ms: 0,
-              repeat: "hold",
-              tracks: [],
-              flipbook: [],
-            },
-          },
-          accessibility: {
-            description: "resolved snapshot",
-            reduced_motion: "hold",
-          },
-        }, true);
-      }
+      historyManifests[holoId] = api.compileSceneManifest(snapshot.authored);
+      historyAuthored[holoId] = clone(snapshot.authored);
     }
     return {
       input: clone(input),
+      growl_events: completedGrowl(input.authored.growl, api),
+      history_authored: historyAuthored,
       manifest: clone(manifest),
       base_manifest: input.base
         ? clone(historyManifests[input.base.holo_id])
@@ -338,16 +465,55 @@
     };
   }
 
-  function evaluateSustain(api, compiled, activeT, reducedMotion) {
+  function historicalCompiled(compiled, holoId) {
+    const authored = compiled.history_authored[holoId];
+    const manifest = compiled.history_manifests[holoId];
+    if (!manifest) {
+      throw new Error(`Resolved historical holo ${holoId} is unavailable.`);
+    }
+    if (!authored) {
+      throw new Error(
+        `Recursive historical holo ${holoId} requires its complete authored output.`,
+      );
+    }
+    return {
+      input: {
+        holo_id: holoId,
+        authored,
+      },
+      history_authored: compiled.history_authored,
+      history_manifests: compiled.history_manifests,
+      manifest,
+    };
+  }
+
+  function evaluateRecursiveSustain(
+    api,
+    compiled,
+    sustainElapsed,
+    reducedMotion,
+    traversal,
+    depth,
+  ) {
+    if (depth > 8) {
+      throw new Error("Holo/1 recursive flipbook depth exceeds 8.");
+    }
+    const holoId = compiled.input.holo_id;
+    if (traversal.path.has(holoId)) {
+      throw new Error(`Holo/1 recursive flipbook cycle includes ${holoId}.`);
+    }
+    traversal.path.add(holoId);
+    if (depth > 0) traversal.unique.add(holoId);
+    if (traversal.unique.size > 64) {
+      throw new Error("Holo/1 recursive history exceeds 64 unique frames.");
+    }
     const authored = compiled.input.authored;
     const sustain = authored.performance.sustain;
     if (reducedMotion && authored.accessibility.reduced_motion === "hold") {
+      traversal.path.delete(holoId);
       return {
-        logical_ms: activeT,
-        local_ms: 0,
-        phase: "reduced-motion-hold",
         layers: [{
-          holo_id: compiled.input.holo_id,
+          holo_id: holoId,
           weight: HOLO_SCALE,
           environment_weight: HOLO_SCALE,
           manifest: clone(compiled.manifest),
@@ -355,7 +521,7 @@
       };
     }
     const localT = api.localSustainTime(
-      activeT,
+      sustainElapsed + authored.transition.duration_ms,
       authored.transition.duration_ms,
       sustain.duration_ms,
       sustain.repeat,
@@ -377,34 +543,109 @@
       sustain.repeat,
     );
     const layers = selected.map((layer) => {
-      const holoId = layer.holo_id === "self"
-        ? compiled.input.holo_id
-        : layer.holo_id;
-      const manifest = layer.holo_id === "self"
-        ? selfManifest
-        : compiled.history_manifests[layer.holo_id];
-      if (!manifest) {
-        throw new Error(`Resolved historical holo ${layer.holo_id} is unavailable.`);
+      if (layer.holo_id === "self") {
+        return [{
+          holo_id: holoId,
+          weight: layer.weight,
+          environment_weight: layer.weight,
+          manifest: clone(selfManifest),
+        }];
       }
-      return {
-        holo_id: holoId,
-        weight: layer.weight,
-        environment_weight: layer.weight,
-        manifest: clone(manifest),
-      };
-    });
+      const nested = evaluateRecursiveSustain(
+        api,
+        historicalCompiled(compiled, layer.holo_id),
+        localT,
+        reducedMotion,
+        traversal,
+        depth + 1,
+      );
+      return nested.layers.map((nestedLayer) => ({
+        ...nestedLayer,
+        weight: api.roundDiv(
+          nestedLayer.weight * layer.weight,
+          HOLO_SCALE,
+        ),
+        environment_weight: api.roundDiv(
+          nestedLayer.environment_weight * layer.weight,
+          HOLO_SCALE,
+        ),
+      }));
+    }).flat();
+    traversal.path.delete(holoId);
     return {
-      logical_ms: activeT,
       local_ms: localT,
-      phase: "sustain",
       layers,
     };
+  }
+
+  function enforceExpandedLimits(evaluation) {
+    if (evaluation.layers.length > 256) {
+      throw new Error("Holo/1 expanded live layers exceed 256.");
+    }
+    let draws = 0;
+    let transparentDraws = 0;
+    for (const layer of evaluation.layers) {
+      if (layer.weight === 0) continue;
+      const nodes = new Map(layer.manifest.nodes.map((node) => [
+        node.node_id || node.id,
+        node,
+      ]));
+      for (const draw of layer.manifest.draws || []) {
+        const nodeId = draw.node_id || draw;
+        const node = nodes.get(nodeId);
+        if (node && (!node.visible || (node.render_weight ?? HOLO_SCALE) === 0)) {
+          continue;
+        }
+        draws += 1;
+        if (
+          draw.transparent === true
+          || layer.weight < HOLO_SCALE
+          || (node?.render_weight ?? HOLO_SCALE) < HOLO_SCALE
+        ) {
+          transparentDraws += 1;
+        }
+      }
+    }
+    if (draws > 256) {
+      throw new Error("Holo/1 expanded live draws exceed 256.");
+    }
+    if (transparentDraws > 128) {
+      throw new Error("Holo/1 expanded transparent draws exceed 128.");
+    }
+    return evaluation;
+  }
+
+  function evaluateSustain(api, compiled, activeT, reducedMotion) {
+    const sustainElapsed = Math.max(
+      0,
+      activeT - compiled.input.authored.transition.duration_ms,
+    );
+    const evaluated = evaluateRecursiveSustain(
+      api,
+      compiled,
+      sustainElapsed,
+      reducedMotion,
+      {
+        path: new Set(),
+        unique: new Set(),
+      },
+      0,
+    );
+    return enforceExpandedLimits({
+      logical_ms: activeT,
+      local_ms: evaluated.local_ms ?? 0,
+      phase: reducedMotion
+        && compiled.input.authored.accessibility.reduced_motion === "hold"
+        ? "reduced-motion-hold"
+        : "sustain",
+      layers: evaluated.layers,
+    });
   }
 
   function evaluateTransition(api, compiled, activeT, departure, reducedMotion) {
     const authored = compiled.input.authored;
     const duration = authored.transition.duration_ms;
-    if (duration === 0 || !departure) {
+    if (duration === 0) {
       return evaluateSustain(api, compiled, duration, reducedMotion);
     }
     const progress = api.easing(
@@ -464,7 +705,7 @@
         render_weight: nodeWeight(api, node.render_weight, factor),
       };
     });
-    return {
+    return enforceExpandedLimits({
       logical_ms: activeT,
       transition_ms: activeT,
       phase: "transition",
@@ -477,7 +718,7 @@
           manifest: newManifest,
         },
       ],
-    };
+    });
   }
 
   function evaluateWithSharedProtocol(api, compiled, options) {
@@ -500,6 +741,9 @@
         }],
       };
     }
+    if (!departure && authored.base_holo_id === null) {
+      departure = { layers: [] };
+    }
     if (activeT < authored.transition.duration_ms) {
       return evaluateTransition(
         api,
@@ -521,45 +765,30 @@
     if (!api || typeof api !== "object") {
       throw new Error("window.RappHoloProtocol is required for Holo/1 playback.");
     }
-    const compile = api.compilePlayerUpdate
-      || api.compileHoloPlayerUpdate
-      || api.preparePlayerUpdate;
-    const evaluate = api.evaluatePlayerUpdate
-      || api.evaluateHoloPlayerUpdate
-      || api.evaluatePlayerState;
-    const lowLevel = [
+    const required = [
+      "canonical",
       "compileSceneManifest",
+      "domainHash",
       "easing",
       "evaluatePropertyTrack",
+      "growlEvents",
       "localSustainTime",
       "roundDiv",
       "selectFlipbook",
       "validateOutput",
     ].every((name) => typeof api[name] === "function");
-    if (
-      (typeof compile !== "function" || typeof evaluate !== "function")
-      && !lowLevel
-    ) {
+    if (!required) {
       throw new Error("RappHoloProtocol does not provide the pinned player helpers.");
     }
     return {
       compile(input) {
-        if (typeof compile !== "function") {
-          return compileWithSharedProtocol(api, clone(input));
-        }
-        return protocolResult(compile.call(api, clone(input)), "Holo/1 compilation");
+        return compileWithSharedProtocol(api, clone(input));
       },
       evaluate(compiled, options) {
-        if (typeof evaluate !== "function") {
-          return evaluateWithSharedProtocol(
-            api,
-            clone(compiled),
-            clone(options),
-          );
-        }
-        return protocolResult(
-          evaluate.call(api, clone(compiled), clone(options)),
-          "Holo/1 evaluation",
+        return evaluateWithSharedProtocol(
+          api,
+          clone(compiled),
+          clone(options),
         );
       },
     };
@@ -576,10 +805,14 @@
   }
 
   function announcedHoloId(value) {
-    const candidate = value?.authoritative_holo_id
-      || value?.holo_id
+    const candidate = value?.holo_id
       || value?.frame_hash
       || value?.record?.frame_hash;
+    return HEX64.test(candidate || "") ? candidate : null;
+  }
+
+  function authoritativeHoloId(value) {
+    const candidate = value?.authoritative_holo_id;
     return HEX64.test(candidate || "") ? candidate : null;
   }
 
@@ -591,10 +824,7 @@
     const authored = value.authored
       || record?.authored
       || (value.schema === "rapp-holo-output/1" ? value : null);
-    const state = value.state || authored?.state || null;
-    const manifest = value.manifest?.schema === "rapp-holo-compiled/1"
-      ? value.manifest
-      : null;
+    const state = authored?.state || null;
     const holoId = value.holo_id
       || value.frame_hash
       || value.record?.frame_hash
@@ -602,18 +832,16 @@
     if (!HEX64.test(holoId || "")) {
       throw new Error("A resolved Holo/1 snapshot requires its exact holo_id.");
     }
-    if (
-      authored?.schema !== "rapp-holo-output/1"
-      && !state
-      && !manifest
-    ) {
-      throw new Error(`Resolved snapshot ${holoId} has no Holo/1 scene state.`);
+    if (authored?.schema !== "rapp-holo-output/1") {
+      throw new Error(
+        `Resolved snapshot ${holoId} requires its complete authored Holo/1 output.`,
+      );
     }
     return {
       holo_id: holoId,
       authored: authored ? clone(authored) : null,
+      record: record ? clone(record) : null,
       state: state ? clone(state) : null,
-      manifest: manifest ? clone(manifest) : null,
     };
   }
 
@@ -644,10 +872,13 @@
     if (!holoId) {
       throw new Error("Holo/1 update requires the exact materialized holo_id.");
     }
-    const authoritativeHoloId = value.authoritative_holo_id || holoId;
-    if (!HEX64.test(authoritativeHoloId)) {
+    if (
+      value.authoritative_holo_id !== undefined
+      && !authoritativeHoloId(value)
+    ) {
       throw new Error("Authoritative Holo/1 head metadata is invalid.");
     }
+    const authoritativeId = authoritativeHoloId(value) || holoId;
 
     let base = value.base || value.base_snapshot || null;
     if (!base && authored.base_holo_id && active?.holo_id === authored.base_holo_id) {
@@ -671,7 +902,7 @@
     return {
       schema: "rapp-holo-player-input/1",
       holo_id: holoId,
-      authoritative_holo_id: authoritativeHoloId,
+      authoritative_holo_id: authoritativeId,
       record: record ? clone(record) : null,
       authored: clone(authored),
       base: normalizedBase,
@@ -772,8 +1003,11 @@
     }
 
     function acceptUpdate(value, acceptance = {}) {
-      const announced = announcedHoloId(value);
-      if (announced) state.authoritative_holo_id = announced;
+      const selected = announcedHoloId(value);
+      const authority = Object.hasOwn(value || {}, "authoritative_holo_id")
+        ? authoritativeHoloId(value)
+        : selected;
+      if (authority) state.authoritative_holo_id = authority;
       try {
         const input = normalizePlayerUpdate(value, state.active);
         state.authoritative_holo_id = input.authoritative_holo_id;
@@ -857,6 +1091,9 @@
 
     return Object.freeze({
       acceptUpdate,
+      activeGrowl() {
+        return state.active ? clone(state.active.authored.growl) : null;
+      },
       evaluateAt: evaluateActive,
       metadata,
       snapshot,
@@ -911,14 +1148,104 @@
     };
   }
 
+  function rasterBatchDescriptor(node) {
+    if (node?.type === "points") {
+      return {
+        kind: "points",
+        vertex_count: node.geometry.points.length,
+        object_count: 1,
+        draw_count: 1,
+      };
+    }
+    if (node?.type === "polyline") {
+      return {
+        kind: node.geometry.closed ? "line-loop" : "line",
+        vertex_count: node.geometry.points.length,
+        object_count: 1,
+        draw_count: 1,
+      };
+    }
+    return {
+      kind: node?.type || null,
+      object_count: 1,
+      draw_count: node?.type === "group" ? 0 : 1,
+    };
+  }
+
+  function shapeeExtrusion(
+    geometry,
+    api = root.RappHoloProtocol,
+  ) {
+    if (typeof api?.shapeeOutline !== "function") {
+      throw new Error("RappHoloProtocol shapeeOutline is unavailable.");
+    }
+    const outline = api.shapeeOutline(clone(geometry));
+    if (
+      !Array.isArray(outline)
+      || outline.length < 4
+      || outline.some((point) => (
+        !Array.isArray(point)
+        || point.length !== 2
+        || point.some((value) => !Number.isInteger(value))
+      ))
+    ) {
+      throw new Error("RappHoloProtocol returned an invalid shapee outline.");
+    }
+    const first = outline[0];
+    const last = outline.at(-1);
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      throw new Error("RappHoloProtocol returned an open shapee outline.");
+    }
+    return {
+      outline: clone(outline),
+      depth: geometry.depth,
+    };
+  }
+
+  function createRasterBuildGate(canonicalize) {
+    let activeKey = null;
+    let rebuildCount = 0;
+    return Object.freeze({
+      inspect(plan) {
+        const key = canonicalize(plan);
+        return {
+          key,
+          rebuild: key !== activeKey,
+        };
+      },
+      commit(key) {
+        activeKey = key;
+        rebuildCount += 1;
+      },
+      reset() {
+        activeKey = null;
+      },
+      stats() {
+        return {
+          active_key: activeKey,
+          rebuild_count: rebuildCount,
+        };
+      },
+    });
+  }
+
   root.RappHoloPlayerTest = Object.freeze({
     activeMessage,
+    completedGrowl,
     createController: createHoloController,
+    createGrowlPlayer,
+    createRasterObject(node, layerWeight = HOLO_SCALE) {
+      return nodeObject(clone(node), layerWeight);
+    },
     departureManifestHash,
     errorMessage,
+    growlSchedule,
+    createRasterBuildGate,
     normalizePlayerUpdate,
+    rasterBatchDescriptor,
     rasterPlan,
     readyMessage,
+    shapeeExtrusion,
   });
 
   if (typeof document === "undefined") return;
@@ -929,7 +1256,8 @@
   const subtitle = document.getElementById("hologram-subtitle");
   const kind = document.getElementById("hologram-kind");
   const facts = document.getElementById("hologram-facts");
-  const tip = document.querySelector(".hologram-tip");
+  const tipText = document.getElementById("hologram-tip-text");
+  const growlButton = document.getElementById("hologram-growl");
   const config = JSON.parse(configElement.textContent);
 
   function isHoloPlayerConfig(value) {
@@ -1046,12 +1374,45 @@
         transparent: weightedOpacity < 1 || declared.blend !== "normal",
         side: declared.side === "double" ? THREE.DoubleSide : THREE.FrontSide,
       };
-      material = nodeType === "points"
-        ? new THREE.SpriteMaterial(options)
-        : new THREE.MeshBasicMaterial({
+      if (nodeType === "points") {
+        material = new THREE.ShaderMaterial({
+          uniforms: {
+            holoColor: { value: options.color },
+            holoOpacity: { value: options.opacity },
+            holoPerspective: { value: 1 },
+            holoViewportHeight: { value: 1 },
+          },
+          vertexShader: [
+            "attribute float holoSize;",
+            "uniform float holoPerspective;",
+            "uniform float holoViewportHeight;",
+            "void main() {",
+            "  vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);",
+            "  gl_Position = projectionMatrix * viewPosition;",
+            "  float pointSize = holoSize * holoViewportHeight",
+            "    * projectionMatrix[1][1] * 0.5;",
+            "  if (holoPerspective > 0.5) pointSize /= -viewPosition.z;",
+            "  gl_PointSize = pointSize;",
+            "}",
+          ].join("\n"),
+          fragmentShader: [
+            "uniform vec3 holoColor;",
+            "uniform float holoOpacity;",
+            "void main() {",
+            "  gl_FragColor = vec4(holoColor, holoOpacity);",
+            "}",
+          ].join("\n"),
+          transparent: options.transparent,
+        });
+        material.userData.holoPointMaterial = true;
+      } else if (nodeType === "polyline") {
+        material = new THREE.LineBasicMaterial(options);
+      } else {
+        material = new THREE.MeshBasicMaterial({
           ...options,
           wireframe: declared.presentation === "wire",
         });
+      }
     }
     blendMode(material, declared.blend);
     return material;
@@ -1119,6 +1480,26 @@
         geometry.height / 1000,
       );
     }
+    if (shape === "shapee") {
+      const extrusion = shapeeExtrusion(geometry);
+      const shapePath = new THREE.Shape();
+      extrusion.outline.slice(0, -1).forEach((point, index) => {
+        const x = point[0] / 1000;
+        const y = point[1] / 1000;
+        if (index === 0) shapePath.moveTo(x, y);
+        else shapePath.lineTo(x, y);
+      });
+      shapePath.closePath();
+      const depth = extrusion.depth / 1000;
+      const output = new THREE.ExtrudeGeometry(shapePath, {
+        bevelEnabled: false,
+        curveSegments: 1,
+        depth,
+        steps: 1,
+      });
+      output.translate(0, 0, -depth / 2);
+      return output;
+    }
     throw new Error(`Unsupported Holo/1 primitive ${shape}.`);
   }
 
@@ -1183,48 +1564,29 @@
   }
 
   function polylineObject(declared, material) {
-    const object = new THREE.Group();
     const points = declared.points.map(vector3);
-    const radius = declared.width / 2000;
-    const segmentCount = declared.closed ? points.length : points.length - 1;
-    const axis = new THREE.Vector3(0, 1, 0);
-    for (let index = 0; index < segmentCount; index += 1) {
-      const start = points[index];
-      const end = points[(index + 1) % points.length];
-      const direction = new THREE.Vector3().subVectors(end, start);
-      const length = direction.length();
-      if (length === 0) throw new Error("Holo/1 polyline has a zero-length segment.");
-      const segment = new THREE.Mesh(
-        new THREE.CylinderGeometry(radius, radius, length, 8),
-        material,
-      );
-      segment.position.copy(start).add(end).multiplyScalar(.5);
-      segment.quaternion.setFromUnitVectors(axis, direction.normalize());
-      object.add(segment);
-    }
-    const firstJoint = declared.closed ? 0 : 1;
-    const lastJoint = declared.closed ? points.length : points.length - 1;
-    for (let index = firstJoint; index < lastJoint; index += 1) {
-      const joint = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 8, 4),
-        material,
-      );
-      joint.position.copy(points[index]);
-      object.add(joint);
-    }
-    return object;
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    material.linewidth = declared.width / 1000;
+    return declared.closed
+      ? new THREE.LineLoop(geometry, material)
+      : new THREE.Line(geometry, material);
   }
 
   function pointsObject(declared, material) {
-    const object = new THREE.Group();
-    for (const point of declared.points) {
-      const sprite = new THREE.Sprite(material);
-      sprite.position.copy(vector3(point.position));
-      const size = point.size / 1000;
-      sprite.scale.set(size, size, size);
-      object.add(sprite);
-    }
-    return object;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(declared.points.flatMap(
+        (point) => point.position.map((value) => value / 1000),
+      ), 3),
+    );
+    geometry.setAttribute(
+      "holoSize",
+      new THREE.Float32BufferAttribute(declared.points.map(
+        (point) => point.size / 1000,
+      ), 1),
+    );
+    return new THREE.Points(geometry, material);
   }
 
   function lightObject(declared, layerWeight) {
@@ -1346,6 +1708,9 @@
     holoRenderer.autoClear = false;
     let activeLayers = [];
     let activeClear = { red: 0, green: 0, blue: 0, alpha: 0 };
+    const buildGate = createRasterBuildGate(
+      (plan) => root.RappHoloProtocol.canonical(plan),
+    );
 
     function disposeLayers() {
       const geometries = new Set();
@@ -1414,12 +1779,23 @@
       holoRenderer.clear(true, true, true);
       activeLayers.forEach((layer, index) => {
         if (index > 0) holoRenderer.clearDepth();
+        layer.scene.traverse((object) => {
+          if (!object.material?.userData?.holoPointMaterial) return;
+          object.material.uniforms.holoPerspective.value = (
+            layer.camera.isPerspectiveCamera ? 1 : 0
+          );
+          object.material.uniforms.holoViewportHeight.value = (
+            holoRenderer.domElement.height
+          );
+        });
         holoRenderer.render(layer.scene, layer.camera);
       });
     }
 
     function draw(evaluation) {
       const plan = rasterPlan(evaluation);
+      const pending = buildGate.inspect(plan);
+      if (!pending.rebuild) return false;
       let renderOrder = 0;
       const nextLayers = plan.layers.map((layer) => {
         const built = buildLayer(layer, renderOrder);
@@ -1449,7 +1825,9 @@
       disposeLayers();
       activeLayers = nextLayers;
       activeClear = nextClear;
+      buildGate.commit(pending.key);
       renderLayers();
+      return true;
     }
 
     function resizeCamera(camera) {
@@ -1473,7 +1851,11 @@
     }
 
     resizeHolo();
-    return Object.freeze({ draw, resize: resizeHolo });
+    return Object.freeze({
+      draw,
+      resize: resizeHolo,
+      stats: buildGate.stats,
+    });
   }
 
   function initialHoloUpdate(value) {
@@ -1496,19 +1878,25 @@
     document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
     canvas.dataset.mode = "holo-1";
-    tip.textContent = "authored camera · deterministic logical time · no fallback scene";
-    kind.textContent = "HOLO/1 PLAYER";
-    title.textContent = "No active holo";
-    subtitle.textContent = "";
+    tipText.textContent = "local capsule · offline playback · import/export/re-upload ready";
+    growlButton.hidden = false;
+    growlButton.disabled = true;
+    kind.textContent = "ROLLING CORE CAPSULE · HOLO/1";
+    title.textContent = "No capsule frame active";
+    subtitle.textContent = "Import or re-upload a signed local capsule delivered by Rapterbox.";
     facts.replaceChildren();
     let rasterizer = null;
     let animationStarted = false;
     let lastFrameError = null;
     let activationMessageQueue = Promise.resolve();
+    const growlPlayer = createGrowlPlayer({
+      protocol: root.RappHoloProtocol,
+    });
 
     function postHoloError(error) {
       const state = controller?.metadata() || {
-        authoritative_holo_id: announcedHoloId(config),
+        authoritative_holo_id: authoritativeHoloId(config)
+          || announcedHoloId(config),
         player_active_holo_id: null,
       };
       parent.postMessage(errorMessage(error, state), "*");
@@ -1550,9 +1938,15 @@
       canvas.dataset.status = state.errors.length ? "refused" : (
         state.player_active_holo_id ? "active" : "empty"
       );
-      title.textContent = state.player_active_holo_id || "No active holo";
-      subtitle.textContent = controllerActiveDescription || "";
+      title.textContent = state.player_active_holo_id || "No capsule frame active";
+      subtitle.textContent = controllerActiveDescription
+        || "Import or re-upload a signed local capsule delivered by Rapterbox.";
       renderFacts([
+        ["mode", "local Rolling Core Capsule"],
+        ["ownership", "one-time purchase · local use"],
+        ["storefront", "Rapterbox · outside this player"],
+        ["substrate", "RAPP/1"],
+        ["cloud compute", "optional · not required"],
         ["authoritative holo", state.authoritative_holo_id || "none"],
         ["player active", state.player_active_holo_id || "none"],
         ["logical ms", state.logical_ms],
@@ -1594,7 +1988,10 @@
         },
       });
       if (!accepted) controllerActiveDescription = previousDescription;
-      else controllerActiveDescription = proposedDescription;
+      else {
+        controllerActiveDescription = proposedDescription;
+        growlButton.disabled = false;
+      }
       renderStatus();
       sendStatus();
       if (accepted && !animationStarted) {
@@ -1603,12 +2000,34 @@
       }
     }
 
+    growlButton.addEventListener("click", async () => {
+      const growl = controller?.activeGrowl();
+      if (!growl) return;
+      let playbackMs = 0;
+      try {
+        growlButton.disabled = true;
+        const schedule = await growlPlayer.play(growl, { user_gesture: true });
+        playbackMs = Math.ceil(schedule.duration_us / 1000);
+      } catch (error) {
+        postHoloError(error);
+      } finally {
+        if (playbackMs > 0) {
+          setTimeout(() => {
+            growlButton.disabled = !controller?.activeGrowl();
+          }, playbackMs);
+        } else {
+          growlButton.disabled = !controller?.activeGrowl();
+        }
+      }
+    });
+
     let controller = null;
     let controllerActiveDescription = "";
     try {
       controller = createHoloController({
         protocol: root.RappHoloProtocol,
-        authoritative_holo_id: announcedHoloId(config),
+        authoritative_holo_id: authoritativeHoloId(config)
+          || announcedHoloId(config),
         onError(error) {
           sendStatus(error.message);
           postHoloError(error.message);
@@ -1851,8 +2270,8 @@
     title.textContent = name;
     subtitle.textContent = config.scene.subtitle;
     kind.textContent = liveContext
-      ? "LEGACY LIVE-BINDING PROJECTION — NOT HOLO/1"
-      : "LEGACY CHARACTER BOTTLE — NOT HOLO/1";
+      ? "LEGACY LIVE-BINDING PROJECTION — NOT A ROLLING CORE"
+      : "LEGACY CHARACTER BOTTLE — NOT A ROLLING CORE";
     renderFacts([
       ["artifact", liveContext?.lineages?.[0]?.artifact_rappid || config.rappid],
       ["bottle", config.bottle ? "caught and reusable" : "ephemeral"],
@@ -2028,8 +2447,8 @@
       ? "Bound to the current path-free zoo snapshot."
       : config.description;
     kind.textContent = liveContext
-      ? "LEGACY LIVE-BINDING PROJECTION — NOT HOLO/1"
-      : "LEGACY DATA BOTTLE — NOT HOLO/1";
+      ? "LEGACY LIVE-BINDING PROJECTION — NOT A ROLLING CORE"
+      : "LEGACY DATA BOTTLE — NOT A ROLLING CORE";
     const briefing = payload.briefing || {};
     renderFacts([
       ["dogg", config.rappid],

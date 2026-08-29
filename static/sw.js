@@ -1,4 +1,4 @@
-const CACHE = "rapp-zoo-shell-v3";
+const CACHE = "rapp-zoo-shell-v5";
 const SHELL = [
   "/",
   "/manifest.webmanifest",

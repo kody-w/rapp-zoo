@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, webcrypto } from "node:crypto";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +14,10 @@ const runtimeSource = fs.readFileSync(
 );
 const protocolSource = fs.readFileSync(
   path.join(root, "static/holo-protocol.js"),
+  "utf8",
+);
+const threeSource = fs.readFileSync(
+  path.join(root, "static/vendor/three-r128.min.js"),
   "utf8",
 );
 const viewerSource = fs.readFileSync(
@@ -36,6 +40,21 @@ const SCALE = 1000000;
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function runtimeFunctionBody(name) {
+  const start = runtimeSource.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `missing runtime function ${name}`);
+  const bodyStart = runtimeSource.indexOf("{", start);
+  let depth = 0;
+  for (let index = bodyStart; index < runtimeSource.length; index += 1) {
+    if (runtimeSource[index] === "{") depth += 1;
+    if (runtimeSource[index] === "}") {
+      depth -= 1;
+      if (depth === 0) return runtimeSource.slice(bodyStart + 1, index);
+    }
+  }
+  assert.fail(`unterminated runtime function ${name}`);
 }
 
 function canonical(value) {
@@ -76,6 +95,7 @@ function transform(position = [0, 0, 0]) {
 
 function output({
   base = null,
+  growl = null,
   nodes = [],
   transition = null,
   sustain = null,
@@ -84,6 +104,33 @@ function output({
   return {
     ...plain(blankFixture),
     base_holo_id: base,
+    growl: growl || {
+      schema: "rapp-holo-growl/1",
+      representation: "note-pitch-delta-duration-velocity/1",
+      seed: C,
+      model: {
+        id: "test-piano",
+        revision: "1",
+      },
+      tempo_milli_bpm: 120000,
+      ticks_per_quarter: 100,
+      program: 17,
+      title: "Test growl",
+      subject_description: "An authored piano continuation for renderer tests.",
+      context_policy: {
+        max_notes: 512,
+        retain_latest: 384,
+      },
+      prompt: [
+        { pitch: 60, delta_onset: 0, duration: 4, velocity: 96 },
+        { pitch: 64, delta_onset: 0, duration: 4, velocity: 90 },
+      ],
+      continuation: [
+        { pitch: 67, delta_onset: 4, duration: 8, velocity: 92 },
+        { pitch: 69, delta_onset: 4, duration: 4, velocity: 88 },
+      ],
+      complete: true,
+    },
     state: {
       ...plain(blankFixture.state),
       nodes,
@@ -141,144 +188,99 @@ function manifest(authored) {
   };
 }
 
-function setProperty(node, property, value) {
-  if (property === "visible") {
-    node.visible = value;
-    return;
-  }
-  const [group, field] = property.split(".");
-  node[group][field] = plain(value);
-}
-
-function trackedManifest(compiled, logicalMs) {
-  const result = plain(compiled.manifest);
-  const sustain = compiled.input.authored.performance.sustain;
-  if (!sustain.duration_ms || sustain.repeat === "hold") return result;
-  const local = sustain.repeat === "once"
-    ? Math.min(logicalMs, sustain.duration_ms)
-    : logicalMs % sustain.duration_ms;
-  for (const track of sustain.tracks) {
-    const node = result.nodes.find((entry) => entry.node_id === track.node_id);
-    let left = track.keyframes[0];
-    let right = left;
-    for (const keyframe of track.keyframes) {
-      if (keyframe.at_ms <= local) left = keyframe;
-      if (keyframe.at_ms >= local) {
-        right = keyframe;
-        break;
-      }
-    }
-    if (
-      left === right
-      || track.interpolation === "step"
-      || typeof left.value === "boolean"
-    ) {
-      setProperty(node, track.property, left.value);
-      continue;
-    }
-    const progress = Math.round(
-      (local - left.at_ms) * SCALE / (right.at_ms - left.at_ms),
-    );
-    const interpolate = (start, end) => (
-      start + Math.round((end - start) * progress / SCALE)
-    );
-    const value = Array.isArray(left.value)
-      ? left.value.map((entry, index) => interpolate(entry, right.value[index]))
-      : interpolate(left.value, right.value);
-    setProperty(node, track.property, value);
-  }
-  return result;
-}
-
 function fakeProtocol() {
   const calls = [];
+  const roundDiv = (numerator, denominator) => Math.round(numerator / denominator);
+  const easing = (_name, progress) => progress;
   return {
     calls,
     canonical,
-    compilePlayerUpdate(input) {
-      calls.push(["compile", plain(input)]);
-      if (input.authored.accessibility.description === "INVALID") {
-        return { ok: false, errors: ["authored output refused"] };
-      }
-      const compileSnapshot = (snapshot) => (
-        snapshot.manifest || manifest(snapshot.authored || { state: snapshot.state })
-      );
-      const history = Object.fromEntries(input.history.map((snapshot) => [
-        snapshot.holo_id,
-        compileSnapshot(snapshot),
-      ]));
-      if (input.base) history[input.base.holo_id] = compileSnapshot(input.base);
-      return {
-        input: plain(input),
-        manifest: manifest(input.authored),
-        history,
-      };
+    growlEvents(growl) {
+      calls.push(["growlEvents", plain(growl)]);
+      return plain([...growl.prompt, ...growl.continuation]);
     },
-    evaluatePlayerUpdate(compiled, options) {
-      calls.push(["evaluate", plain(options)]);
-      const logicalMs = options.logical_ms;
-      const authored = compiled.input.authored;
-      const current = trackedManifest(compiled, logicalMs);
-      const transitionDuration = authored.transition.duration_ms;
-      if (options.departure && logicalMs < transitionDuration) {
-        const progress = Math.round(logicalMs * SCALE / transitionDuration);
-        return {
-          logical_ms: logicalMs,
-          camera: current.camera,
-          environment: current.environment,
-          layers: [
-            {
-              holo_id: options.departure.layers[0].holo_id,
-              weight: SCALE - progress,
-              manifest: options.departure.layers[0].manifest,
-            },
-            {
-              holo_id: compiled.input.holo_id,
-              weight: progress,
-              manifest: current,
-            },
-          ],
-        };
+    validateOutput(authored, options = {}) {
+      calls.push(["validateOutput", plain(authored), plain(options)]);
+      if (authored.accessibility.description === "INVALID") {
+        throw new Error("authored output refused");
       }
-      const flipbook = authored.performance.sustain.flipbook;
-      if (flipbook.length) {
-        const duration = authored.performance.sustain.duration_ms;
-        const local = logicalMs % duration;
-        let selected = flipbook[0];
-        for (const entry of flipbook) {
-          if (entry.at_ms <= local) selected = entry;
+      return authored;
+    },
+    compileSceneManifest(authored) {
+      calls.push(["compileSceneManifest", plain(authored)]);
+      return manifest(authored);
+    },
+    domainHash(space, value) {
+      calls.push(["domainHash", space, plain(value)]);
+      return createHash("sha256").update(
+        `${space}\n${canonical(value)}`,
+      ).digest("hex");
+    },
+    roundDiv,
+    easing,
+    localSustainTime(activeT, transitionDuration, duration, repeat) {
+      calls.push(["localSustainTime", activeT]);
+      const sustainT = Math.max(0, activeT - transitionDuration);
+      if (repeat === "hold") return 0;
+      if (repeat === "once") return Math.min(sustainT, duration);
+      if (repeat === "loop") return sustainT % duration;
+      const phase = sustainT % (2 * duration);
+      return phase <= duration ? phase : 2 * duration - phase;
+    },
+    evaluatePropertyTrack(track, localT) {
+      calls.push(["evaluatePropertyTrack", track.node_id, localT]);
+      let left = track.keyframes[0];
+      let right = left;
+      for (const keyframe of track.keyframes) {
+        if (keyframe.at_ms <= localT) left = keyframe;
+        if (keyframe.at_ms >= localT) {
+          right = keyframe;
+          break;
         }
-        const selectedManifest = selected.holo_id === "self"
-          ? current
-          : compiled.history[selected.holo_id];
-        return {
-          logical_ms: logicalMs,
-          camera: selectedManifest.camera,
-          environment: selectedManifest.environment,
-          layers: [{
-            holo_id: selected.holo_id === "self"
-              ? compiled.input.holo_id
-              : selected.holo_id,
-            weight: SCALE,
-            manifest: selectedManifest,
-          }],
-        };
       }
-      return {
-        logical_ms: logicalMs,
-        camera: current.camera,
-        environment: current.environment,
-        layers: [{
-          holo_id: compiled.input.holo_id,
-          weight: SCALE,
-          manifest: current,
-        }],
-      };
+      if (
+        left === right
+        || track.interpolation === "step"
+        || typeof left.value === "boolean"
+      ) {
+        return plain(left.value);
+      }
+      const progress = roundDiv(
+        (localT - left.at_ms) * SCALE,
+        right.at_ms - left.at_ms,
+      );
+      const interpolate = (start, end) => (
+        start + roundDiv((end - start) * easing(track.interpolation, progress), SCALE)
+      );
+      return Array.isArray(left.value)
+        ? left.value.map((entry, index) => interpolate(entry, right.value[index]))
+        : interpolate(left.value, right.value);
+    },
+    selectFlipbook(flipbook, localT) {
+      calls.push(["selectFlipbook", localT]);
+      if (!flipbook.length) return [{ holo_id: "self", weight: SCALE }];
+      let selected = flipbook[0];
+      for (const entry of flipbook) {
+        if (entry.at_ms <= localT) selected = entry;
+      }
+      return [{ holo_id: selected.holo_id, weight: SCALE }];
+    },
+    shapeeOutline(geometry) {
+      calls.push(["shapeeOutline", plain(geometry)]);
+      const halfWidth = Math.trunc(geometry.width / 2);
+      const halfHeight = Math.trunc(geometry.height / 2);
+      return [
+        [-halfWidth, -halfHeight],
+        [halfWidth, -halfHeight],
+        [halfWidth, halfHeight],
+        [-halfWidth, halfHeight],
+        [-halfWidth, -halfHeight],
+      ];
     },
   };
 }
 
-function loadHooks(protocol) {
+function loadHooks(protocol, { three = false } = {}) {
   const context = vm.createContext({
     console,
     RappHoloProtocol: protocol,
@@ -286,6 +288,11 @@ function loadHooks(protocol) {
   });
   context.window = context;
   context.globalThis = context;
+  if (three) {
+    vm.runInContext(threeSource, context, {
+      filename: "static/vendor/three-r128.min.js",
+    });
+  }
   vm.runInContext(runtimeSource, context, {
     filename: "static/hologram-runtime.js",
   });
@@ -295,7 +302,6 @@ function loadHooks(protocol) {
 function loadActualHooks() {
   const context = vm.createContext({
     console,
-    RappHoloProtocol: null,
     TextEncoder,
   });
   context.window = context;
@@ -320,6 +326,22 @@ function update(holoId, authored, extra = {}) {
     authored,
     history: [],
     ...extra,
+  };
+}
+
+function recordPayload(authored, holoSeq, visualParent) {
+  return {
+    schema: "rapp-holo-record/1",
+    holo_seq: holoSeq,
+    visual_parent: visualParent,
+    source: {
+      stream_id: `rappid:@test/subject:${C}:memory`,
+      seq: holoSeq,
+      frame_hash: C,
+    },
+    authored_hash: C,
+    producer_provenance: null,
+    authored,
   };
 }
 
@@ -365,40 +387,90 @@ test("verified materialized records are accepted without changing authored data"
     history: [],
   }), true);
   assert.deepEqual(
-    protocol.calls.find(([name]) => name === "compile")[1].authored,
+    protocol.calls.find(([name]) => name === "validateOutput")[1],
     authored,
   );
 });
 
-test("renderer orchestration calls the shared low-level protocol helpers", () => {
+test("historical selection keeps its identity separate from authoritative head", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const accepted = [];
+  const controller = hooks.createController({
+    protocol,
+    now: () => 0,
+    onAccepted: (evidence) => accepted.push(plain(evidence)),
+  });
+  const authored = output();
+  const record = {
+    schema: "rapp-holo-record/1",
+    holo_seq: 0,
+    visual_parent: null,
+    source: {
+      stream_id: `rappid:@test/subject:${C}:memory`,
+      seq: 0,
+      frame_hash: C,
+    },
+    authored_hash: C,
+    producer_provenance: null,
+    authored,
+  };
+
+  assert.equal(controller.acceptUpdate({
+    schema: "rapp-holo-player-update/1",
+    authoritative_holo_id: B,
+    record: {
+      frame_hash: A,
+      payload: record,
+    },
+    history: [],
+  }), true);
+  const state = plain(controller.snapshot(0));
+  assert.equal(state.player_active_holo_id, A);
+  assert.equal(state.authoritative_holo_id, B);
+  assert.equal(hooks.activeMessage(accepted[0], null).authoritative, false);
+});
+
+test("renderer orchestration calls the fixed shared protocol API", () => {
   const calls = [];
   const protocol = {
-    validateOutput(authored) {
-      calls.push("validateOutput");
+    canonical,
+    growlEvents() {
+      calls.push(["growlEvents"]);
+      return [];
+    },
+    validateOutput(authored, options = {}) {
+      calls.push(["validateOutput", plain(options)]);
       return authored;
     },
     compileSceneManifest(authored) {
-      calls.push("compileSceneManifest");
+      calls.push(["compileSceneManifest"]);
       return manifest(authored);
     },
+    domainHash(space, value) {
+      calls.push(["domainHash", space]);
+      return createHash("sha256").update(
+        `${space}\n${canonical(value)}`,
+      ).digest("hex");
+    },
     localSustainTime() {
-      calls.push("localSustainTime");
+      calls.push(["localSustainTime"]);
       return 0;
     },
     evaluatePropertyTrack() {
-      calls.push("evaluatePropertyTrack");
+      calls.push(["evaluatePropertyTrack"]);
       return null;
     },
     selectFlipbook() {
-      calls.push("selectFlipbook");
+      calls.push(["selectFlipbook"]);
       return [{ holo_id: "self", weight: SCALE }];
     },
     easing(_name, progress) {
-      calls.push("easing");
+      calls.push(["easing"]);
       return progress;
     },
     roundDiv(numerator, denominator) {
-      calls.push("roundDiv");
+      calls.push(["roundDiv"]);
       return Math.round(numerator / denominator);
     },
   };
@@ -407,38 +479,171 @@ test("renderer orchestration calls the shared low-level protocol helpers", () =>
 
   assert.equal(controller.acceptUpdate(update(A, output())), true);
   controller.evaluateAt(0);
-  assert.ok(calls.includes("validateOutput"));
-  assert.ok(calls.includes("compileSceneManifest"));
-  assert.ok(calls.includes("localSustainTime"));
-  assert.ok(calls.includes("selectFlipbook"));
+  assert.ok(calls.some(([name]) => name === "validateOutput"));
+  assert.ok(calls.some(([name]) => name === "compileSceneManifest"));
+  assert.ok(calls.some(([name]) => name === "localSustainTime"));
+  assert.ok(calls.some(([name]) => name === "selectFlipbook"));
 });
 
 test("real validator output is compiled before raster planning", () => {
-  const { hooks, protocol } = loadActualHooks();
-  const controller = hooks.createController({ protocol, now: () => 0 });
-  const authored = output({
-    nodes: [{
-      id: "nonhuman-fold",
-      parent: null,
-      type: "primitive",
-      visible: true,
-      transform: transform(),
-      geometry: {
-        shape: "icosahedron",
-        radius: 1200,
-        detail: 1,
+  const actual = loadActualHooks();
+  const node = {
+    id: "nonhuman-fold",
+    parent: null,
+    type: "primitive",
+    visible: true,
+    transform: transform(),
+    geometry: {
+      shape: "icosahedron",
+      radius: 1200,
+      detail: 1,
+    },
+    material: material("solid", "#36D9C8DD"),
+  };
+  const authored = typeof actual.protocol.growlEvents === "function"
+    ? output({ nodes: [node] })
+    : {
+      ...plain(blankFixture),
+      state: {
+        ...plain(blankFixture.state),
+        nodes: [node],
       },
-      material: material("solid", "#36D9C8DD"),
+    };
+  actual.protocol.validateOutput(authored);
+  const compiled = actual.protocol.compileSceneManifest(authored);
+  const plan = plain(actual.hooks.rasterPlan({
+    layers: [{
+      holo_id: A,
+      weight: SCALE,
+      manifest: compiled,
     }],
-  });
+  }));
 
-  assert.equal(controller.acceptUpdate(update(A, authored)), true);
-  const state = plain(controller.snapshot(0));
-  const plan = plain(hooks.rasterPlan(state.evaluated_manifest));
-
-  assert.equal(state.compiled_manifest.schema, "rapp-holo-compiled/1");
+  assert.equal(compiled.schema, "rapp-holo-compiled/1");
   assert.equal(plan.environment.clear_color, authored.state.environment.clear_color);
   assert.equal(plan.layers[0].nodes[0].id, "nonhuman-fold");
+});
+
+test("growl completion and WebAudio scheduling are deterministic and gesture-only", async () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const authoredGrowl = output().growl;
+  const originalGrowl = plain(authoredGrowl);
+  const events = plain(hooks.completedGrowl(authoredGrowl, protocol));
+  const schedule = plain(hooks.growlSchedule(authoredGrowl, protocol));
+
+  assert.deepEqual(authoredGrowl, originalGrowl);
+  assert.deepEqual(events, [
+    { pitch: 60, delta_onset: 0, duration: 4, velocity: 96 },
+    { pitch: 64, delta_onset: 0, duration: 4, velocity: 90 },
+    { pitch: 67, delta_onset: 4, duration: 8, velocity: 92 },
+    { pitch: 69, delta_onset: 4, duration: 4, velocity: 88 },
+  ]);
+  assert.deepEqual(schedule.preset, {
+    name: "round",
+    waveform: "sine",
+    attack_us: 3000,
+    release_us: 110000,
+  });
+  assert.equal(schedule.step_us, 5000);
+  assert.equal(schedule.duration_us, 60000);
+  assert.deepEqual(
+    schedule.events.map((event) => [event.start_us, event.duration_us]),
+    [
+      [0, 20000],
+      [0, 20000],
+      [20000, 40000],
+      [40000, 20000],
+    ],
+  );
+  assert.deepEqual(
+    protocol.calls.find(([name]) => name === "growlEvents")[1],
+    authoredGrowl,
+  );
+
+  const audioCalls = [];
+  let contexts = 0;
+  class FakeAudioContext {
+    constructor() {
+      contexts += 1;
+      this.currentTime = 10;
+      this.destination = {};
+      this.state = "suspended";
+    }
+
+    async resume() {
+      audioCalls.push(["resume"]);
+      this.state = "running";
+    }
+
+    createOscillator() {
+      const oscillator = {
+        frequency: {
+          setValueAtTime(value, at) {
+            audioCalls.push(["frequency", value, at]);
+          },
+        },
+        connect() {},
+        start(at) {
+          audioCalls.push(["start", at, oscillator.type]);
+        },
+        stop(at) {
+          audioCalls.push(["stop", at]);
+        },
+        type: null,
+      };
+      return oscillator;
+    }
+
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime(value, at) {
+            audioCalls.push(["gain", value, at]);
+          },
+          linearRampToValueAtTime(value, at) {
+            audioCalls.push(["gain-ramp", value, at]);
+          },
+        },
+        connect() {},
+      };
+    }
+  }
+  const player = hooks.createGrowlPlayer({
+    protocol,
+    AudioContextClass: FakeAudioContext,
+  });
+  await assert.rejects(
+    player.play(authoredGrowl),
+    /requires an explicit user gesture/,
+  );
+  assert.equal(contexts, 0);
+  await player.play(authoredGrowl, { user_gesture: true });
+  assert.equal(contexts, 1);
+  assert.equal(audioCalls.filter(([name]) => name === "start").length, 4);
+  assert.ok(
+    audioCalls
+      .filter(([name]) => name === "start")
+      .every((call) => call[2] === "sine"),
+  );
+  await assert.rejects(
+    player.play(authoredGrowl, { user_gesture: true }),
+    /already active/,
+  );
+
+  const missingGrowl = output();
+  delete missingGrowl.growl;
+  const controller = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(controller.acceptUpdate(update(A, missingGrowl)), false);
+  assert.equal(controller.metadata().player_active_holo_id, null);
+  assert.doesNotMatch(
+    runtimeFunctionBody("completedGrowl"),
+    /default_seed|Math\.random|crypto/,
+  );
+  assert.doesNotMatch(
+    runtimeFunctionBody("completedGrowl"),
+    /completeGrowl/,
+  );
 });
 
 test("arbitrary non-humanoid IR is preserved without renderer-authored nodes", () => {
@@ -537,6 +742,116 @@ test("arbitrary non-humanoid IR is preserved without renderer-authored nodes", (
   assert.doesNotMatch(JSON.stringify(plan), /humanoid|species|emotion|fallback/i);
 });
 
+test("maximum points and long polylines each batch into one raster draw", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol, { three: true });
+  const positions = Array.from({ length: 8192 }, (_, index) => ({
+    position: [index, index % 31, 0],
+    size: 10 + (index % 7),
+  }));
+  const points = hooks.rasterBatchDescriptor({
+    type: "points",
+    geometry: { points: positions },
+  });
+  const polyline = hooks.rasterBatchDescriptor({
+    type: "polyline",
+    geometry: {
+      points: positions.map((point) => point.position),
+      closed: true,
+      width: 20,
+    },
+  });
+
+  assert.deepEqual(plain(points), {
+    kind: "points",
+    vertex_count: 8192,
+    object_count: 1,
+    draw_count: 1,
+  });
+  assert.deepEqual(plain(polyline), {
+    kind: "line-loop",
+    vertex_count: 8192,
+    object_count: 1,
+    draw_count: 1,
+  });
+  const pointsObject = hooks.createRasterObject({
+    id: "many-points",
+    parent: null,
+    type: "points",
+    visible: true,
+    transform: transform(),
+    geometry: { points: positions },
+    material: material("points", "#336699"),
+  });
+  const lineObject = hooks.createRasterObject({
+    id: "long-line",
+    parent: null,
+    type: "polyline",
+    visible: true,
+    transform: transform(),
+    geometry: {
+      points: positions.map((point) => point.position),
+      closed: true,
+      width: 20,
+    },
+    material: material("line", "#996633"),
+  });
+  assert.equal(pointsObject.isPoints, true);
+  assert.equal(pointsObject.children.length, 0);
+  assert.equal(pointsObject.geometry.attributes.position.count, 8192);
+  assert.equal(pointsObject.geometry.attributes.holoSize.count, 8192);
+  assert.equal(lineObject.isLineLoop, true);
+  assert.equal(lineObject.children.length, 0);
+  assert.equal(lineObject.geometry.attributes.position.count, 8192);
+  assert.doesNotMatch(runtimeSource, /new THREE\.Sprite\(/);
+  assert.match(runtimeSource, /new THREE\.Points\(geometry, material\)/);
+  assert.match(runtimeSource, /new THREE\.LineLoop\(geometry, material\)/);
+  assert.doesNotMatch(runtimeFunctionBody("pointsObject"), /for\s*\(/);
+  assert.doesNotMatch(runtimeFunctionBody("polylineObject"), /for\s*\(/);
+  assert.doesNotMatch(
+    runtimeFunctionBody("polylineObject"),
+    /CylinderGeometry|SphereGeometry|new THREE\.Group/,
+  );
+});
+
+test("canonical brand SHAPEE becomes one mesh without entering scene defaults", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol, { three: true });
+  const geometry = {
+    shape: "shapee",
+    seed: "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+    width: 2400,
+    height: 1800,
+    depth: 180,
+    teeth: 16,
+    relief: 420,
+  };
+  const extrusion = plain(hooks.shapeeExtrusion(geometry, protocol));
+
+  assert.deepEqual(
+    protocol.calls.find(([name]) => name === "shapeeOutline")[1],
+    geometry,
+  );
+  assert.equal(extrusion.depth, geometry.depth);
+  assert.deepEqual(extrusion.outline[0], [-1200, -900]);
+  assert.deepEqual(extrusion.outline.at(-1), extrusion.outline[0]);
+  const object = hooks.createRasterObject({
+    id: "authored-shapee",
+    parent: null,
+    type: "primitive",
+    visible: true,
+    transform: transform(),
+    geometry,
+    material: material("solid", "#ABCDEF"),
+  });
+  assert.equal(object.isMesh, true);
+  assert.equal(object.geometry.type, "ExtrudeGeometry");
+  assert.equal(object.children.length, 0);
+  assert.doesNotMatch(runtimeSource, new RegExp(geometry.seed));
+  assert.match(runtimeSource, /new THREE\.ExtrudeGeometry\(shapePath/);
+  assert.match(runtimeSource, /shapeeOutline\(clone\(geometry\)\)/);
+});
+
 test("a successor transition freezes and weights the prior active composition", () => {
   let clock = 0;
   const protocol = fakeProtocol();
@@ -561,10 +876,48 @@ test("a successor transition freezes and weights the prior active composition", 
 
   const halfway = plain(controller.evaluateAt(500));
   assert.equal(halfway.layers[0].holo_id, A);
-  assert.equal(halfway.layers[0].weight, 500000);
+  assert.equal(halfway.layers[0].environment_weight, 500000);
   assert.equal(halfway.layers[1].holo_id, B);
-  assert.equal(halfway.layers[1].weight, 500000);
+  assert.equal(halfway.layers[1].environment_weight, 500000);
   assert.equal(controller.snapshot(500).player_active_holo_id, B);
+});
+
+test("nonzero genesis transition fades from an empty departure composition", () => {
+  const node = {
+    id: "genesis-plane",
+    parent: null,
+    type: "primitive",
+    visible: true,
+    transform: transform(),
+    geometry: { shape: "plane", width: 1000, height: 1000 },
+    material: material("solid", "#123456"),
+  };
+  const genesis = output({
+    nodes: [node],
+    transition: {
+      duration_ms: 1000,
+      easing: "linear",
+      default: "crossfade",
+      nodes: [{ id: node.id, mode: "fade-in" }],
+    },
+  });
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const controller = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(controller.acceptUpdate(update(A, genesis)), true);
+
+  const start = plain(controller.evaluateAt(0));
+  const middle = plain(controller.evaluateAt(500));
+  const end = plain(controller.evaluateAt(1000));
+  assert.equal(start.phase, "transition");
+  assert.equal(start.layers.length, 1);
+  assert.equal(start.layers[0].environment_weight, 0);
+  assert.equal(start.layers[0].manifest.nodes[0].render_weight, 0);
+  assert.equal(middle.layers[0].environment_weight, 500000);
+  assert.equal(middle.layers[0].manifest.nodes[0].render_weight, 500000);
+  assert.equal(end.phase, "sustain");
+  assert.equal(end.layers[0].environment_weight, SCALE);
+  assert.equal(end.layers[0].manifest.nodes[0].render_weight ?? SCALE, SCALE);
 });
 
 test("activation evidence hashes the exact frozen departure manifest", async () => {
@@ -597,10 +950,9 @@ test("activation evidence hashes the exact frozen departure manifest", async () 
     base: { holo_id: A, authored: first },
   })), true);
   const evidence = accepted[1];
-  const hash = await hooks.departureManifestHash(
+  const hash = hooks.departureManifestHash(
     evidence.departure_manifest,
     protocol,
-    webcrypto,
   );
   const expected = createHash("sha256").update(
     `rapp-holo/1:departure\n${canonical(evidence.departure_manifest)}`,
@@ -635,12 +987,261 @@ test("historical flipbook renders only the explicitly selected ancestor", () => 
   });
 
   assert.equal(controller.acceptUpdate(update(B, current, {
-    base: { holo_id: A, state: prior.state },
-    history: [{ holo_id: A, state: prior.state }],
+    base: { holo_id: A, authored: prior },
+    history: [{ holo_id: A, authored: prior }],
   })), true);
+  const currentCompile = protocol.calls.find(
+    ([name, authored]) => name === "validateOutput"
+      && authored.base_holo_id === A,
+  );
+  assert.deepEqual(currentCompile[2].base, prior);
+  assert.deepEqual(currentCompile[2].ancestorIds[A], prior);
   assert.equal(controller.evaluateAt(500).layers[0].holo_id, B);
   assert.equal(controller.evaluateAt(1500).layers[0].holo_id, A);
   assert.equal(controller.evaluateAt(2500).layers[0].holo_id, B);
+});
+
+test("historical flipbooks recursively evaluate three verified levels", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const controller = hooks.createController({ protocol, now: () => 0 });
+  const first = output({
+    nodes: [{
+      id: "recursive-plane",
+      parent: null,
+      type: "primitive",
+      visible: true,
+      transform: transform(),
+      geometry: { shape: "plane", width: 1000, height: 1000 },
+      material: material("solid", "#112233"),
+    }],
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [{
+        node_id: "recursive-plane",
+        property: "transform.rotation",
+        interpolation: "linear",
+        keyframes: [
+          { at_ms: 0, value: [0, 0, 0] },
+          { at_ms: 1000, value: [0, 180000, 0] },
+        ],
+      }],
+      flipbook: [],
+    },
+  });
+  const second = output({
+    base: A,
+    sustain: {
+      duration_ms: 500,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [
+        { at_ms: 0, holo_id: A, blend: "cut", blend_ms: 0 },
+      ],
+    },
+  });
+  const third = output({
+    base: B,
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [
+        { at_ms: 0, holo_id: B, blend: "cut", blend_ms: 0 },
+      ],
+    },
+  });
+  const firstRecord = recordPayload(first, 0, null);
+  const secondRecord = recordPayload(second, 1, A);
+
+  assert.equal(controller.acceptUpdate(update(C, third, {
+    base: { holo_id: B, record: secondRecord },
+    history: [
+      { holo_id: A, record: firstRecord },
+      { holo_id: B, record: secondRecord },
+    ],
+  })), true);
+  const currentValidation = protocol.calls.find(
+    ([name, authored]) => name === "validateOutput"
+      && authored.base_holo_id === B,
+  );
+  assert.deepEqual(currentValidation[2].ancestorIds[A], firstRecord);
+  assert.deepEqual(currentValidation[2].ancestorIds[B], secondRecord);
+  const evaluated = plain(controller.evaluateAt(1750));
+  assert.deepEqual(evaluated.layers.map((layer) => layer.holo_id), [A]);
+  assert.equal(evaluated.layers[0].weight, SCALE);
+  assert.deepEqual(
+    evaluated.layers[0].manifest.nodes[0].transform.rotation,
+    [0, 45000, 0],
+  );
+});
+
+test("recursive flipbooks refuse cycles and depth beyond eight", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const cyclicA = output({
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [{ at_ms: 0, holo_id: B, blend: "cut", blend_ms: 0 }],
+    },
+  });
+  const cyclicB = output({
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [{ at_ms: 0, holo_id: A, blend: "cut", blend_ms: 0 }],
+    },
+  });
+  const cyclicRoot = output({
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [{ at_ms: 0, holo_id: A, blend: "cut", blend_ms: 0 }],
+    },
+  });
+  const cyclicController = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(cyclicController.acceptUpdate(update(C, cyclicRoot, {
+    history: [
+      { holo_id: A, authored: cyclicA },
+      { holo_id: B, authored: cyclicB },
+    ],
+  })), false);
+  assert.match(
+    cyclicController.metadata().errors.at(-1).message,
+    /recursive flipbook cycle/,
+  );
+
+  const ids = "012345678".split("").map((digit) => digit.repeat(64));
+  const history = ids.map((holoId, index) => ({
+    holo_id: holoId,
+    authored: output({
+      sustain: index === ids.length - 1
+        ? {
+          duration_ms: 0,
+          repeat: "hold",
+          tracks: [],
+          flipbook: [],
+        }
+        : {
+          duration_ms: 1000,
+          repeat: "loop",
+          tracks: [],
+          flipbook: [{
+            at_ms: 0,
+            holo_id: ids[index + 1],
+            blend: "cut",
+            blend_ms: 0,
+          }],
+        },
+    }),
+  }));
+  const deepRoot = output({
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [{
+        at_ms: 0,
+        holo_id: ids[0],
+        blend: "cut",
+        blend_ms: 0,
+      }],
+    },
+  });
+  const depthController = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(depthController.acceptUpdate(update(C, deepRoot, {
+    history,
+  })), false);
+  assert.match(
+    depthController.metadata().errors.at(-1).message,
+    /depth exceeds 8/,
+  );
+});
+
+test("recursive history refuses excess unique frames and expanded draws", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const tooMany = Array.from({ length: 65 }, (_, index) => ({
+    holo_id: index.toString(16).padStart(2, "0").repeat(32),
+    authored: output(),
+  }));
+  const uniqueController = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(uniqueController.acceptUpdate(update("f".repeat(64), output(), {
+    history: tooMany,
+  })), false);
+  assert.match(
+    uniqueController.metadata().errors.at(-1).message,
+    /exceeds 64 unique frames/,
+  );
+
+  const branchingProtocol = fakeProtocol();
+  branchingProtocol.selectFlipbook = (flipbook) => {
+    if (!flipbook.length) return [{ holo_id: "self", weight: SCALE }];
+    return flipbook.map((entry) => ({
+      holo_id: entry.holo_id,
+      weight: SCALE / flipbook.length,
+    }));
+  };
+  const branchingHooks = loadHooks(branchingProtocol);
+  const ids = "12345678".split("").map((digit) => digit.repeat(64));
+  const leafNodes = ["leaf-one", "leaf-two"].map((id, index) => ({
+    id,
+    parent: null,
+    type: "primitive",
+    visible: true,
+    transform: transform([index * 1000, 0, 0]),
+    geometry: { shape: "plane", width: 100, height: 100 },
+    material: material("solid", "#123456"),
+  }));
+  const history = ids.map((holoId, index) => ({
+    holo_id: holoId,
+    authored: output({
+      nodes: index === ids.length - 1 ? leafNodes : [],
+      sustain: index === ids.length - 1
+        ? {
+          duration_ms: 0,
+          repeat: "hold",
+          tracks: [],
+          flipbook: [],
+        }
+        : {
+          duration_ms: 1000,
+          repeat: "loop",
+          tracks: [],
+          flipbook: [
+            { at_ms: 0, holo_id: ids[index + 1], blend: "cut", blend_ms: 0 },
+            { at_ms: 500, holo_id: ids[index + 1], blend: "cut", blend_ms: 0 },
+          ],
+        },
+    }),
+  }));
+  const root = output({
+    sustain: {
+      duration_ms: 1000,
+      repeat: "loop",
+      tracks: [],
+      flipbook: [
+        { at_ms: 0, holo_id: ids[0], blend: "cut", blend_ms: 0 },
+        { at_ms: 500, holo_id: ids[0], blend: "cut", blend_ms: 0 },
+      ],
+    },
+  });
+  const drawController = branchingHooks.createController({
+    protocol: branchingProtocol,
+    now: () => 0,
+  });
+  assert.equal(drawController.acceptUpdate(update("e".repeat(64), root, {
+    history,
+  })), false);
+  assert.match(
+    drawController.metadata().errors.at(-1).message,
+    /expanded live draws exceed 256/,
+  );
 });
 
 test("invalid update advances announced authority but holds prior player-active holo", () => {
@@ -699,7 +1300,25 @@ test("fixed logical times produce deterministic evaluated manifests", () => {
     first.layers[0].manifest.nodes[0].transform.rotation,
     [0, 90000, 0],
   );
-  assert.ok(protocol.calls.some(([name]) => name === "evaluate"));
+  assert.ok(protocol.calls.some(([name]) => name === "evaluatePropertyTrack"));
+});
+
+test("unchanged hold scenes reuse their raster build across animation frames", () => {
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const controller = hooks.createController({ protocol, now: () => 0 });
+  assert.equal(controller.acceptUpdate(update(A, output())), true);
+  const gate = hooks.createRasterBuildGate(protocol.canonical);
+
+  const firstPlan = hooks.rasterPlan(controller.evaluateAt(0));
+  const first = gate.inspect(firstPlan);
+  assert.equal(first.rebuild, true);
+  gate.commit(first.key);
+
+  const laterPlan = hooks.rasterPlan(controller.evaluateAt(500000));
+  const later = gate.inspect(laterPlan);
+  assert.equal(later.rebuild, false);
+  assert.equal(gate.stats().rebuild_count, 1);
 });
 
 test("Holo/1 mode fails closed without shared helpers and legacy is quarantined", () => {
@@ -711,8 +1330,11 @@ test("Holo/1 mode fails closed without shared helpers and legacy is quarantined"
     /does not provide the pinned player helpers/,
   );
   assert.match(runtimeSource, /canvas\.dataset\.mode = "legacy"/);
-  assert.match(runtimeSource, /LEGACY CHARACTER BOTTLE — NOT HOLO\/1/);
-  assert.match(runtimeSource, /LEGACY DATA BOTTLE — NOT HOLO\/1/);
+  assert.match(
+    runtimeSource,
+    /LEGACY CHARACTER BOTTLE — NOT A ROLLING CORE/,
+  );
+  assert.match(runtimeSource, /LEGACY DATA BOTTLE — NOT A ROLLING CORE/);
 });
 
 test("viewer loads the nonce-bound protocol before runtime and caches both", () => {
@@ -726,6 +1348,21 @@ test("viewer loads the nonce-bound protocol before runtime and caches both", () 
   );
   assert.match(serviceWorkerSource, /"\/static\/holo-protocol\.js"/);
   assert.match(serviceWorkerSource, /"\/static\/hologram-runtime\.js"/);
+  assert.match(serviceWorkerSource, /rapp-zoo-shell-v5/);
+  assert.match(viewerSource, /id="hologram-growl"[^>]*hidden/);
+  assert.match(viewerSource, /<title>Rolling Core Capsule Player<\/title>/);
+  assert.match(viewerSource, />play authored piano<\/button>/);
+  assert.match(runtimeSource, /ROLLING CORE CAPSULE · HOLO\/1/);
+  assert.match(runtimeSource, /Rapterbox · outside this player/);
+  assert.match(runtimeSource, /cloud compute", "optional · not required"/);
+  assert.match(
+    runtimeFunctionBody("runHoloPlayer"),
+    /growlButton\.addEventListener\("click"/,
+  );
+  assert.doesNotMatch(
+    runtimeFunctionBody("accept"),
+    /growlPlayer\.play/,
+  );
   const hooks = loadHooks(fakeProtocol());
   assert.deepEqual(
     plain(hooks.readyMessage("zoo-player", {
@@ -737,6 +1374,12 @@ test("viewer loads the nonce-bound protocol before runtime and caches both", () 
       player_id: "zoo-player",
       authoritative_holo_id: B,
       player_active_holo_id: A,
+      substrate: "rapp/1",
+      player_mode: "rolling-core-capsule",
+      storefront: "rapterbox",
+      ownership_model: "one-time-local",
+      offline_capable: true,
+      cloud_compute_required: false,
     },
   );
   assert.deepEqual(
