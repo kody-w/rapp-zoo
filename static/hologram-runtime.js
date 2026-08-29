@@ -106,31 +106,16 @@
   }
 
   function growlStepUs(growl, api) {
-    if (Number.isInteger(growl.step_microseconds)) {
-      return growl.step_microseconds;
-    }
-    if (Number.isInteger(growl.step_milliseconds)) {
-      return growl.step_milliseconds * 1000;
-    }
     if (
-      Number.isInteger(growl.tempo_milli_bpm)
-      && Number.isInteger(growl.ticks_per_quarter)
+      !Number.isInteger(growl.tempo_milli_bpm)
+      || !Number.isInteger(growl.ticks_per_quarter)
     ) {
-      return api.roundDiv(
-        60000000000,
-        growl.tempo_milli_bpm * growl.ticks_per_quarter,
-      );
+      throw new Error("Holo/1 growl has no valid note timing.");
     }
-    if (
-      Number.isInteger(growl.tempo_milli_bpm)
-      && Number.isInteger(growl.steps_per_beat)
-    ) {
-      return api.roundDiv(
-        60000000000,
-        growl.tempo_milli_bpm * growl.steps_per_beat,
-      );
-    }
-    throw new Error("Holo/1 growl has no explicit timing quantum.");
+    return api.roundDiv(
+      60000000000,
+      growl.tempo_milli_bpm * growl.ticks_per_quarter,
+    );
   }
 
   function growlSchedule(growl, api = root.RappHoloProtocol) {

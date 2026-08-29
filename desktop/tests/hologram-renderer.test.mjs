@@ -657,6 +657,10 @@ test("growl completion and WebAudio scheduling are deterministic and gesture-onl
     runtimeFunctionBody("completedGrowl"),
     /completeGrowl/,
   );
+  assert.doesNotMatch(
+    runtimeFunctionBody("growlStepUs"),
+    /step_microseconds|step_milliseconds|steps_per_beat/,
+  );
 });
 
 test("arbitrary non-humanoid IR is preserved without renderer-authored nodes", () => {
