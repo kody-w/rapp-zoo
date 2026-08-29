@@ -15,6 +15,10 @@ Each holo also carries two portable identity traits:
 - **Growl** — a required seeded MIDI motif that deterministically autocompletes
   and can be played locally after user gesture.
 
+SHAPEE is the minimum viable presence. It can remain a compact tile or become
+the seed of a progressively richer immutable lineage whose geometry, motion,
+aura, habitat, and symbolism eventually occupy the entire frame.
+
 ```text
 turn T0 -> holo H0
 turn T1 -> holo H1, transitioning from H0

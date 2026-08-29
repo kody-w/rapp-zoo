@@ -633,6 +633,39 @@ class TestHoloStream(unittest.TestCase):
                 first_id,
             )
 
+            third_id = third.get_json()["holo_frame"]["frame_hash"]
+            recursive = fixture_output("historical-flipbook")
+            recursive["base_holo_id"] = third_id
+            recursive["performance"]["sustain"]["flipbook"] = [
+                {
+                    "at_ms": 0,
+                    "holo_id": "self",
+                    "blend": "crossfade",
+                    "blend_ms": 500,
+                },
+                {
+                    "at_ms": 2000,
+                    "holo_id": third_id,
+                    "blend": "crossfade",
+                    "blend_ms": 500,
+                },
+            ]
+            source3 = build_turn(
+                stream_id=stream,
+                seq=3,
+                head=source2,
+                holo=recursive,
+            )
+            fourth = commit(client, source3)
+            self.assertEqual(fourth.status_code, 201, fourth.get_json())
+            fourth_id = fourth.get_json()["holo_frame"]["frame_hash"]
+            viewer = client.get(f"/holo/{fourth_id}")
+            self.assertEqual(viewer.status_code, 200, viewer.get_json())
+            html = viewer.get_data(as_text=True)
+            for ancestor_id in (third_id, second_id, first_id):
+                self.assertIn(ancestor_id, html)
+            viewer.close()
+
     def test_holo_wake_classifies_sustained_machine_and_manual_absence(self):
         with IsolatedHome():
             client = zoo.create_app().test_client()

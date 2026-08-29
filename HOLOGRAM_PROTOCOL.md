@@ -625,6 +625,17 @@ SHAPEE is vocabulary available to the AI, not a required template for the full
 hologram. One frame may contain no SHAPEE, one identity tile, or several
 independently seeded tiles composed with any other valid scene nodes.
 
+The tile is the smallest useful expression, not the edge of the canvas. A Holo
+lineage may progressively autocomplete outward:
+
+```text
+SHAPEE tile -> outline -> form -> motion/aura -> habitat -> full frame
+```
+
+Each expansion is a new immutable authored state. The AI decides how much of
+the stage to occupy; the full camera frame can become the organism's body,
+environment, memory, or performance.
+
 ### 7.6 Materials
 
 The fixed material contract supports bounded combinations of:
