@@ -50,6 +50,7 @@ function rarityFor(entry, kind) {
   // Drives the foil treatment (rare+ get holo overlays, ultra+ get
   // animated rainbow shimmer, secret gets the works).
   if (kind === 'holocard') return entry.rarity || 'common';
+  if (kind === 'hologram') return entry.kind === 'character' ? 'ultra' : 'holo';
   if (kind === 'twin') {
     const instances = entry.instances || entry.incarnations || [];
     if (instances.some(i => i.live && i.is_global)) return 'secret';
@@ -120,6 +121,7 @@ function inferType(entry, kind) {
     if (c in TYPE_ICONS) return c;
   }
   if (kind === 'twin') return 'twin';
+  if (kind === 'hologram') return 'organism';
   if (kind === 'discover') return entry.kind === 'tool' ? 'tool' : 'rapp';
   if (kind === 'holocard') return 'rapp';
   return 'rapp';
@@ -333,6 +335,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'starters') loadStarters();
     if (tab.dataset.tab === 'discover') loadDiscover();
     if (tab.dataset.tab === 'holocards') loadHolocards();
+    if (tab.dataset.tab === 'holograms') loadHolograms();
   });
 });
 
@@ -541,6 +544,7 @@ async function loadStarters() {
       root.innerHTML = '<div class="empty">No starters available — run <code>python3 starters/build_starters.py</code> in the rapp-zoo repo to build them.</div>';
       return;
     }
+
     root.innerHTML = starters.map(s => {
       const fullEggUrl = s.egg_url.startsWith('/')
         ? location.origin + s.egg_url
@@ -560,6 +564,175 @@ async function loadStarters() {
     root.innerHTML = '<div class="err">' + escapeHtml(e.message) + '</div>';
   }
 }
+
+// ── Holograms: sandboxed 3D characters + data projections ───────────
+let hologramEntries = [];
+let activeHologram = null;
+let activeHologramContext = null;
+let currentDataSlosh = null;
+let hologramPolishing = false;
+let justCaughtHologramId = null;
+
+async function loadHolograms() {
+  const root = $('holograms');
+  root.innerHTML = '<div class="empty">Calibrating emitters…</div>';
+  try {
+    const data = await api('/api/holograms');
+    const local = data.holograms || [];
+    let remote = [];
+    try {
+      remote = (await api('/api/holograms/rar')).entries || [];
+    } catch {
+      // The local bundled gallery remains usable when RAR is offline.
+    }
+    const byId = new Map(local.map(entry => [entry.id, entry]));
+    for (const entry of remote) {
+      if (byId.has(entry.id)) {
+        byId.get(entry.id).rar_available = true;
+      } else {
+        byId.set(entry.id, {
+          ...entry,
+          description: 'RAR hologram DOGG — summon its verified data record to project it.',
+          source: 'rar-catalog',
+          rar_available: true,
+          rar_notarized: false,
+          remote_only: true,
+        });
+      }
+    }
+    hologramEntries = [...byId.values()];
+    $('holograms-count').textContent = `${hologramEntries.length} bottles`;
+    root.innerHTML = hologramEntries.map(entry => {
+      const rarAction = entry.rar_notarized
+        ? '<span class="pill live">RAR bottle ✓</span>'
+        : `<button class="btn" data-hologram-summon="${escapeHtml(entry.id)}" data-zoo-control="hologram.summon.${escapeHtml(entry.id)}">Catch RAR bottle</button>`;
+      const projectAction = entry.remote_only
+        ? ''
+        : `<button class="btn primary" data-hologram="${escapeHtml(entry.id)}" data-zoo-control="hologram.project.${escapeHtml(entry.id)}">Hotload</button>`;
+      const actions = `
+        ${projectAction}
+        ${rarAction}`;
+      const html = holocardHTML({
+        ...entry,
+        type: entry.kind === 'character' ? 'twin' : 'analysis',
+        tagline: entry.description,
+      }, 'hologram', { actions });
+      return html.replace('class="sprite"', 'class="sprite hologram-card-art"');
+    }).join('');
+    root.onclick = event => {
+      const button = event.target.closest('button[data-hologram]');
+      if (button) {
+        openHologram(button.dataset.hologram);
+        return;
+      }
+      const summon = event.target.closest('button[data-hologram-summon]');
+      if (summon) summonHologramDogg(summon.dataset.hologramSummon, summon);
+    };
+    bindHoloTilt(root);
+  } catch (error) {
+    root.innerHTML = `<div class="err">${escapeHtml(error.message)}</div>`;
+  }
+
+  async function summonHologramDogg(id, button) {
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = 'Verifying RAR…';
+    try {
+      const result = await api('/api/holograms/summon', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id }),
+      });
+      toast(`Caught ${id} bottle · ${result.record_sha256.slice(0, 12)}…`);
+      await loadHolograms();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = original;
+      toast(error.message, 'err');
+    }
+  }
+}
+
+function sendHologramContext(context) {
+  if (!activeHologram || !$('hologram-frame').contentWindow) return;
+  $('hologram-frame').contentWindow.postMessage({
+    schema: 'rapp-zoo-hologram-context/1.0',
+    hologram_id: activeHologram.id,
+    data_slosh: context,
+  }, '*');
+}
+
+function openHologram(id) {
+  if (justCaughtHologramId !== id) justCaughtHologramId = null;
+  activeHologram = hologramEntries.find(entry => entry.id === id);
+  if (!activeHologram) return;
+  activeHologramContext = currentDataSlosh;
+  $('hologram-viewer-kind').textContent = activeHologram.kind === 'character'
+    ? '3D CHARACTER BOTTLE'
+    : 'DATA HOLOGRAM BOTTLE';
+  $('hologram-viewer-title').textContent = activeHologram.name;
+  $('hologram-binding-status').textContent = currentDataSlosh
+    ? 'data slosh'
+    : 'bottle memory';
+  const frame = $('hologram-frame');
+  const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+  frame.setAttribute(
+    'sandbox',
+    loopback ? 'allow-scripts allow-same-origin' : 'allow-scripts',
+  );
+  const hologramOrigin = loopback
+    ? `${location.protocol}//hologram.localhost:${location.port}`
+    : location.origin;
+  frame.src = `${hologramOrigin}/holograms/${encodeURIComponent(activeHologram.id)}`;
+  if (!$('hologram-dialog').open) $('hologram-dialog').showModal();
+}
+
+window.addEventListener('message', event => {
+  if (event.source !== $('hologram-frame').contentWindow) return;
+  const message = event.data || {};
+  if (message.hologram_id !== activeHologram?.id) return;
+  if (message.schema === 'rapp-zoo-hologram-ready/1.0') {
+    sendHologramContext(activeHologramContext);
+  } else if (message.schema === 'rapp-zoo-hologram-bound/1.0') {
+    $('hologram-binding-status').textContent = hologramPolishing
+      ? `matched ${activeHologram.name} · polishing`
+      : justCaughtHologramId === activeHologram.id
+        ? 'new bottle caught'
+      : message.live ? 'data slosh' : 'bottle memory';
+  } else if (message.schema === 'rapp-zoo-hologram-error/1.0') {
+    $('hologram-binding-status').textContent = 'projection error';
+    toast(message.error || 'Hologram projection failed', 'err');
+  }
+});
+
+$('hologram-bind').addEventListener('click', async () => {
+  try {
+    const context = await api('/api/intelligence-context');
+    activeHologramContext = {
+      ...context,
+      data_slosh: currentDataSlosh?.data_slosh || null,
+    };
+    sendHologramContext(activeHologramContext);
+  } catch (error) {
+    toast(error.message, 'err');
+  }
+});
+$('hologram-demo').addEventListener('click', () => {
+  currentDataSlosh = null;
+  activeHologramContext = null;
+  sendHologramContext(null);
+});
+$('hologram-fullscreen').addEventListener('click', () => {
+  $('hologram-frame').requestFullscreen?.();
+});
+$('hologram-close').addEventListener('click', () => {
+  $('hologram-dialog').close();
+});
+$('hologram-dialog').addEventListener('close', () => {
+  $('hologram-frame').src = 'about:blank';
+  activeHologram = null;
+  activeHologramContext = null;
+});
 
 function starterDescription(rappId) {
   const m = {
@@ -1168,7 +1341,7 @@ $('lay-egg-dialog').addEventListener('close', async function () {
   } catch (e) { toast(e.message, 'err'); }
 });
 
-// ── Frontier desktop intelligence ───────────────────────────────────
+// ── Frontier app-owned Brainstem ────────────────────────────────────
 const desktopBridge = window.rappZooDesktop;
 let copilotBusy = false;
 let copilotAssistant = null;
@@ -1192,19 +1365,28 @@ function setCopilotBusy(busy) {
 
 if (desktopBridge) {
   $('btn-copilot').hidden = false;
-  desktopBridge.copilotStatus().then((status) => {
-    $('copilot-status').textContent = status.available ? 'ready' : 'CLI unavailable';
-    $('copilot-status').title = status.detail || '';
-    $('copilot-send').disabled = !status.available;
+  $('hologram-generate').hidden = false;
+  $('hologram-generate').disabled = true;
+  desktopBridge.brainstemStatus().then((status) => {
+    const ready = status.state === 'ready';
+    $('copilot-status').textContent = ready ? `${status.tools.length} tools ready` : status.state;
+    $('copilot-status').title = status.model || '';
+    $('copilot-send').disabled = !ready;
+    $('hologram-generate').disabled = !ready;
   }).catch((error) => {
-    $('copilot-status').textContent = 'CLI unavailable';
+    $('copilot-status').textContent = 'Brainstem unavailable';
     $('copilot-status').title = error.message;
     $('copilot-send').disabled = true;
   });
-  desktopBridge.onCopilotChunk(({ text }) => {
-    if (!copilotBusy || !copilotAssistant) return;
-    copilotAssistant.textContent += text;
-    $('copilot-transcript').scrollTop = $('copilot-transcript').scrollHeight;
+  desktopBridge.onState((state) => {
+    const status = state.brainstem || {};
+    if (!copilotBusy) {
+      $('copilot-status').textContent = status.state === 'ready'
+        ? `${(status.tools || []).length} tools ready`
+        : status.state || 'starting';
+    }
+    $('copilot-send').disabled = status.state !== 'ready' || copilotBusy;
+    $('hologram-generate').disabled = status.state !== 'ready';
   });
   $('btn-copilot').addEventListener('click', () => {
     $('copilot-dialog').showModal();
@@ -1212,7 +1394,7 @@ if (desktopBridge) {
   });
   $('copilot-close').addEventListener('click', () => $('copilot-dialog').close());
   $('copilot-cancel').addEventListener('click', async () => {
-    await desktopBridge.cancelCopilot(null);
+    await desktopBridge.cancelBrainstem(null);
   });
   $('copilot-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1223,13 +1405,81 @@ if (desktopBridge) {
     copilotAssistant = copilotMessage('assistant', '');
     setCopilotBusy(true);
     try {
-      const result = await desktopBridge.askCopilot(prompt);
+      const result = await desktopBridge.askBrainstem(prompt);
       copilotAssistant.textContent = result.response;
+      if (result.agent_logs) {
+        copilotAssistant.textContent += `\n\nAgents: ${result.agent_logs}`;
+      }
     } catch (error) {
-      copilotAssistant.textContent = 'Copilot CLI error: ' + error.message;
+      copilotAssistant.textContent = 'Brainstem error: ' + error.message;
     } finally {
       copilotAssistant = null;
       setCopilotBusy(false);
+    }
+  });
+
+  $('hologram-generate').addEventListener('click', () => {
+    $('hologram-generate-dialog').showModal();
+  });
+  $('hologram-generate-close').addEventListener('click', () => {
+    $('hologram-generate-dialog').close();
+  });
+  $('hologram-capture-frame').addEventListener('click', async () => {
+    try {
+      const frame = await api('/api/holograms/example-frame');
+      $('hologram-frame-input').value = JSON.stringify(frame, null, 2);
+      $('hologram-generate-status').textContent = 'Live frame captured. Ready to match.';
+    } catch (error) {
+      $('hologram-generate-status').textContent = error.message;
+    }
+  });
+  $('hologram-generate-submit').addEventListener('click', async () => {
+    const button = $('hologram-generate-submit');
+    let frame;
+    try {
+      frame = JSON.parse($('hologram-frame-input').value);
+    } catch {
+      $('hologram-generate-status').textContent = 'Paste or capture a valid JSON frame first.';
+      return;
+    }
+    button.disabled = true;
+    try {
+      $('hologram-generate-status').textContent = 'Finding the nearest bottle…';
+      const match = await api('/api/holograms/match', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ frame }),
+      });
+      const snapshot = await api('/api/intelligence-context');
+      currentDataSlosh = {
+        ...snapshot,
+        data_slosh: { frame },
+      };
+      hologramPolishing = true;
+      $('hologram-generate-dialog').close();
+      if (!hologramEntries.length) await loadHolograms();
+      openHologram(match.hologram.id);
+      $('hologram-binding-status').textContent = `matched ${match.hologram.name} · polishing`;
+      sendHologramContext(currentDataSlosh);
+
+      const result = await desktopBridge.generateHologram({
+        frame,
+        randomize: $('hologram-randomize').checked,
+      });
+      hologramPolishing = false;
+      await loadHolograms();
+      justCaughtHologramId = result.hologram.id;
+      openHologram(result.hologram.id);
+      $('hologram-binding-status').textContent = 'new bottle caught';
+      sendHologramContext(currentDataSlosh);
+      toast(`Caught ${result.hologram.name} from frame ${frame.frame_hash.slice(0, 12)}…`);
+    } catch (error) {
+      hologramPolishing = false;
+      $('hologram-generate-status').textContent = error.message;
+      if (activeHologram) $('hologram-binding-status').textContent = 'polish failed';
+      toast(error.message, 'err');
+    } finally {
+      button.disabled = false;
     }
   });
 }

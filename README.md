@@ -36,35 +36,80 @@ Set `RAPP_OWNER` to the lowercase GitHub login used for newly minted instance id
 
 ## Frontier desktop and mobile app
 
-The optional Electron shell supervises or adopts the same loopback Flask service. It follows the Frontier pattern: the Python zoo remains authoritative and removable; Electron contributes a secure window, lifecycle supervision, and a bounded Copilot CLI intelligence bridge.
+The optional Electron shell supervises the loopback Flask zoo and an app-owned RAPP Brainstem on port `7072`. It follows the Frontier pattern: the Python zoo remains authoritative and removable; the unchanged Grail Brainstem runs by reference with the user's installed agents plus the hologram foundry agents.
+
+The foundry requires an explicitly installed, trusted Brainstem at
+`~/.brainstem/src/rapp_brainstem` with its venv at `~/.brainstem/venv`.
+`RAPP_ZOO_BRAINSTEM_PATH` and `RAPP_ZOO_BRAINSTEM_PYTHON` can select another
+verified installation. The desktop app never downloads or pipes a remote
+installer into a shell.
 
 ```bash
 npm install
 npm run desktop
 ```
 
-The desktop process discovers `copilot` on `PATH` and runs prompt mode from an empty private working directory with streaming enabled, an explicitly empty tool inventory, built-in MCP disabled, no custom instructions, and no remote export. Only the path-free response from `/api/intelligence-context` is included in the prompt. The bridge is enabled only when Electron launched and challenge-verified the loopback zoo process. Set `RAPP_ZOO_COPILOT_BIN` or `RAPP_ZOO_COPILOT_MODEL` to override the executable or model; the default model is `gpt-5.6-sol`.
+The desktop intelligence panel calls that Brainstem's single `/chat` surface. GitHub Copilot can use the full installed agent/tool set to inspect, build, test, and operate the computer; high-impact or externally publishing actions remain explicit authorization boundaries. `HologramForge` and `HologramDOGG` are installed as ordinary hotloaded agents. Set `RAPP_ZOO_BRAINSTEM_MODEL` to request a foundry model; the app requests `gpt-5.6-sol` by default, while the installed Brainstem remains authoritative over model availability and fallback.
 
-The same responsive UI is an installable PWA through `/manifest.webmanifest`. Mobile operating systems cannot host Copilot CLI, so the mobile surface remains the collection/control UI while intelligence stays on the desktop host. See [`FRONTIER.md`](./FRONTIER.md).
+The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.
+
+## Holograms and RAR DOGGs
+
+The Holograms tab supports two related but different things:
+
+- **3D character holograms** — procedural bodies whose stable appearance is seeded by an artifact RAPPID or egg address.
+- **Data holograms** — volumetric projections that can bind to the path-free live zoo census.
+
+The bundled `Holo Avatar`, `HOLO in the Nexus`, and `The Briefing` models share one sandboxed, offline Three.js renderer. Their original concepts came from the three standalone `holo-*.html` prototypes; the zoo stores their behavior as closed data rather than three copies of executable inline code.
+
+RAR publishes the summonable DOGG records at:
+
+```text
+https://raw.githubusercontent.com/kody-w/RAR/refs/heads/main/doggs/holograms/index.json
+```
+
+Choosing **Catch RAR bottle** downloads the small JSON record, verifies its SHA-256 from the allowlisted RAR index, validates that it contains no executable or remote content, and atomically stores it under `~/.rapp/holograms/rar/`. The local zoo owns all rendering.
+
+**Forge from RAPP frame** performs the full bottle loop:
+
+1. verify the eleven-key frame;
+2. dimension-match it against caught static DOGGs immediately;
+3. hotload that bottle with the frame as fresh `data_slosh`;
+4. let the app-owned Brainstem and `HologramForge` polish a new closed design;
+5. mint and catch the result under `~/.rapp/holograms/generated/`.
+
+The source tick stays immutable. Different bottles are different lenses over the same data; repeated calls can pour different slosh through the same bottle memory. Hotloading the same tick through two bottles never rewrites either the frame or either bottle.
+
+Because this UI receives one standalone frame rather than a stream repository,
+it accepts only registered, family-compatible genesis frames. Non-genesis
+segments are refused without their verified head and stream-of-record context;
+any present signature is refused unless the configured authenticated registry
+can verify it.
+
+Brainstem users can install `agents/hologram_dogg_agent.py` and say:
+
+> “List the hologram DOGGs in RAR, then summon `holo-avatar` into my local zoo.”
 
 ## Cartridges — drop-in tools for the ancestor brainstem
 
 The canonical extension pattern: drop a `*_agent.py` into `~/.brainstem/agents/`. The brainstem's loader picks it up at next boot. The LLM gets it as an OpenAI-style tool. Capability lives **inside the chat**, not in a separate CLI.
 
-Two cartridges ship in [`agents/`](./agents/):
+Four cartridges ship in [`agents/`](./agents/):
 
 | File | Tool name | What it does |
 |---|---|---|
 | [`agents/summon_twin_agent.py`](./agents/summon_twin_agent.py) | `SummonTwin` | Generate a fresh local twin instance with a valid mint-once RAPPID. |
 | [`agents/hatch_egg_agent.py`](./agents/hatch_egg_agent.py) | `HatchEgg` | Verify an organism egg, preserve its artifact identity, and mint a fresh instance identity linked by `grown_from`. |
+| [`agents/hologram_dogg_agent.py`](./agents/hologram_dogg_agent.py) | `HologramDOGG` | List and dimension-match RAR bottles, then catch a hash-verified record into the local zoo. |
+| [`agents/hologram_forge_agent.py`](./agents/hologram_forge_agent.py) | `HologramForge` | Validate Copilot-polished hologram designs against the closed bottle schema. |
 
 Install with one command (after running the rapp-installer):
 
 ```bash
 BRAINSTEM=~/.brainstem/src/rapp_brainstem
-cp agents/summon_twin_agent.py agents/hatch_egg_agent.py "$BRAINSTEM/agents/"
+cp agents/*_agent.py "$BRAINSTEM/agents/"
 cp utils/rapp_protocol.py "$BRAINSTEM/utils/"
 # restart the brainstem; the cartridges auto-load
 ```
@@ -118,6 +163,12 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 | `POST` | `/api/start`                 | `{instance_rappid}` — start one installation |
 | `POST` | `/api/stop`                  | `{instance_rappid}` — stop one installation |
 | `POST` | `/api/reveal`                | `{path}` — open workspace in OS file manager (path must be inside `~/.rapp/`) |
+| `GET`  | `/api/holograms`             | List bundled, RAR-caught, and generated bottles |
+| `GET`  | `/api/holograms/rar`         | Fetch and validate the public RAR bottle index |
+| `POST` | `/api/holograms/summon`      | Hash-verify and catch one data-only RAR bottle |
+| `GET`  | `/api/holograms/example-frame` | Build a verified example RAPP frame |
+| `POST` | `/api/holograms/match`       | Verify a frame and select the instant cached dimensional lens |
+| `POST` | `/api/holograms/generated`   | Validate and persist a polished generated bottle (desktop capability required) |
 
 ## Starter rapplications
 

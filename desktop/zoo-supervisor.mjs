@@ -149,29 +149,58 @@ export class ZooSupervisor extends EventEmitter {
     const logDir = path.join(this.userData, "logs");
     mkdirSync(logDir, { recursive: true });
     this.log = createWriteStream(path.join(logDir, "zoo.log"), { flags: "a" });
-    this.child = this.spawnImpl(python, [path.join(this.appRoot, "zoo.py")], {
-      cwd: this.appRoot,
-      env: {
-        ...process.env,
-        PYTHONUNBUFFERED: "1",
-        RAPP_ZOO_HOST: "127.0.0.1",
-        RAPP_ZOO_PORT: "7070",
-        RAPP_ZOO_DESKTOP_TOKEN: this.desktopToken,
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    let launchedChild;
+    try {
+      launchedChild = this.spawnImpl(
+        python,
+        [path.join(this.appRoot, "zoo.py")],
+        {
+          cwd: this.appRoot,
+          env: {
+            ...process.env,
+            PYTHONDONTWRITEBYTECODE: "1",
+            PYTHONUNBUFFERED: "1",
+            RAPP_ZOO_HOST: "127.0.0.1",
+            RAPP_ZOO_PORT: "7070",
+            RAPP_ZOO_DESKTOP_TOKEN: this.desktopToken,
+          },
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+    } catch (error) {
+      this.log.end();
+      this.log = null;
+      this.setState("failed");
+      throw error;
+    }
+    this.child = launchedChild;
+    let spawnError = null;
     this.owned = true;
-    this.child.stdout?.on("data", (chunk) => this.log?.write(chunk));
-    this.child.stderr?.on("data", (chunk) => this.log?.write(chunk));
-    this.child.on("exit", () => {
-      this.child = null;
+    launchedChild.once("error", (error) => {
+      spawnError = error;
+      if (this.child === launchedChild) this.child = null;
       this.trusted = false;
       this.owned = false;
-      if (this.currentState !== "stopped") this.setState("crashed");
+      this.log?.end();
+      this.log = null;
+      if (this.currentState !== "stopped") this.setState("failed");
+    });
+    launchedChild.stdout?.on("data", (chunk) => this.log?.write(chunk));
+    launchedChild.stderr?.on("data", (chunk) => this.log?.write(chunk));
+    launchedChild.on("exit", () => {
+      if (this.child === launchedChild) this.child = null;
+      this.trusted = false;
+      this.owned = false;
+      if (!["stopped", "failed"].includes(this.currentState)) {
+        this.setState("crashed");
+      }
     });
 
     const deadline = Date.now() + 60_000;
     while (Date.now() < deadline) {
+      if (spawnError) {
+        throw new Error(`The local zoo failed to start: ${spawnError.message}`);
+      }
       if (await healthy(this.fetchImpl, this.desktopToken)) {
         this.trusted = true;
         this.setState("ready");
@@ -180,6 +209,7 @@ export class ZooSupervisor extends EventEmitter {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
     await this.stop();
+    this.setState("failed");
     throw new Error("The local zoo did not become healthy within 60 seconds.");
   }
 

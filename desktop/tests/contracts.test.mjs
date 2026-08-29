@@ -21,9 +21,9 @@ test("prompt and context contracts are bounded", () => {
 test("desktop state declares the split desktop/mobile architecture", () => {
   const state = desktopState({
     zoo: { state: "ready" },
-    copilot: { available: true },
+    brainstem: { state: "ready", tools: ["HologramForge"] },
   });
   assert.equal(state.schema, DESKTOP_SCHEMA);
   assert.equal(state.mobile.installable_pwa, true);
-  assert.equal(state.mobile.intelligence_location, "desktop-host");
+  assert.equal(state.mobile.intelligence_location, "app-owned-brainstem");
 });

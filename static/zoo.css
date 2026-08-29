@@ -18,6 +18,7 @@
   --type-regular: #79c0ff;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body {
   margin: 0; padding: 0;
   background: var(--bg);
@@ -479,6 +480,68 @@ dialog .checkbox {
 }
 #copilot-input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
 
+.hologram-dialog {
+  width: min(1180px, calc(100vw - 24px));
+  max-width: none;
+  height: min(820px, calc(100vh - 24px));
+  overflow: hidden;
+  grid-template-rows: auto 1fr auto;
+  padding: 16px;
+}
+.hologram-dialog[open] { display: grid; }
+.hologram-viewer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 2px 4px 12px;
+}
+.hologram-viewer-head h3 { margin: 3px 0 0; font-size: 18px; }
+#hologram-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: #03070c;
+}
+.hologram-generate-dialog {
+  width: min(780px, calc(100vw - 24px));
+}
+#hologram-frame-input {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 11px 12px;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+#hologram-frame-input:focus {
+  outline: 1px solid var(--blue);
+  border-color: var(--blue);
+}
+.hologram-card-art {
+  position: relative;
+  overflow: hidden;
+}
+.hologram-card-art::after {
+  content: "";
+  position: absolute;
+  inset: 10% 24%;
+  border: 1px solid rgba(127, 212, 255, .7);
+  background: linear-gradient(180deg, rgba(127,212,255,.28), rgba(127,212,255,.03));
+  clip-path: polygon(50% 0, 78% 22%, 68% 72%, 88% 100%, 12% 100%, 32% 72%, 22% 22%);
+  filter: drop-shadow(0 0 15px rgba(127,212,255,.65));
+  animation: hologram-pulse 2.8s ease-in-out infinite;
+}
+@keyframes hologram-pulse {
+  0%, 100% { opacity: .58; transform: translateY(2px) scale(.98); }
+  50% { opacity: 1; transform: translateY(-2px) scale(1.02); }
+}
+
 @media (max-width: 640px) {
   header { padding-top: max(10px, env(safe-area-inset-top)); }
   .header-actions { gap: 4px; }
@@ -487,6 +550,16 @@ dialog .checkbox {
   nav.tabs { overflow-x: auto; justify-content: flex-start; }
   dialog { padding: 16px; }
   .copilot-dialog { height: calc(100vh - 16px); }
+  .hologram-dialog {
+    width: calc(100vw - 8px);
+    height: calc(100vh - 8px);
+    padding: 8px;
+  }
+  #hologram-frame { min-height: 0; }
+  .hologram-dialog .dialog-actions {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
 }
 
 /* ── Toast ──────────────────────────────────────────────────────────── */

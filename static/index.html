@@ -28,7 +28,7 @@
     <span class="sub">your local Pokédex of digital organisms</span>
   </h1>
   <div class="header-actions">
-    <button class="btn" id="btn-copilot" data-zoo-control="copilot.open" hidden>✦ Copilot</button>
+    <button class="btn" id="btn-copilot" data-zoo-control="brainstem.open" hidden>🧠 Brainstem</button>
     <button class="btn" id="btn-import" data-zoo-control="egg.import" title="Pick a .egg file to import">⤓ Import .egg</button>
     <input type="file" id="file-import" accept=".egg" style="display:none">
     <button class="btn" id="btn-refresh" data-zoo-control="collection.refresh">↻</button>
@@ -40,6 +40,7 @@
   <button class="tab is-active" data-tab="collection" data-zoo-control="nav.collection" role="tab">My collection</button>
   <button class="tab" data-tab="starters" data-zoo-control="nav.starters" role="tab">Starters</button>
   <button class="tab" data-tab="holocards" data-zoo-control="nav.holocards" role="tab">Holocards</button>
+  <button class="tab" data-tab="holograms" data-zoo-control="nav.holograms" role="tab">Holograms</button>
   <button class="tab" data-tab="discover" data-zoo-control="nav.discover" role="tab">Discover</button>
 </nav>
 
@@ -110,6 +111,21 @@
   <div id="holocards" class="cards-grid">Loading deck…</div>
 </section>
 
+<!-- ── Holograms ─────────────────────────────────────────────────────── -->
+<section class="tab-panel" id="panel-holograms" role="tabpanel">
+  <div class="starters-intro">
+    <h2>Hologram Bottle Rack <span class="muted small" id="holograms-count"></span></h2>
+    <p class="muted">
+      <strong>Character holograms</strong> are procedural 3D bodies seeded by identity.
+      <strong>Data holograms</strong> are volumetric projections bound to live zoo state.
+      Each variant is caught as a reusable bottle. Hotloading pours fresh
+      <code>data_slosh</code> through the bottle without changing its memory.
+    </p>
+    <button class="btn primary" id="hologram-generate" data-zoo-control="hologram.generate" hidden>✦ Forge from RAPP frame</button>
+  </div>
+  <div id="holograms" class="cards-grid">Loading projections…</div>
+</section>
+
 <!-- ── Discover ──────────────────────────────────────────────────────── -->
 <section class="tab-panel" id="panel-discover" role="tabpanel">
   <div class="starters-intro">
@@ -149,21 +165,64 @@
   </div>
 </dialog>
 
+<dialog id="hologram-dialog" class="hologram-dialog">
+  <div class="hologram-viewer-head">
+    <div>
+      <span id="hologram-viewer-kind" class="muted small">HOLOGRAM</span>
+      <h3 id="hologram-viewer-title">Projection</h3>
+    </div>
+    <span id="hologram-binding-status" class="pill">demo</span>
+  </div>
+  <iframe
+    id="hologram-frame"
+    title="RAPP Zoo hologram viewer"
+    sandbox="allow-scripts allow-same-origin"
+    referrerpolicy="no-referrer"
+    allow="fullscreen"
+  ></iframe>
+  <div class="dialog-actions">
+    <button class="btn" id="hologram-demo" data-zoo-control="hologram.demo">Demo data</button>
+    <button class="btn primary" id="hologram-bind" data-zoo-control="hologram.bind">Bind live zoo</button>
+    <button class="btn" id="hologram-fullscreen">Fullscreen</button>
+    <button class="btn" id="hologram-close">Close</button>
+  </div>
+</dialog>
+
+<dialog id="hologram-generate-dialog" class="hologram-generate-dialog">
+  <h3>Forge and catch a hologram bottle</h3>
+  <p>
+    A deterministic dimensional match is projected immediately. The app-owned
+    Brainstem then uses its agents and Copilot to polish a new variant from the
+    same bottle memory plus this frame's fresh <code>data_slosh</code>.
+  </p>
+  <textarea id="hologram-frame-input" rows="13" spellcheck="false" placeholder="Paste an exact RAPP/1 frame JSON object"></textarea>
+  <label class="checkbox">
+    <input id="hologram-randomize" type="checkbox" checked>
+    Generate a surprising new variant instead of a close adaptation
+  </label>
+  <div id="hologram-generate-status" class="muted small"></div>
+  <div class="dialog-actions">
+    <button class="btn" id="hologram-capture-frame">Capture live frame</button>
+    <button class="btn" id="hologram-generate-close">Close</button>
+    <button class="btn primary" id="hologram-generate-submit">Match → polish → catch</button>
+  </div>
+</dialog>
+
 <dialog id="copilot-dialog" class="copilot-dialog">
   <div class="copilot-head">
     <div>
-      <span class="muted small">LOCAL FRONTIER INTELLIGENCE</span>
-      <h3>Copilot CLI</h3>
+      <span class="muted small">APP-OWNED OPERATING ENGINE</span>
+      <h3>RAPP Brainstem · GitHub Copilot</h3>
     </div>
     <span id="copilot-status" class="pill">checking</span>
   </div>
   <div id="copilot-transcript" class="copilot-transcript" aria-live="polite"></div>
   <form id="copilot-form">
-    <textarea id="copilot-input" data-zoo-control="copilot.prompt" rows="4" maxlength="12000" placeholder="Ask about this local collection, its eggs, or the next safe action."></textarea>
+    <textarea id="copilot-input" data-zoo-control="brainstem.prompt" rows="4" maxlength="12000" placeholder="Ask the local Brainstem to inspect, build, operate, or use an installed agent."></textarea>
     <div class="dialog-actions">
-      <button type="button" class="btn" id="copilot-cancel" data-zoo-control="copilot.cancel" disabled>Cancel</button>
+      <button type="button" class="btn" id="copilot-cancel" data-zoo-control="brainstem.cancel" disabled>Cancel</button>
       <button type="button" class="btn" id="copilot-close">Close</button>
-      <button type="submit" class="btn primary" id="copilot-send" data-zoo-control="copilot.send">Ask Copilot</button>
+      <button type="submit" class="btn primary" id="copilot-send" data-zoo-control="brainstem.send">Run Brainstem</button>
     </div>
   </form>
 </dialog>

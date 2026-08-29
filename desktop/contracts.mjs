@@ -1,5 +1,4 @@
 export const DESKTOP_SCHEMA = "rapp-zoo-desktop/1.0";
-export const COPILOT_REQUEST_SCHEMA = "rapp-zoo-copilot-request/1.0";
 export const MAX_PROMPT_CHARS = 12_000;
 export const MAX_CONTEXT_BYTES = 64 * 1024;
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
@@ -29,14 +28,14 @@ export function validateContext(value) {
   return value;
 }
 
-export function desktopState({ zoo, copilot }) {
+export function desktopState({ zoo, brainstem }) {
   return {
     schema: DESKTOP_SCHEMA,
     zoo,
-    copilot,
+    brainstem,
     mobile: {
       installable_pwa: true,
-      intelligence_location: "desktop-host",
+      intelligence_location: "app-owned-brainstem",
     },
   };
 }

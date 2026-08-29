@@ -51,16 +51,20 @@ Routes:
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import pathlib
 import re
+import secrets
 import shutil
 import signal
 import subprocess
 import sys
 import time
+import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from flask import Flask, jsonify, request, send_from_directory, abort
@@ -69,6 +73,39 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _UTILS_DIR = os.path.join(_HERE, "utils")
 _STATIC_DIR = os.path.join(_HERE, "static")
+_HOLOGRAM_DIR = os.path.join(_HERE, "holograms")
+_RAR_HOLOGRAM_INDEX = (
+    "https://raw.githubusercontent.com/kody-w/RAR/refs/heads/main/"
+    "doggs/holograms/index.json"
+)
+_MAX_DOGG_BYTES = 256 * 1024
+APP_VERSION = "1.2.0"
+_FOUNDRY_URL = "http://127.0.0.1:7072"
+HOLOGRAM_GENERATOR_RAPPID = (
+    "rappid:@kody-w/hologram-generator:"
+    "21f419123bcb166e6fc46a43f53e63e5c8136005e7efcfb689bb80dbcc0453c2"
+)
+_DIMENSION_STOPWORDS = {
+    "and",
+    "body",
+    "create",
+    "current",
+    "dimensions",
+    "for",
+    "from",
+    "generated",
+    "hologram",
+    "holograms",
+    "pulse",
+    "query",
+    "rapp",
+    "request",
+    "schema",
+    "the",
+    "this",
+    "with",
+    "zoo",
+}
 
 # Vendored modules: egg.py + peer_registry.py + bond.py
 sys.path.insert(0, _UTILS_DIR)
@@ -168,6 +205,21 @@ def _signature_verifier():
     return rapp_protocol.signature_verifier_from_environment()
 
 
+def _verify_hologram_frame(frame: dict) -> tuple[bool, str | None, str]:
+    try:
+        trust = rapp_protocol.RegistryTrust.from_environment()
+    except rapp_protocol.ProtocolError as exc:
+        return False, "6", f"trusted registry unavailable: {exc}"
+    return rapp_protocol.verify_frame(
+        frame,
+        head=None,
+        kind_families=trust.kind_families if trust is not None else None,
+        signature_verifier=(
+            trust.verify_frame_signature if trust is not None else None
+        ),
+    )
+
+
 def _verified_egg(blob: bytes) -> dict:
     return rapp_protocol.inspect_egg(
         blob,
@@ -182,6 +234,410 @@ def _find_peer(instance_rappid: str) -> dict | None:
         if peer.get("rappid_uuid") == instance_rappid:
             return peer
     return None
+
+
+def _hologram_text(value, label: str, limit: int) -> str:
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or len(value) > limit
+        or value != unicodedata.normalize("NFC", value)
+    ):
+        raise ValueError(f"{label} must be bounded NFC text")
+    return value
+
+
+def _validate_hologram_scene(
+    kind: str,
+    scene: dict,
+    *,
+    allow_briefing: bool,
+) -> dict:
+    if not isinstance(scene, dict):
+        raise ValueError("hologram scene must be an object")
+    if kind == "character":
+        if set(scene) != {"title", "subtitle"}:
+            raise ValueError("character scene must contain exactly title and subtitle")
+        _hologram_text(scene["title"], "scene.title", 120)
+        _hologram_text(scene["subtitle"], "scene.subtitle", 240)
+        return scene
+
+    expected = {"prompt", "options"}
+    if allow_briefing and "briefing" in scene:
+        expected.add("briefing")
+    if set(scene) != expected:
+        raise ValueError(
+            "data projection scene must contain prompt, options, and only "
+            "an optional briefing"
+        )
+    _hologram_text(scene["prompt"], "scene.prompt", 300)
+    options = scene["options"]
+    if not isinstance(options, list) or len(options) != 3:
+        raise ValueError("data projection must contain exactly three options")
+    for option in options:
+        if not isinstance(option, dict) or set(option) != {"label", "value"}:
+            raise ValueError("each projection option must contain label and value")
+        _hologram_text(option["label"], "option.label", 100)
+        _hologram_text(option["value"], "option.value", 240)
+    if "briefing" in scene:
+        briefing = scene["briefing"]
+        if (
+            not isinstance(briefing, dict)
+            or set(briefing) != {"trust", "revision"}
+        ):
+            raise ValueError("scene.briefing must contain exactly trust and revision")
+        _hologram_text(briefing["trust"], "scene.briefing.trust", 40)
+        _hologram_text(briefing["revision"], "scene.briefing.revision", 40)
+    return scene
+
+
+def _validate_hologram_entry(entry: dict, *, remote: bool = False) -> dict:
+    if not isinstance(entry, dict):
+        raise ValueError("hologram entry must be an object")
+    hologram_id = entry.get("id")
+    if (
+        not isinstance(hologram_id, str)
+        or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", hologram_id)
+        or entry.get("kind") not in {"character", "data-projection"}
+        or entry.get("engine") != "three-r128"
+        or not rapp_protocol.rappid_valid(entry.get("rappid"))
+        or not re.fullmatch(r"[0-9a-f]{64}", entry.get("default_seed", ""))
+        or entry.get("accent") not in {"violet", "cyan", "ice"}
+        or entry.get("data_binding") not in {"identity-seed", "live-zoo"}
+        or entry.get("bottle") is not True
+        or not isinstance(entry.get("dimensions"), list)
+        or not entry.get("dimensions")
+        or len(entry["dimensions"]) > 32
+        or len(entry["dimensions"]) != len(set(entry["dimensions"]))
+        or not all(
+            isinstance(value, str)
+            and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value)
+            for value in entry["dimensions"]
+        )
+    ):
+        raise ValueError("invalid hologram catalog entry")
+    _hologram_text(entry.get("name"), "hologram name", 60)
+    _hologram_text(entry.get("description"), "hologram description", 500)
+    _hologram_text(entry.get("version"), "hologram version", 40)
+    _validate_hologram_scene(
+        entry["kind"],
+        entry.get("scene"),
+        allow_briefing=True,
+    )
+    if remote:
+        expected = {
+            "schema",
+            "id",
+            "rappid",
+            "name",
+            "kind",
+            "bottle",
+            "dimensions",
+            "version",
+            "engine",
+            "minimum_zoo_version",
+            "description",
+            "source_file",
+            "default_seed",
+            "accent",
+            "data_binding",
+            "scene",
+            "summon",
+        }
+        if set(entry) != expected or entry.get("schema") != "rar-hologram-dogg/1.0":
+            raise ValueError("remote hologram DOGG has an unknown or missing member")
+        if entry.get("summon") != {
+            "adapter": "rapp-zoo",
+            "endpoint": "/api/holograms/summon",
+        }:
+            raise ValueError("remote hologram DOGG has an unsupported summon adapter")
+        encoded = json.dumps(entry, ensure_ascii=False).lower()
+        if any(
+            forbidden in encoded
+            for forbidden in ("<script", "javascript:", "http://", "https://", "eval(")
+        ):
+            raise ValueError("remote hologram DOGG contains executable or remote content")
+    return entry
+
+
+def _installed_hologram_dir() -> str:
+    return os.path.join(rapp_home(), "holograms", "rar")
+
+
+def _generated_hologram_dir() -> str:
+    return os.path.join(rapp_home(), "holograms", "generated")
+
+
+def _write_json_exclusive(destination: str, value: dict) -> None:
+    temporary = f"{destination}.tmp-{secrets.token_hex(12)}"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    descriptor = os.open(temporary, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temporary, destination)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def _hologram_catalog() -> dict:
+    path = os.path.join(_HOLOGRAM_DIR, "catalog.json")
+    with open(path, "r", encoding="utf-8") as handle:
+        catalog = json.load(handle)
+    if catalog.get("schema") != "rapp-zoo-holograms/1.0":
+        raise ValueError("unsupported hologram catalog schema")
+    entries = catalog.get("holograms")
+    if not isinstance(entries, list):
+        raise ValueError("hologram catalog must contain an array")
+    seen = set()
+    for entry in entries:
+        _validate_hologram_entry(entry)
+        hologram_id = entry["id"]
+        if hologram_id in seen:
+            raise ValueError("duplicate hologram catalog entry")
+        entry["source"] = "bundled"
+        entry["rar_notarized"] = False
+        seen.add(hologram_id)
+    installed = _installed_hologram_dir()
+    if os.path.isdir(installed):
+        for filename in sorted(os.listdir(installed)):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(installed, filename), "r", encoding="utf-8") as handle:
+                record = _validate_hologram_entry(json.load(handle), remote=True)
+            normalized = {
+                key: value
+                for key, value in record.items()
+                if key not in {"schema", "minimum_zoo_version", "summon"}
+            }
+            normalized["source"] = "rar"
+            normalized["rar_notarized"] = True
+            if normalized["id"] in seen:
+                entries = [
+                    normalized if entry["id"] == normalized["id"] else entry
+                    for entry in entries
+                ]
+            else:
+                entries.append(normalized)
+                seen.add(normalized["id"])
+    generated = _generated_hologram_dir()
+    if os.path.isdir(generated):
+        for filename in sorted(os.listdir(generated)):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(generated, filename), "r", encoding="utf-8") as handle:
+                record = json.load(handle)
+            if (
+                not isinstance(record, dict)
+                or set(record) != {"schema", "source_frame", "hologram"}
+                or record.get("schema") != "rapp-zoo-generated-hologram/1.0"
+            ):
+                raise ValueError("invalid generated hologram record")
+            entry = _validate_hologram_entry(record["hologram"])
+            retained_dimensions = [
+                value
+                for value in entry["dimensions"]
+                if value not in _DIMENSION_STOPWORDS
+            ]
+            if retained_dimensions:
+                entry["dimensions"] = retained_dimensions
+            entry["source"] = "copilot"
+            entry["rar_notarized"] = False
+            if entry["id"] in seen:
+                raise ValueError("generated hologram id collides with the catalog")
+            entries.append(entry)
+            seen.add(entry["id"])
+    return {
+        "schema": catalog["schema"],
+        "rar_catalog_url": os.environ.get(
+            "RAR_HOLOGRAM_INDEX_URL", _RAR_HOLOGRAM_INDEX
+        ),
+        "holograms": entries,
+    }
+
+
+def _hologram_entry(hologram_id: str) -> dict | None:
+    return next(
+        (
+            entry
+            for entry in _hologram_catalog()["holograms"]
+            if entry["id"] == hologram_id
+        ),
+        None,
+    )
+
+
+def _fetch_dogg_bytes(url: str) -> bytes:
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "rapp-zoo-hologram-dogg/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        content = response.read(_MAX_DOGG_BYTES + 1)
+    if len(content) > _MAX_DOGG_BYTES:
+        raise ValueError("RAR hologram DOGG exceeds the byte limit")
+    return content
+
+
+def _rar_hologram_index() -> dict:
+    url = os.environ.get("RAR_HOLOGRAM_INDEX_URL", _RAR_HOLOGRAM_INDEX)
+    index = json.loads(_fetch_dogg_bytes(url).decode("utf-8"))
+    if (
+        index.get("schema") != "rar-hologram-dogg-index/1.0"
+        or not isinstance(index.get("entries"), list)
+    ):
+        raise ValueError("RAR hologram index schema is unsupported")
+    seen = set()
+    for entry in index["entries"]:
+        expected = {
+            "id",
+            "rappid",
+            "name",
+            "kind",
+            "bottle",
+            "dimensions",
+            "version",
+            "record_url",
+            "record_sha256",
+        }
+        if (
+            not isinstance(entry, dict)
+            or set(entry) != expected
+            or entry["id"] in seen
+            or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", entry["id"])
+            or entry["kind"] not in {"character", "data-projection"}
+            or entry["bottle"] is not True
+            or not isinstance(entry["dimensions"], list)
+            or not entry["dimensions"]
+            or not all(
+                isinstance(value, str)
+                and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value)
+                for value in entry["dimensions"]
+            )
+            or not rapp_protocol.rappid_valid(entry["rappid"])
+            or not re.fullmatch(r"[0-9a-f]{64}", entry["record_sha256"])
+        ):
+            raise ValueError("RAR hologram index contains an invalid entry")
+        parsed = urllib.parse.urlparse(entry["record_url"])
+        expected_path = f"/kody-w/RAR/main/doggs/holograms/{entry['id']}.json"
+        if (
+            parsed.scheme != "https"
+            or parsed.netloc != "raw.githubusercontent.com"
+            or parsed.path != expected_path
+            or parsed.params
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("RAR hologram record URL is outside the allowlist")
+        seen.add(entry["id"])
+    return index
+
+
+def _validate_hologram_design(design: dict) -> dict:
+    expected = {"name", "kind", "accent", "description", "scene"}
+    if not isinstance(design, dict) or set(design) != expected:
+        raise ValueError("Copilot hologram design has unknown or missing members")
+    if design["kind"] not in {"character", "data-projection"}:
+        raise ValueError("Copilot hologram kind is unsupported")
+    if design["accent"] not in {"violet", "cyan", "ice"}:
+        raise ValueError("Copilot hologram accent is unsupported")
+    _hologram_text(design["name"], "Copilot hologram name", 60)
+    _hologram_text(
+        design["description"],
+        "Copilot hologram description",
+        500,
+    )
+    _validate_hologram_scene(
+        design["kind"],
+        design["scene"],
+        allow_briefing=False,
+    )
+    encoded = json.dumps(design, ensure_ascii=False).lower()
+    if any(
+        forbidden in encoded
+        for forbidden in (
+            "<script",
+            "javascript:",
+            "http://",
+            "https://",
+            "shader",
+            "eval(",
+        )
+    ):
+        raise ValueError("Copilot hologram design contains executable or remote content")
+    return design
+
+
+def _desktop_capability_valid() -> bool:
+    expected = os.environ.get("RAPP_ZOO_DESKTOP_TOKEN")
+    supplied = request.headers.get("X-RAPP-Zoo-Desktop", "")
+    return bool(expected and hmac.compare_digest(expected, supplied))
+
+
+def _frame_tokens(frame: dict, query: str = "") -> set[str]:
+    tokens = set(
+        re.findall(
+            r"[a-z0-9]+",
+            f"{frame.get('kind', '')} {query}".lower(),
+        )
+    )
+
+    def visit(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                tokens.update(re.findall(r"[a-z0-9]+", str(key).lower()))
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+        elif isinstance(value, str):
+            tokens.update(re.findall(r"[a-z0-9]+", value.lower()))
+
+    visit(frame.get("payload"))
+    return {
+        token
+        for token in tokens
+        if len(token) >= 3 and token not in _DIMENSION_STOPWORDS
+    }
+
+
+def _match_hologram(frame: dict, query: str = "") -> dict:
+    entries = _hologram_catalog()["holograms"]
+    tokens = _frame_tokens(frame, query)
+    ranked = []
+    for entry in entries:
+        matches = sorted(set(entry["dimensions"]) & tokens)
+        score = len(matches) * 4
+        for dimension in entry["dimensions"]:
+            if any(
+                dimension in token or token in dimension
+                for token in tokens
+                if token != dimension
+            ):
+                score += 1
+        ranked.append((score, entry["id"], matches, entry))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    score, _, matches, entry = ranked[0]
+    mode = "dimensional"
+    if score == 0:
+        index = int(frame["frame_hash"][:8], 16) % len(entries)
+        entry = sorted(entries, key=lambda item: item["id"])[index]
+        mode = "nearest-static"
+    return {
+        "schema": "rapp-zoo-hologram-match/1.0",
+        "mode": mode,
+        "score": score,
+        "matched_dimensions": matches,
+        "tokens": sorted(tokens)[:64],
+        "hologram": entry,
+    }
 
 
 # ── Flask app ───────────────────────────────────────────────────────────
@@ -238,7 +694,9 @@ def create_app() -> Flask:
             "img-src 'self' data:; "
             "connect-src 'self' http://127.0.0.1:* http://localhost:* "
             "https://raw.githubusercontent.com; "
-            "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+            "frame-src 'self' http://hologram.localhost:7070; "
+            "object-src 'none'; base-uri 'self'; "
+            "frame-ancestors 'self'",
         )
         return response
 
@@ -248,6 +706,7 @@ def create_app() -> Flask:
         live_count = sum(1 for p in peers if _probe_health(p.get("port") or 0)["live"])
         response = jsonify({
             "name": "rapp-zoo",
+            "version": APP_VERSION,
             "status": "ok",
             "rapp_home": rapp_home(),
             "peer_count": len(peers),
@@ -316,6 +775,7 @@ def create_app() -> Flask:
                         })
                     except Exception:
                         continue
+        holograms = _hologram_catalog()["holograms"]
         return jsonify({
             "schema": "rapp-zoo-intelligence-context/1.0",
             "health": {
@@ -324,6 +784,7 @@ def create_app() -> Flask:
                     len(item["instances"]) for item in lineages
                 ),
                 "egg_count": len(egg_summaries),
+                "hologram_count": len(holograms),
             },
             "lineages": lineages,
             "eggs": egg_summaries,
@@ -331,12 +792,278 @@ def create_app() -> Flask:
                 "nav.collection",
                 "nav.starters",
                 "nav.holocards",
+                "nav.holograms",
                 "nav.discover",
                 "collection.refresh",
                 "egg.import",
-                "copilot.open",
+                "brainstem.open",
+                "hologram.generate",
+                "hologram.hotload",
             ],
         }), 200
+
+    @app.route("/api/holograms")
+    def hologram_catalog():
+        catalog = _hologram_catalog()
+        catalog["zoo_version"] = APP_VERSION
+        return jsonify(catalog), 200
+
+    @app.route("/api/holograms/<hologram_id>")
+    def hologram_metadata(hologram_id: str):
+        entry = _hologram_entry(hologram_id)
+        if entry is None:
+            return jsonify({"error": "unknown hologram"}), 404
+        return jsonify(entry), 200
+
+    @app.route("/api/holograms/example-frame")
+    def hologram_example_frame():
+        payload = {
+            "schema": "rapp-zoo-hologram-request/1.0",
+            "query": "Create a living briefing character for the current estate.",
+            "dimensions": [
+                "briefing",
+                "status",
+                "census",
+                "character",
+            ],
+            "zoo": {
+                "lineages": len(peer_registry.group_by_lineage()),
+                "holograms": len(_hologram_catalog()["holograms"]),
+            },
+        }
+        frame = rapp_protocol.build_frame(
+            "body.pulse",
+            HOLOGRAM_GENERATOR_RAPPID,
+            0,
+            rapp_protocol.utc_now_ms(),
+            payload,
+            None,
+        )
+        return jsonify(frame), 200
+
+    @app.route("/api/holograms/match", methods=["POST"])
+    def match_hologram():
+        body = request.get_json(silent=True) or {}
+        frame = body.get("frame")
+        query = body.get("query") or ""
+        if not isinstance(query, str) or len(query) > 2000:
+            return jsonify({"error": "query must be bounded text"}), 400
+        ok, step, why = _verify_hologram_frame(frame)
+        if not ok:
+            return jsonify({"error": f"RAPP frame refused at {step}: {why}"}), 422
+        return jsonify(_match_hologram(frame, query)), 200
+
+    @app.route("/api/holograms/generated", methods=["POST"])
+    def store_generated_hologram():
+        if not _desktop_capability_valid():
+            return jsonify({"error": "desktop Brainstem capability required"}), 403
+        body = request.get_json(silent=True) or {}
+        frame = body.get("frame")
+        randomize = body.get("randomize", True)
+        try:
+            if not isinstance(randomize, bool):
+                raise ValueError("randomize must be boolean")
+            ok, step, why = _verify_hologram_frame(frame)
+            if not ok:
+                raise ValueError(f"RAPP frame refused at {step}: {why}")
+            design = _validate_hologram_design(body.get("design"))
+            dimensional_match = _match_hologram(
+                frame, design["description"]
+            )
+            slug = rapp_protocol.slugify(design["name"])
+            directory = _generated_hologram_dir()
+            owner = rapp_protocol.require_owner(default="kody-w")
+            dimensions = sorted(
+                {
+                    design["kind"].replace("-projection", ""),
+                    design["accent"],
+                    *_frame_tokens(frame),
+                }
+            )[:32]
+            os.makedirs(directory, exist_ok=True)
+            for _ in range(8 if randomize else 1):
+                entropy = secrets.token_bytes(32) if randomize else b""
+                seed = hashlib.sha256(
+                    b"rapp-zoo:hologram\n"
+                    + bytes.fromhex(frame["frame_hash"])
+                    + entropy
+                    + rapp_protocol.canonical(design).encode("utf-8")
+                ).hexdigest()
+                hologram_id = f"generated-{slug}-{seed[:24]}"
+                destination = os.path.join(directory, f"{hologram_id}.json")
+                if os.path.exists(destination):
+                    if randomize:
+                        continue
+                    with open(destination, "r", encoding="utf-8") as handle:
+                        existing = json.load(handle)
+                    existing_hologram = existing.get("hologram") or {}
+                    existing_source = existing.get("source_frame") or {}
+                    if (
+                        existing_hologram.get("default_seed") == seed
+                        and existing_source.get("frame_hash") == frame["frame_hash"]
+                    ):
+                        return jsonify({
+                            "ok": True,
+                            "hologram": existing_hologram,
+                            "match": dimensional_match,
+                            "reused": True,
+                        }), 200
+                    raise ValueError("deterministic hologram id collision")
+                entry = {
+                    "id": hologram_id,
+                    "rappid": rapp_protocol.mint_rappid(owner, hologram_id),
+                    "name": design["name"].strip(),
+                    "kind": design["kind"],
+                    "version": "1.0.0",
+                    "engine": "three-r128",
+                    "description": design["description"].strip(),
+                    "source_file": "copilot-generated",
+                    "default_seed": seed,
+                    "accent": design["accent"],
+                    "data_binding": (
+                        "identity-seed"
+                        if design["kind"] == "character"
+                        else "live-zoo"
+                    ),
+                    "bottle": True,
+                    "dimensions": dimensions,
+                    "scene": design["scene"],
+                    "generation": {
+                        "brainstem": _FOUNDRY_URL,
+                        "source_frame_hash": frame["frame_hash"],
+                        "source_payload_hash": frame["payload_hash"],
+                        "randomized": randomize,
+                        "created_utc": rapp_protocol.utc_now_ms(),
+                    },
+                }
+                _validate_hologram_entry(entry)
+                record = {
+                    "schema": "rapp-zoo-generated-hologram/1.0",
+                    "source_frame": {
+                        key: frame[key]
+                        for key in (
+                            "spec",
+                            "kind",
+                            "stream_id",
+                            "seq",
+                            "utc",
+                            "payload_hash",
+                            "frame_hash",
+                        )
+                    },
+                    "hologram": entry,
+                }
+                try:
+                    _write_json_exclusive(destination, record)
+                except FileExistsError:
+                    if randomize:
+                        continue
+                    raise ValueError("deterministic hologram id collision")
+                break
+            else:
+                raise ValueError("could not allocate a unique randomized hologram id")
+        except Exception as exc:
+            return jsonify({"error": f"generated hologram refused: {exc}"}), 422
+        return jsonify({
+            "ok": True,
+            "hologram": entry,
+            "match": dimensional_match,
+        }), 200
+
+    @app.route("/api/holograms/rar")
+    def rar_holograms():
+        try:
+            index = _rar_hologram_index()
+        except Exception as exc:
+            return jsonify({"error": f"RAR hologram catalog unavailable: {exc}"}), 502
+        return jsonify(index), 200
+
+    @app.route("/api/holograms/summon", methods=["POST"])
+    def summon_hologram():
+        body = request.get_json(silent=True) or {}
+        hologram_id = body.get("id")
+        if not isinstance(hologram_id, str) or not re.fullmatch(
+            r"[a-z0-9]+(?:-[a-z0-9]+)*", hologram_id
+        ):
+            return jsonify({"error": "a valid hologram id is required"}), 400
+        try:
+            index = _rar_hologram_index()
+            indexed = next(
+                entry for entry in index["entries"] if entry["id"] == hologram_id
+            )
+        except StopIteration:
+            return jsonify({"error": "hologram is not present in the RAR DOGG index"}), 404
+        except Exception as exc:
+            return jsonify({"error": f"RAR hologram catalog unavailable: {exc}"}), 502
+        try:
+            record_bytes = _fetch_dogg_bytes(indexed["record_url"])
+            actual = hashlib.sha256(record_bytes).hexdigest()
+            if actual != indexed["record_sha256"]:
+                raise ValueError(
+                    f"record hash mismatch: expected {indexed['record_sha256']}, got {actual}"
+                )
+            record = _validate_hologram_entry(
+                json.loads(record_bytes.decode("utf-8")),
+                remote=True,
+            )
+            if any(
+                record[field] != indexed[field]
+                for field in (
+                    "id",
+                    "rappid",
+                    "name",
+                    "kind",
+                    "bottle",
+                    "dimensions",
+                    "version",
+                )
+            ):
+                raise ValueError("RAR index and hologram record disagree")
+            destination_dir = _installed_hologram_dir()
+            os.makedirs(destination_dir, exist_ok=True)
+            destination = os.path.join(destination_dir, f"{hologram_id}.json")
+            temporary = destination + ".tmp"
+            with open(temporary, "wb") as handle:
+                handle.write(record_bytes)
+            os.replace(temporary, destination)
+        except Exception as exc:
+            return jsonify({"error": f"hologram DOGG refused: {exc}"}), 422
+        return jsonify({
+            "ok": True,
+            "id": record["id"],
+            "rappid": record["rappid"],
+            "record_sha256": actual,
+            "installed_path": destination,
+        }), 200
+
+    @app.route("/holograms/<hologram_id>")
+    def hologram_viewer(hologram_id: str):
+        entry = _hologram_entry(hologram_id)
+        if entry is None:
+            return jsonify({"error": "unknown hologram"}), 404
+        template_path = os.path.join(_HOLOGRAM_DIR, "viewer.html")
+        with open(template_path, "r", encoding="utf-8") as handle:
+            template = handle.read()
+        encoded = json.dumps(
+            entry,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).replace("</", "<\\/")
+        nonce = secrets.token_urlsafe(24)
+        response = app.response_class(
+            template
+            .replace("__HOLOGRAM_CONFIG__", encoded)
+            .replace("__HOLOGRAM_NONCE__", nonce),
+            mimetype="text/html",
+        )
+        response.headers["Content-Security-Policy"] = (
+            f"default-src 'none'; script-src 'nonce-{nonce}'; "
+            f"style-src 'nonce-{nonce}'; "
+            "img-src data:; connect-src 'none'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'self' "
+            "http://127.0.0.1:7070 http://localhost:7070 http://[::1]:7070"
+        )
+        return response
 
     @app.route("/api/twins")
     def list_twins():

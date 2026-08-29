@@ -1,6 +1,7 @@
 """RAPP/1 rev-6 protocol primitives used by rapp-zoo.
 
-This module is the single implementation boundary for RAPP identities and eggs.
+This module is the single implementation boundary for RAPP identities, frames,
+and eggs.
 It is dependency-free unless detached JWS signing or verification is requested,
 in which case the optional ``cryptography`` package is loaded lazily.
 """
@@ -47,6 +48,19 @@ EGG_MANIFEST_KEYS = {
     "payload",
     "sig",
 }
+FRAME_KEYS = {
+    "spec",
+    "kind",
+    "stream_id",
+    "seq",
+    "utc",
+    "payload",
+    "payload_hash",
+    "frame_hash",
+    "prev",
+    "prev_wave",
+    "sig",
+}
 
 MAX_CANONICAL_BYTES = 1024 * 1024
 MAX_JSON_DEPTH = 64
@@ -62,8 +76,30 @@ _RAPPID = re.compile(
     r"^rappid:@([a-z0-9]+(?:-[a-z0-9]+)*)/"
     r"([a-z0-9]+(?:-[a-z0-9]+)*):([0-9a-f]{64})$"
 )
+_KIND = re.compile(
+    r"^[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z0-9]+(?:-[a-z0-9]+)*$"
+)
 
 SignatureVerifier = Callable[[dict, str, bool], tuple[bool, str]]
+FrameSignatureVerifier = Callable[[dict, str], tuple[bool, str]]
+# Rev-6 kinds named by the pinned specification; authenticated registries can
+# supply a larger append-only mapping to verify estate-specific extensions.
+CORE_KIND_FAMILIES = {
+    "memory.chat-turn": "memory",
+    "memory.tool-call": "memory",
+    "memory.save": "memory",
+    "memory.reconstructed": "memory",
+    "memory.re-genesis": "memory",
+    "swarm.guidance": "swarm",
+    "swarm.echo": "swarm",
+    "swarm.telemetry": "swarm",
+    "swarm.reconstructed": "swarm",
+    "swarm.re-genesis": "swarm",
+    "body.pulse": "body",
+    "body.twin-pulse": "body",
+    "body.reconstructed": "body",
+    "body.re-genesis": "body",
+}
 
 
 class ProtocolError(ValueError):
@@ -268,6 +304,200 @@ def utc_valid(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _stream_id_valid(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    if value.startswith("net:"):
+        return lclabel_valid(value[4:], 64)
+    if rappid_valid(value):
+        return True
+    if ":" not in value:
+        return False
+    rappid, instance = value.rsplit(":", 1)
+    return rappid_valid(rappid) and lclabel_valid(instance, 64)
+
+
+def _stream_family(value: str) -> Optional[str]:
+    if value.startswith("net:"):
+        return "swarm"
+    if rappid_valid(value):
+        return "body"
+    if ":" in value:
+        rappid, instance = value.rsplit(":", 1)
+        if rappid_valid(rappid) and lclabel_valid(instance, 64):
+            return "memory"
+    return None
+
+
+def build_frame(
+    kind: str,
+    stream_id: str,
+    seq: int,
+    utc: str,
+    payload: dict,
+    prev: Optional[str],
+    *,
+    prev_wave: Optional[str] = None,
+    sig: Optional[str] = None,
+    head: Optional[dict] = None,
+    kind_families: Optional[Mapping[str, str]] = None,
+    signature_verifier: Optional[FrameSignatureVerifier] = None,
+) -> dict:
+    if not _KIND.fullmatch(kind or ""):
+        raise ProtocolError("frame kind is invalid")
+    if not _stream_id_valid(stream_id):
+        raise ProtocolError("frame stream_id is invalid")
+    if not (
+        isinstance(seq, int)
+        and not isinstance(seq, bool)
+        and 0 <= seq <= 2**53 - 1
+    ):
+        raise ProtocolError("frame seq must be uint53")
+    if not utc_valid(utc) or not isinstance(payload, dict):
+        raise ProtocolError("frame utc or payload is invalid")
+    payload_hash = H("rapp/1:particle", payload)
+    frame = {
+        "spec": SPEC,
+        "kind": kind,
+        "stream_id": stream_id,
+        "seq": seq,
+        "utc": utc,
+        "payload": payload,
+        "payload_hash": payload_hash,
+        "frame_hash": "",
+        "prev": prev,
+        "prev_wave": prev_wave,
+        "sig": sig,
+    }
+    preimage = {
+        key: value
+        for key, value in frame.items()
+        if key not in {"frame_hash", "sig"}
+    }
+    frame["frame_hash"] = H("rapp/1:wave", preimage)
+    ok, step, why = verify_frame(
+        frame,
+        head=head,
+        stream_id_of_record=stream_id,
+        kind_families=kind_families,
+        signature_verifier=signature_verifier,
+    )
+    if not ok:
+        raise ProtocolError(f"frame producer refusal at {step}: {why}")
+    return frame
+
+
+def verify_frame(
+    frame: dict,
+    *,
+    head: Optional[dict] = None,
+    stream_id_of_record: Optional[str] = None,
+    kind_families: Optional[Mapping[str, str]] = None,
+    signature_verifier: Optional[FrameSignatureVerifier] = None,
+) -> tuple[bool, Optional[str], str]:
+    if not isinstance(frame, dict) or set(frame) != FRAME_KEYS:
+        return False, "1", "frame must contain exactly eleven keys"
+    if (
+        frame["spec"] != SPEC
+        or not isinstance(frame["kind"], str)
+        or not _KIND.fullmatch(frame["kind"])
+        or not _stream_id_valid(frame["stream_id"])
+        or not isinstance(frame["payload"], dict)
+        or not utc_valid(frame["utc"])
+    ):
+        return False, "1", "frame shape or grammar is invalid"
+    registered_kinds = (
+        CORE_KIND_FAMILIES if kind_families is None else kind_families
+    )
+    family = registered_kinds.get(frame["kind"])
+    if family not in {"memory", "swarm", "body"}:
+        return False, "1", "frame kind is not registered"
+    if _stream_family(frame["stream_id"]) != family:
+        return False, "1", "frame kind family is incompatible with stream_id"
+    if not (
+        isinstance(frame["seq"], int)
+        and not isinstance(frame["seq"], bool)
+        and 0 <= frame["seq"] <= 2**53 - 1
+    ):
+        return False, "1", "frame seq is not uint53"
+    for key in ("payload_hash", "frame_hash"):
+        if not isinstance(frame[key], str) or not _HEX64.fullmatch(frame[key]):
+            return False, "1", f"{key} is not 64 lowercase hex"
+    for key in ("prev", "prev_wave"):
+        if frame[key] is not None and (
+            not isinstance(frame[key], str)
+            or not _HEX64.fullmatch(frame[key])
+        ):
+            return False, "1", f"{key} must be null or 64 lowercase hex"
+    if frame["sig"] is not None:
+        if not isinstance(frame["sig"], str):
+            return False, "1", "sig must be null or a detached JWS"
+        try:
+            parse_detached_jws(frame["sig"])
+        except ProtocolError as exc:
+            return False, "1", f"sig is not a conformant detached JWS: {exc}"
+    if (
+        stream_id_of_record is not None
+        and frame["stream_id"] != stream_id_of_record
+    ):
+        return False, "1a", "stream_id does not match the stream of record"
+    if head is not None and stream_id_of_record is None:
+        return False, "1a", "non-genesis verification requires a stream of record"
+    try:
+        if frame["payload_hash"] != H("rapp/1:particle", frame["payload"]):
+            return False, "2", "payload_hash mismatch"
+        preimage = {
+            key: value
+            for key, value in frame.items()
+            if key not in {"frame_hash", "sig"}
+        }
+        if frame["frame_hash"] != H("rapp/1:wave", preimage):
+            return False, "3", "frame_hash mismatch"
+    except ProtocolError as exc:
+        return False, "1", str(exc)
+    if head is not None and (
+        not isinstance(head, dict)
+        or head.get("stream_id") != frame["stream_id"]
+        or not isinstance(head.get("seq"), int)
+        or isinstance(head.get("seq"), bool)
+        or not isinstance(head.get("payload_hash"), str)
+        or not _HEX64.fullmatch(head["payload_hash"])
+        or not isinstance(head.get("frame_hash"), str)
+        or not _HEX64.fullmatch(head["frame_hash"])
+        or not utc_valid(head.get("utc"))
+    ):
+        return False, "4", "supplied head is invalid or belongs to another stream"
+    if head is None:
+        if frame["seq"] != 0 or frame["prev"] is not None:
+            return False, "4", "genesis must be seq 0 with prev null"
+    else:
+        if (
+            frame["seq"] != head["seq"] + 1
+            or frame["prev"] != head["payload_hash"]
+            or frame["utc"] < head["utc"]
+        ):
+            return False, "4", "frame does not extend the supplied head"
+    is_swarm = frame["stream_id"].startswith("net:")
+    if is_swarm and frame["seq"] > 0:
+        if head is not None and frame["prev_wave"] != head["frame_hash"]:
+            return False, "5", "swarm prev_wave mismatch"
+    elif frame["prev_wave"] is not None:
+        return False, "5", "prev_wave must be null outside non-genesis swarm frames"
+    if is_swarm and frame["sig"] is None:
+        return False, "6", "swarm frame must be signed"
+    if frame["sig"] is not None:
+        if signature_verifier is None:
+            return False, "6", "signed frame cannot be verified without trusted registry material"
+        unsigned = {key: value for key, value in frame.items() if key != "sig"}
+        try:
+            ok, why = signature_verifier(unsigned, frame["sig"])
+        except Exception as exc:
+            return False, "6", f"frame signature verifier failed: {exc}"
+        if not ok:
+            return False, "6", why
+    return True, None, "ok"
 
 
 def _path_valid(path: str) -> bool:
@@ -879,7 +1109,24 @@ class RegistryTrust:
         self.registry_seq = seq
         self.estate_owner = trust_anchor_rappid
         self.keys: dict[str, bytes] = {}
+        self.kind_families: dict[str, str] = {}
         for entry in entries:
+            if entry.get("type") == "kind":
+                if (
+                    set(entry) != {"type", "kind", "family", "deprecated"}
+                    or not isinstance(entry.get("kind"), str)
+                    or not _KIND.fullmatch(entry["kind"])
+                    or entry.get("family") not in {"memory", "swarm", "body"}
+                    or not isinstance(entry.get("deprecated"), bool)
+                ):
+                    raise ProtocolError("registry contains an invalid kind entry")
+                if not entry["deprecated"]:
+                    if entry["kind"] in self.kind_families:
+                        raise ProtocolError(
+                            f"registry repeats active kind {entry['kind']}"
+                        )
+                    self.kind_families[entry["kind"]] = entry["family"]
+                continue
             if entry.get("type") != "spki":
                 continue
             rappid = entry.get("rappid")
@@ -998,6 +1245,30 @@ class RegistryTrust:
             if entry["old_rappid"] == kid and created_utc >= entry["utc"]:
                 return False, f"JWS kid was superseded at {entry['utc']}"
         return verify_detached_jws(unsigned_manifest, sig, spki, expected_kid=kid)
+
+    def verify_frame_signature(
+        self,
+        unsigned_frame: dict,
+        sig: str,
+    ) -> tuple[bool, str]:
+        try:
+            header, _, _ = parse_detached_jws(sig)
+        except ProtocolError as exc:
+            return False, str(exc)
+        kid = header["kid"]
+        frame_utc = unsigned_frame.get("utc")
+        if not utc_valid(frame_utc):
+            return False, "signed frame has no valid utc"
+        spki = self.keys.get(kid)
+        if spki is None:
+            return False, f"JWS kid is absent from the verified registry: {kid}"
+        for entry in self.tombstones:
+            if entry["rappid"] == kid and frame_utc >= entry["revoked_utc"]:
+                return False, f"JWS kid was revoked at {entry['revoked_utc']}"
+        for entry in self.reanchors:
+            if entry["old_rappid"] == kid and frame_utc >= entry["utc"]:
+                return False, f"JWS kid was superseded at {entry['utc']}"
+        return verify_detached_jws(unsigned_frame, sig, spki, expected_kid=kid)
 
     @classmethod
     def from_environment(cls) -> Optional["RegistryTrust"]:
