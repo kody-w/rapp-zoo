@@ -101,7 +101,16 @@ def build_turn(
     channel_enabled: bool = True,
     turn_latency_ms: int | None = 120,
     deadline_ms: int | None = 30_000,
+    wake_lease_ms: int | None = 300_000,
+    legacy_evidence: bool = False,
 ) -> dict:
+    holo_channel = {
+        "enabled": channel_enabled,
+        "turn_latency_ms": turn_latency_ms,
+        "deadline_ms": deadline_ms,
+    }
+    if not legacy_evidence:
+        holo_channel["wake_lease_ms"] = wake_lease_ms
     return R.build_frame(
         "memory.chat-turn",
         stream_id,
@@ -114,11 +123,7 @@ def build_turn(
                 "voice": None,
                 "holo": holo,
             },
-            "holo_channel": {
-                "enabled": channel_enabled,
-                "turn_latency_ms": turn_latency_ms,
-                "deadline_ms": deadline_ms,
-            },
+            "holo_channel": holo_channel,
         },
         head["payload_hash"] if head else None,
         head=head,
@@ -180,6 +185,7 @@ class TestHoloStream(unittest.TestCase):
                         "channel_enabled": True,
                         "turn_latency_ms": 120,
                         "deadline_ms": 30_000,
+                        "wake_lease_ms": 300_000,
                     },
                 },
                 headers={"X-RAPP-Zoo-Desktop": TOKEN},
@@ -189,6 +195,11 @@ class TestHoloStream(unittest.TestCase):
             self.assertEqual(source["kind"], "memory.chat-turn")
             self.assertEqual(source["payload"]["outputs"]["text"], "The exact text output.")
             self.assertEqual(source["payload"]["outputs"]["holo"], authored)
+            self.assertEqual(
+                source["payload"]["holo_channel"]["wake_lease_ms"],
+                300_000,
+            )
+            self.assertEqual(first.get_json()["evidence"]["wake_lease_ms"], 300_000)
             self.assertEqual(
                 first.get_json()["holo_frame"]["payload"]["authored"],
                 authored,
@@ -207,6 +218,7 @@ class TestHoloStream(unittest.TestCase):
                         "channel_enabled": True,
                         "turn_latency_ms": 140,
                         "deadline_ms": 30_000,
+                        "wake_lease_ms": 300_000,
                     },
                 },
                 headers={"X-RAPP-Zoo-Desktop": TOKEN},
@@ -693,6 +705,107 @@ class TestHoloStream(unittest.TestCase):
                 8,
             )
 
+    def test_verified_tick_lease_drives_rolling_core_liveness(self):
+        subject = "rappid:@kody-w/liveness-test:" + "e" * 64
+        with IsolatedHome():
+            client = zoo.create_app().test_client()
+            liveness = client.get(
+                "/api/holo/liveness",
+                query_string={"subject_rappid": subject},
+            ).get_json()
+            self.assertEqual(liveness["state"], "sleeping")
+            self.assertEqual(liveness["reason_codes"], ["no-observation"])
+
+            missing_lease = client.post(
+                "/api/holo/turn",
+                json={
+                    "subject_rappid": subject,
+                    "session_id": "liveness",
+                    "text": "wake",
+                    "holo": blank_output(),
+                    "evidence": {
+                        "channel_enabled": True,
+                        "turn_latency_ms": 120,
+                        "deadline_ms": 30_000,
+                    },
+                },
+                headers={"X-RAPP-Zoo-Desktop": TOKEN},
+            )
+            self.assertEqual(missing_lease.status_code, 422)
+            self.assertIn("wake_lease_ms", missing_lease.get_json()["error"])
+
+            stream = f"{subject}:liveness"
+            source0 = build_turn(
+                stream_id=stream,
+                seq=0,
+                head=None,
+                holo=None,
+            )
+            absent = commit(client, source0)
+            self.assertEqual(absent.status_code, 200, absent.get_json())
+            liveness = client.get(
+                "/api/holo/liveness",
+                query_string={"subject_rappid": subject},
+            ).get_json()
+            self.assertEqual(liveness["state"], "waking")
+            self.assertEqual(
+                liveness["reason_codes"],
+                ["waiting-for-verified-tick"],
+            )
+
+            source1 = build_turn(
+                stream_id=stream,
+                seq=1,
+                head=source0,
+                holo=blank_output(),
+            )
+            accepted = commit(client, source1)
+            self.assertEqual(accepted.status_code, 201, accepted.get_json())
+            liveness = client.get(
+                "/api/holo/liveness",
+                query_string={"subject_rappid": subject},
+            ).get_json()
+            self.assertEqual(liveness["state"], "awake")
+            self.assertEqual(liveness["wake_lease_ms"], 300_000)
+            self.assertEqual(liveness["reason_codes"], ["verified-tick-fresh"])
+
+            connection = sqlite3.connect(zoo.holo_db_path())
+            try:
+                connection.execute(
+                    "UPDATE holo_observations SET observed_utc = ? "
+                    "WHERE source_frame_hash = ?",
+                    (
+                        "2000-01-01T00:00:00.000Z",
+                        source1["frame_hash"],
+                    ),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+            liveness = client.get(
+                "/api/holo/liveness",
+                query_string={"subject_rappid": subject},
+            ).get_json()
+            self.assertEqual(liveness["state"], "sleeping")
+            self.assertEqual(liveness["reason_codes"], ["wake-lease-expired"])
+
+            invalid = blank_output(accepted.get_json()["holo_frame"]["frame_hash"])
+            invalid["unexpected"] = True
+            source2 = build_turn(
+                stream_id=stream,
+                seq=2,
+                head=source1,
+                holo=invalid,
+            )
+            refused = commit(client, source2)
+            self.assertEqual(refused.status_code, 422, refused.get_json())
+            liveness = client.get(
+                "/api/holo/liveness",
+                query_string={"subject_rappid": subject},
+            ).get_json()
+            self.assertEqual(liveness["state"], "quarantined")
+            self.assertEqual(liveness["reason_codes"], ["latest-output-blind"])
+
         manual_subject = "rappid:@kody-w/manual-test:" + "b" * 64
         with IsolatedHome():
             client = zoo.create_app().test_client()
@@ -732,6 +845,7 @@ class TestHoloStream(unittest.TestCase):
                     channel_enabled=False,
                     turn_latency_ms=None,
                     deadline_ms=None,
+                    wake_lease_ms=None,
                 )
                 response = commit(client, source)
                 self.assertEqual(response.status_code, 200, response.get_json())
@@ -759,6 +873,8 @@ class TestHoloStream(unittest.TestCase):
                     channel_enabled=True,
                     turn_latency_ms=None,
                     deadline_ms=None,
+                    wake_lease_ms=None,
+                    legacy_evidence=True,
                 )
                 response = commit(client, source)
                 self.assertEqual(response.status_code, 201, response.get_json())

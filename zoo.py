@@ -68,6 +68,7 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request, send_from_directory, abort
 
@@ -315,6 +316,7 @@ def _holo_connect() -> sqlite3.Connection:
             channel_enabled INTEGER,
             turn_latency_ms INTEGER,
             deadline_ms INTEGER,
+            wake_lease_ms INTEGER,
             on_time INTEGER,
             history_resolved INTEGER,
             replay_manifest_hash TEXT,
@@ -345,6 +347,7 @@ def _holo_connect() -> sqlite3.Connection:
             "channel_enabled": "INTEGER",
             "turn_latency_ms": "INTEGER",
             "deadline_ms": "INTEGER",
+            "wake_lease_ms": "INTEGER",
             "on_time": "INTEGER",
             "history_resolved": "INTEGER",
             "replay_manifest_hash": "TEXT",
@@ -384,28 +387,41 @@ def _holo_session_label(value: str) -> str:
     return f"session-{digest}"
 
 
-def _validate_holo_evidence(value, *, candidate_present: bool) -> dict:
+def _validate_holo_evidence(
+    value,
+    *,
+    candidate_present: bool,
+    allow_legacy_incomplete: bool = False,
+) -> dict:
     if value is None:
         return {
             "channel_enabled": True if candidate_present else None,
             "turn_latency_ms": None,
             "deadline_ms": None,
+            "wake_lease_ms": None,
             "on_time": None,
         }
-    expected = {"channel_enabled", "turn_latency_ms", "deadline_ms"}
+    expected = {
+        "channel_enabled",
+        "turn_latency_ms",
+        "deadline_ms",
+        "wake_lease_ms",
+    }
     if not isinstance(value, dict) or set(value) != expected:
         raise ValueError(
             "holo evidence must contain channel_enabled, turn_latency_ms, "
-            "and deadline_ms"
+            "deadline_ms, and wake_lease_ms"
         )
     enabled = value["channel_enabled"]
     latency = value["turn_latency_ms"]
     deadline = value["deadline_ms"]
+    wake_lease = value["wake_lease_ms"]
     if not isinstance(enabled, bool):
         raise ValueError("holo evidence channel_enabled must be boolean")
     for label, item in (
         ("turn_latency_ms", latency),
         ("deadline_ms", deadline),
+        ("wake_lease_ms", wake_lease),
     ):
         if item is not None and (
             not isinstance(item, int)
@@ -413,14 +429,27 @@ def _validate_holo_evidence(value, *, candidate_present: bool) -> dict:
             or not 0 <= item <= 2**53 - 1
         ):
             raise ValueError(f"holo evidence {label} must be null or uint53")
-    if not enabled and (latency is not None or deadline is not None):
-        raise ValueError("disabled Holo channels cannot claim timing evidence")
+    if deadline == 0 or wake_lease == 0:
+        raise ValueError("Holo deadline and wake lease must be positive")
+    if not enabled and any(
+        item is not None for item in (latency, deadline, wake_lease)
+    ):
+        raise ValueError("disabled Holo channels cannot claim liveness evidence")
+    if not enabled and candidate_present:
+        raise ValueError("disabled Holo channels cannot include a Holo output")
     if (latency is None) != (deadline is None):
         raise ValueError("Holo latency and deadline evidence must appear together")
+    if (
+        enabled
+        and not allow_legacy_incomplete
+        and any(item is None for item in (latency, deadline, wake_lease))
+    ):
+        raise ValueError("enabled Holo channels require complete liveness evidence")
     return {
         "channel_enabled": enabled,
         "turn_latency_ms": latency,
         "deadline_ms": deadline,
+        "wake_lease_ms": wake_lease,
         "on_time": (
             latency <= deadline
             if enabled and latency is not None and deadline is not None
@@ -432,19 +461,23 @@ def _validate_holo_evidence(value, *, candidate_present: bool) -> dict:
 def _source_holo_evidence(frame: dict, *, candidate_present: bool) -> dict:
     payload = frame.get("payload")
     value = payload.get("holo_channel") if isinstance(payload, dict) else None
-    if isinstance(value, dict) and set(value) == {
-        "enabled",
-        "turn_latency_ms",
-        "deadline_ms",
-    }:
+    legacy = isinstance(value, dict) and set(value) == {
+        "enabled", "turn_latency_ms", "deadline_ms"
+    }
+    current = isinstance(value, dict) and set(value) == {
+        "enabled", "turn_latency_ms", "deadline_ms", "wake_lease_ms"
+    }
+    if legacy or current:
         value = {
             "channel_enabled": value["enabled"],
             "turn_latency_ms": value["turn_latency_ms"],
             "deadline_ms": value["deadline_ms"],
+            "wake_lease_ms": value.get("wake_lease_ms"),
         }
     return _validate_holo_evidence(
         value,
         candidate_present=candidate_present,
+        allow_legacy_incomplete=legacy,
     )
 
 
@@ -587,6 +620,7 @@ def _build_holo_source_turn(
                 "enabled": normalized_evidence["channel_enabled"],
                 "turn_latency_ms": normalized_evidence["turn_latency_ms"],
                 "deadline_ms": normalized_evidence["deadline_ms"],
+                "wake_lease_ms": normalized_evidence["wake_lease_ms"],
             },
         },
         head["payload_hash"] if head is not None else None,
@@ -781,15 +815,16 @@ def _record_holo_observation(
         "channel_enabled": None,
         "turn_latency_ms": None,
         "deadline_ms": None,
+        "wake_lease_ms": None,
         "on_time": None,
     }
     connection.execute(
         "INSERT INTO holo_observations "
         "(source_frame_hash, subject_rappid, authored_hash, holo_id, sightedness, "
         "reason, structural_work_units, channel_enabled, turn_latency_ms, "
-        "deadline_ms, on_time, history_resolved, replay_manifest_hash, "
+        "deadline_ms, wake_lease_ms, on_time, history_resolved, replay_manifest_hash, "
         "replay_consistent, observed_utc) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             source_frame_hash,
             subject_rappid,
@@ -805,6 +840,7 @@ def _record_holo_observation(
             ),
             evidence["turn_latency_ms"],
             evidence["deadline_ms"],
+            evidence["wake_lease_ms"],
             None if evidence["on_time"] is None else int(evidence["on_time"]),
             None if history_resolved is None else int(history_resolved),
             replay_manifest_hash,
@@ -868,6 +904,7 @@ def _holo_commit_response(
             ),
             "turn_latency_ms": observation["turn_latency_ms"],
             "deadline_ms": observation["deadline_ms"],
+            "wake_lease_ms": observation["wake_lease_ms"],
             "on_time": (
                 None
                 if observation["on_time"] is None
@@ -1623,6 +1660,84 @@ def _holo_presence(subject_rappid: str) -> dict:
     }
 
 
+def _utc_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _utc_milliseconds(value: datetime) -> str:
+    current = value.astimezone(timezone.utc)
+    return current.strftime("%Y-%m-%dT%H:%M:%S.") + (
+        f"{current.microsecond // 1000:03d}Z"
+    )
+
+
+def _rolling_core_liveness(subject_rappid: str) -> dict:
+    if not rapp_protocol.rappid_valid(subject_rappid):
+        raise ValueError("subject_rappid is invalid")
+    connection = _holo_connect()
+    try:
+        observation = connection.execute(
+            "SELECT * FROM holo_observations WHERE subject_rappid = ? "
+            "ORDER BY rowid DESC LIMIT 1",
+            (subject_rappid,),
+        ).fetchone()
+        head = _current_holo_head(connection, subject_rappid)
+    finally:
+        connection.close()
+
+    evaluated_utc = rapp_protocol.utc_now_ms()
+    result = {
+        "schema": "rapp-rolling-core-liveness/1",
+        "policy": "verified-holo-tick-lease/1",
+        "subject_rappid": subject_rappid,
+        "evaluated_utc": evaluated_utc,
+        "state": "sleeping",
+        "reason_codes": [],
+        "wake_lease_ms": None,
+        "lease_age_ms": None,
+        "lease_expires_utc": None,
+        "current_head": _holo_head_payload(head),
+        "last_observation": None,
+    }
+    if observation is None:
+        result["reason_codes"] = ["no-observation"]
+        return result
+
+    result["last_observation"] = {
+        "source_frame_hash": observation["source_frame_hash"],
+        "holo_id": observation["holo_id"],
+        "sightedness": observation["sightedness"],
+        "observed_utc": observation["observed_utc"],
+    }
+    wake_lease = observation["wake_lease_ms"]
+    result["wake_lease_ms"] = wake_lease
+    if wake_lease is not None:
+        observed_at = _utc_datetime(observation["observed_utc"])
+        evaluated_at = _utc_datetime(evaluated_utc)
+        age_ms = max(0, int((evaluated_at - observed_at).total_seconds() * 1000))
+        result["lease_age_ms"] = age_ms
+        result["lease_expires_utc"] = _utc_milliseconds(
+            observed_at + timedelta(milliseconds=wake_lease)
+        )
+
+    if observation["sightedness"] == "blind":
+        result["state"] = "quarantined"
+        result["reason_codes"] = ["latest-output-blind"]
+    elif observation["channel_enabled"] != 1:
+        result["reason_codes"] = ["holo-channel-disabled"]
+    elif wake_lease is None:
+        result["reason_codes"] = ["wake-lease-unavailable"]
+    elif result["lease_age_ms"] > wake_lease:
+        result["reason_codes"] = ["wake-lease-expired"]
+    elif observation["sightedness"] == "sighted" and observation["holo_id"]:
+        result["state"] = "awake"
+        result["reason_codes"] = ["verified-tick-fresh"]
+    else:
+        result["state"] = "waking"
+        result["reason_codes"] = ["waiting-for-verified-tick"]
+    return result
+
+
 def _verified_egg(blob: bytes) -> dict:
     return rapp_protocol.inspect_egg(
         blob,
@@ -2194,6 +2309,7 @@ def create_app() -> Flask:
                     row["subject_rappid"]
                 ),
                 "presence": _holo_presence(row["subject_rappid"]),
+                "liveness": _rolling_core_liveness(row["subject_rappid"]),
             }
             for row in holo_head_rows
         ]
@@ -2229,6 +2345,7 @@ def create_app() -> Flask:
                 "holo.view-current",
                 "holo.flipbook",
                 "holo.presence",
+                "holo.liveness",
                 "hologram.legacy-hotload",
             ],
         }), 200
@@ -2460,6 +2577,15 @@ def create_app() -> Flask:
         subject = request.args.get("subject_rappid", "")
         try:
             result = _holo_presence(subject)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result), 200
+
+    @app.route("/api/holo/liveness")
+    def holo_liveness():
+        subject = request.args.get("subject_rappid", "")
+        try:
+            result = _rolling_core_liveness(subject)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
         return jsonify(result), 200

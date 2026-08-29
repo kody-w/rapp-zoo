@@ -113,7 +113,7 @@ Wild peers never collapse these into one label:
 | Judgment | Question |
 |---|---|
 | Frame integrity | Is this RAPP frame valid? |
-| Producer provenance | Did a trusted service identify itself and bind this output? |
+| Producer provenance | Is a producer claim cryptographically verified by an active profile? Holo/1 currently requires `unattested`. |
 | Stream sightedness | Did the producer possess and correctly extend current state? |
 | AI presence | Is sustained live behavior machine-capable rather than manual? |
 
@@ -138,6 +138,7 @@ The reference observer uses eight consecutive holo-enabled assistant turns.
 For each turn it records:
 
 - the measured original-turn latency and the configured Holo deadline;
+- the declared positive wake lease used for separate Rolling Core liveness;
 - whether `base_holo_id` matched the current authoritative head;
 - whether the exact source inclusion was verified;
 - whether all history references resolved;
@@ -170,6 +171,11 @@ is sustained causal computation, not decoration.
 
 The machine-readable rolling result is `rapp-holo-presence/1`, defined in
 `holograms/protocol/rapp-holo-presence.schema.json`.
+
+Current organism liveness is a separate verified-tick lease result, not an
+AI-presence classification. It is exposed as `rapp-rolling-core-liveness/1`,
+defined in
+`holograms/protocol/rapp-rolling-core-liveness.schema.json`.
 
 ## 6. Why manual precomputation fails
 

@@ -289,17 +289,33 @@ prior core head active and records the break in the Holo Wake.
 A usable AI provider credential is the Rapter's **breath key**.
 
 ```text
-no usable key     -> sleeping
-key being tested  -> waking
-verified key      -> awake and able to produce ticks
-revoked/offline/
-budget exhausted  -> breath held, then sleeping
+no active verified-tick lease       -> sleeping
+wake requested; no accepted tick    -> waking
+fresh accepted tick under lease     -> awake
+invalid continuity or output claim  -> quarantined
 ```
 
 While awake, a bounded breathing loop may create source experiences and ask the
 AI to author successor core states even between human messages. Every breath is
 a real verified tick; the UI never animates a fake liveness indicator in place
 of one.
+
+Credential validation alone is not proof that a Rapter is awake. The reference
+policy `verified-holo-tick-lease/1` requires a fresh accepted Holo tick carrying
+a positive `wake_lease_ms`. The lease starts when that observation is recorded.
+The liveness state is derived as follows:
+
+- `sleeping`: no observation exists, the Holo channel is disabled, the evidence
+  has no lease, or the latest lease has expired;
+- `waking`: a fresh enabled lease exists, but the latest turn did not produce an
+  accepted sighted Holo tick;
+- `awake`: the latest observation is a fresh accepted sighted Holo tick;
+- `quarantined`: the latest output is `blind`, meaning its claimed current
+  state or history is impossible or inconsistent.
+
+The reference endpoint is
+`GET /api/holo/liveness?subject_rappid=<rappid>`. Its exact response shape is
+`holograms/protocol/rapp-rolling-core-liveness.schema.json`.
 
 Direct mode uses the owner's locally secured OpenAI-compatible credential and
 can breathe only while the device runtime is permitted to execute. Wild mode
