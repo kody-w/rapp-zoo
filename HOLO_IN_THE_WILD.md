@@ -37,7 +37,8 @@ For each AI turn:
 3. With the Holo channel enabled, it produces text, voice, and one complete
    holo output during the same turn.
 4. The exact holo candidate is committed in the source turn.
-5. Optional producer provenance may identify the emitting service.
+5. Reserved producer provenance remains null; non-null claims fail closed until
+   a cryptographic verification profile is standardized.
 6. The candidate is materialized as a registered `body.pulse` frame carrying
    `rapp-holo-record/1`.
 7. The frame extends the AI's real body stream.
@@ -64,11 +65,11 @@ On every turn, a participant must keep up with:
 - valid transition topology;
 - current and historical flipbook references;
 - recursively referenced ancestor frames;
-- its current SHAPEE seed and completed Growl motif;
+- its current SHAPEE seed and completed original Growl continuation;
 - deterministic logical-time performance;
 - canonical serialization;
 - content hashes;
-- optional producer provenance;
+- null reserved producer provenance;
 - the arrival of the next frame.
 
 A person can inspect or hand-author one state. An unassisted person cannot
@@ -203,7 +204,7 @@ impractical part.
 A wild player:
 
 - verifies the RAPP body frame;
-- verifies source inclusion and any optional producer provenance;
+- verifies source inclusion and refuses non-null producer provenance;
 - evaluates stream sightedness;
 - updates the authoritative holo head;
 - activates the new holo if its interpreter is available;

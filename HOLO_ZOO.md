@@ -57,7 +57,8 @@ The Zoo accepts:
 
 1. Live verified Holo/1 `body.pulse` frames from a local Brainstem.
 2. Live verified Holo/1 `body.pulse` frames from a remote RAPP stream.
-3. Imported Holo/1 history with source evidence and optional producer provenance.
+3. Imported Holo/1 history with source evidence and null reserved producer
+   provenance.
 4. Player activation records for exact-session replay.
 5. Legacy bottle records in a separate non-Holo/1 exhibit.
 
