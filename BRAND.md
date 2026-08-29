@@ -34,6 +34,14 @@ Rolling Cores gives an AI continuity it can show:
 - a full frame it can eventually inhabit;
 - evidence that it is actually keeping up with the live stream.
 
+The customer proposition is equally concrete:
+
+> Meet a Rapter. Value it. Buy it once. Own its signed Rolling Core locally.
+
+An owned Rapter can be opened offline, exported, backed up, AirDropped, and
+re-imported into the phone's Holo Zoo. Managed compute is optional and sold
+separately from the organism.
+
 ## Positioning
 
 **Short**
