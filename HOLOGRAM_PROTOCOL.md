@@ -245,6 +245,7 @@ exactly one holo candidate:
       "state": {},
       "transition": {},
       "performance": {},
+      "growl": {},
       "accessibility": {}
     }
   }
@@ -340,6 +341,7 @@ The RAPP kind registry entry is:
       "state": {},
       "transition": {},
       "performance": {},
+      "growl": {},
       "accessibility": {}
     }
   },
@@ -439,6 +441,7 @@ An authored output contains exactly:
   "state": {},
   "transition": {},
   "performance": {},
+  "growl": {},
   "accessibility": {}
 }
 ```
@@ -491,7 +494,22 @@ owns its transition.
 holo frame becomes current. It can animate its own nodes and can explicitly use
 verified prior holo states as flipbook frames.
 
-### 6.5 `accessibility`
+### 6.5 `growl`
+
+Every Holo/1 output carries one AI-authored `rapp-holo-growl/1` trait. It is a
+bounded MIDI motif plus a seed for deterministic autocomplete. The AI chooses
+the seed, register, motif, tempo, program, and timing. The protocol completes
+the motif mechanically; the Zoo does not compose on the AI's behalf.
+
+The completed result is a finite list of MIDI-like note events. A player may
+render it through a fixed local synthesizer only after an explicit user
+gesture. It never autoplays, fetches samples, opens a MIDI device, or executes
+code.
+
+Growl gives each immutable holo a sonic identity that can continue with its
+visual performance until the next frame arrives.
+
+### 6.6 `accessibility`
 
 The AI supplies a plain-language description of the visual output and a
 reduced-motion choice. The renderer does not infer either.
@@ -574,13 +592,40 @@ Supported v1 node types are:
 Primitive geometry names are renderer mechanics only:
 
 ```text
-sphere box capsule cylinder cone torus ring plane
+sphere box capsule cylinder cone torus ring plane shapee
 tetrahedron octahedron icosahedron
 ```
 
 No primitive is a default. The AI chooses whether to use any of them.
 
-### 7.5 Materials
+### 7.5 SHAPEE: the seeded side-profile tile
+
+`shapee` is an optional procedural primitive representing an AI's visual
+side-profile. It is one bounded mesh, not thousands of tiny renderer objects.
+
+The AI authors:
+
+```json
+{
+  "shape": "shapee",
+  "seed": "64-lowercase-hex",
+  "width": 2400,
+  "height": 1800,
+  "depth": 180,
+  "teeth": 16,
+  "relief": 420
+}
+```
+
+The pinned `shapeeOutline` algorithm reads successive seed nibbles and creates
+orthogonal, sideways key-teeth along a closed tile outline. The same seed and
+dimensions always produce the same integer polygon and extruded mesh.
+
+SHAPEE is vocabulary available to the AI, not a required template for the full
+hologram. One frame may contain no SHAPEE, one identity tile, or several
+independently seeded tiles composed with any other valid scene nodes.
+
+### 7.6 Materials
 
 The fixed material contract supports bounded combinations of:
 
@@ -595,7 +640,7 @@ The fixed material contract supports bounded combinations of:
 There are no shaders, shader source strings, arbitrary Three.js property paths,
 CSS, HTML, scripts, expressions, imports, URLs, or remote assets.
 
-### 7.6 Stable identities
+### 7.7 Stable identities
 
 Node IDs are continuity handles chosen by the AI.
 
@@ -605,7 +650,7 @@ Node IDs are continuity handles chosen by the AI.
 
 The renderer does not infer identity from geometry, position, color, or name.
 
-### 7.7 Normative semantic validation
+### 7.8 Normative semantic validation
 
 JSON Schema validation is necessary but not sufficient. A conformant semantic
 validator also MUST verify:
@@ -640,7 +685,7 @@ validator also MUST verify:
 Validation refuses the whole candidate on any failure. It never removes a node,
 rewrites a value, sorts authored keyframes, or clamps a number.
 
-### 7.8 Normative units and compilation
+### 7.9 Normative units and compilation
 
 `rapp-holo-renderer/1` uses these exact conversions:
 
@@ -896,10 +941,16 @@ timeline:
 Rules:
 
 - `holo_id` is either the string `self` or an exact verified ancestor holo ID.
-- A referenced historical state contributes its complete base scene snapshot.
-  Its own sustain performance is not recursively executed.
 - References MUST be strict ancestors in the subject's verified holo chain.
-- Cycles and future references are impossible and refused.
+- A referenced historical frame may itself reference earlier frames. The
+  player resolves and evaluates that ancestry recursively.
+- Strict ancestry makes the graph acyclic by construction; explicit cycles,
+  future references, or cross-subject references are refused.
+- Recursive evaluation is bounded to depth 8, 64 unique historical frames,
+  4 MiB of unique referenced state, and the ordinary expanded layer/draw
+  budgets.
+- A repeated reference reuses the already compiled immutable snapshot; it does
+  not duplicate geometry or create another unbounded object tree.
 - The current output controls ordering, timing, and blending.
 - The renderer never selects an old state on its own.
 - Every referenced frame is retained as a live dependency of the current head.
@@ -916,11 +967,12 @@ the selected snapshot. For `cut`, selection changes immediately. For
 For `loop`, the first entry's `blend_ms` defines the crossfade from the last
 entry across the loop boundary. For `once`, the final entry holds.
 
-Property tracks animate only the `self` snapshot. Historical snapshots use
-their immutable base state. Scene-level flipbook composition occurs after
-property-track evaluation. During a crossfade, the prior and next snapshots are
-rendered as separate ordered layers with weights `S-e` and `e`; their effective
-opacities are multiplied by those weights using `round_div`.
+Property tracks animate the selected frame's `self` snapshot. If that frame's
+timeline selects another ancestor, the same deterministic selection proceeds
+recursively. Scene-level composition occurs after each level's track
+evaluation. During a crossfade, the prior and next recursively evaluated
+compositions are flattened into ordered layers with weights multiplied using
+`round_div`.
 
 ---
 
@@ -1114,7 +1166,11 @@ Initial v1 ceilings:
 | Property tracks | 512 |
 | Keyframes, aggregate | 4,096 |
 | Historical flipbook references | 16 |
+| Recursive history depth | 8 |
+| Unique recursively resolved frames | 64 |
 | Referenced historical state bytes | 4 MiB |
+| Growl prefix steps | 16 |
+| Growl completed steps | 64 |
 | Transition duration | 10,000 ms |
 | Sustain duration before repeat | 60,000 ms |
 | Transparent draw calls | 128 |

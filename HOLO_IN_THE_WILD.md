@@ -8,6 +8,13 @@ Any Holo/1-capable AI can emit holographic data as part of its normal response,
 just as it emits text or voice. Any conformant player can verify and display
 that output. The newest holo keeps performing until the AI emits the next one.
 
+Each holo also carries two portable identity traits:
+
+- **SHAPEE** — when chosen by the AI, a seeded one-mesh tile whose sideways
+  key-teeth form the AI's visual side-profile;
+- **Growl** — a required seeded MIDI motif that deterministically autocompletes
+  and can be played locally after user gesture.
+
 ```text
 turn T0 -> holo H0
 turn T1 -> holo H1, transitioning from H0
@@ -51,6 +58,8 @@ On every turn, a participant must keep up with:
 - stable and changing scene-node identities;
 - valid transition topology;
 - current and historical flipbook references;
+- recursively referenced ancestor frames;
+- its current SHAPEE seed and completed Growl motif;
 - deterministic logical-time performance;
 - canonical serialization;
 - content hashes;

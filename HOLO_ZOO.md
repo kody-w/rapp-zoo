@@ -24,6 +24,8 @@ The Holo Zoo is:
 - a live view of each AI's current holographic head;
 - a flipbook browser for prior immutable outputs;
 - a deterministic replay and scrub tool;
+- a recursive frame-graph resolver with hard depth and expansion bounds;
+- a local SHAPEE tile and user-triggered MIDI Growl player;
 - a protocol inspector;
 - a validator and adversarial conformance lab;
 - a safe sandbox for pinned renderer interpreters;
@@ -174,6 +176,9 @@ Each AI habitat should show:
 - previous holo link;
 - current performance clock;
 - referenced historical states;
+- recursively resolved ancestor count and depth;
+- SHAPEE seed/outline evidence when authored;
+- completed Growl MIDI events and local playback control;
 - renderer and IR versions;
 - integrity result;
 - producer-provenance result;
