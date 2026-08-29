@@ -141,6 +141,47 @@ class RapterCreditProtocolTests(unittest.TestCase):
                 signature_verifier=lambda *_: (True, "ok"),
             )
 
+    def test_official_credit_accepts_a_verified_ed25519_outer_signature(self):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        public_key = private_key.public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        issuer = f"rappid:@kody-w/rapterbox:{R.Hb('rapp/1:rappid', public_key)}"
+        record = credit_record()
+        record["issuer_rappid"] = issuer
+        frame = R.build_frame(
+            "body.pulse",
+            issuer,
+            0,
+            "2026-08-29T18:01:00.000Z",
+            record,
+            None,
+        )
+        unsigned = {key: value for key, value in frame.items() if key != "sig"}
+        frame["sig"] = R.sign_detached_jws(unsigned, private_key, issuer)
+
+        def verify_signature(value, signature):
+            return R.verify_detached_jws(
+                value,
+                signature,
+                public_key,
+                expected_kid=issuer,
+            )
+
+        self.assertIs(
+            C.validate_credit_frame(
+                frame,
+                head=None,
+                issuer_rappid=issuer,
+                signature_verifier=verify_signature,
+            ),
+            frame,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
