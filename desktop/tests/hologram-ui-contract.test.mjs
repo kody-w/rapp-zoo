@@ -75,6 +75,7 @@ test("desktop VC docks a Holo-specific Copilot panel without Studio deploy", () 
   assert.match(source, /setCopilotPanel\(true\)/);
   assert.match(styleSource, /body\.desktop-vc\.copilot-dock-open/);
   assert.match(indexSource, /HOLO\/1 AGENT MODE/);
+  assert.match(indexSource, /<h1>Rolling Cores/);
   assert.match(indexSource, /Explain the current Holo Wake/);
   assert.match(indexSource, /Emit the next Holo\/1 state/);
   assert.match(indexSource, /Start the AI fantasy draft/);

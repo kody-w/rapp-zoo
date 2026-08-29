@@ -3,7 +3,7 @@
   "version": "1.3.0",
   "private": true,
   "type": "module",
-  "description": "Frontier Electron shell and mobile PWA for the RAPP/1 organism zoo.",
+  "description": "Rolling Cores: everything autocomplete on a RAPP/1 organism.",
   "author": "@kody-w",
   "main": "desktop/main.mjs",
   "engines": {
@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "io.github.kody-w.rapp-zoo",
-    "productName": "RAPP Zoo",
+    "productName": "Rolling Cores",
     "asar": true,
     "asarUnpack": [
       "agents/**/*",
@@ -58,6 +58,9 @@
       "HOLOGRAM_PROTOCOL.md",
       "HOLO_ZOO.md",
       "HOLO_IN_THE_WILD.md",
+      "ROLLING_CORE_PROTOCOL.md",
+      "BRAND.md",
+      "LORE.md",
       "LICENSE",
       "zoo.py",
       "package.json"

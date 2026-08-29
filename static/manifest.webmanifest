@@ -1,7 +1,7 @@
 {
-  "name": "RAPP Zoo",
-  "short_name": "RAPP Zoo",
-  "description": "Local-first RAPP/1 organism collection and intelligence surface.",
+  "name": "Rolling Cores",
+  "short_name": "Rolling Cores",
+  "description": "Everything autocomplete on an organism. A Holo Zoo powered by RAPP/1.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

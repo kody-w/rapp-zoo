@@ -36,7 +36,7 @@ const holoSubjectRappid = (
     + "21f419123bcb166e6fc46a43f53e63e5c8136005e7efcfb689bb80dbcc0453c2"
 );
 
-app.setName("RAPP Zoo");
+app.setName("Rolling Cores");
 if (!app.isPackaged || process.env.RAPP_ZOO_DESKTOP_DEV === "1") {
   app.commandLine.appendSwitch(
     "remote-debugging-port",
@@ -305,7 +305,7 @@ function createWindow() {
     minHeight: 560,
     show: process.env.RAPP_ZOO_HEADLESS !== "1",
     backgroundColor: "#0d1117",
-    title: "RAPP Zoo",
+    title: "Rolling Cores",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: process.platform === "darwin"
       ? { x: 14, y: 14 }
@@ -352,7 +352,7 @@ app.whenReady().then(async () => {
     await window.loadURL(
       `data:text/html;charset=utf-8,${encodeURIComponent(
         `<body style="background:#0d1117;color:#f0f6fc;font:16px system-ui;padding:40px">
-          <h1>RAPP Zoo could not start</h1><pre>${message.replace(/[&<>]/g, "")}</pre>
+          <h1>Rolling Cores could not start</h1><pre>${message.replace(/[&<>]/g, "")}</pre>
         </body>`,
       )}`,
     );

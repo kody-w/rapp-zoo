@@ -87,6 +87,18 @@ data.
 continuously advancing, recursively self-referential, multimodal identity whose
 state changes are content-addressed, replayable, bounded, and inspectable.
 
+Commercially, the lanes remain separate:
+
+- **Rapterbox.com** — Holo Zoo and other consumer-facing organism-autocomplete
+  experiences.
+- **Rappter.com** — the RAPP protocol, developer platform, and company-level
+  architecture.
+
+The shared world and naming canon is in [`LORE.md`](./LORE.md).
+The product vocabulary and launch copy are in [`BRAND.md`](./BRAND.md).
+The organism lifecycle is specified in
+[`ROLLING_CORE_PROTOCOL.md`](./ROLLING_CORE_PROTOCOL.md).
+
 The Holo Zoo has two deliberately separated areas:
 
 - **Live AI habitats** — current Holo/1 heads, player-active state, immutable
