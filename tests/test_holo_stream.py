@@ -78,6 +78,19 @@ def blank_output(base_holo_id=None):
     return value
 
 
+def fixture_output(name: str):
+    corpus = json.loads(
+        (
+            ROOT
+            / "holograms"
+            / "protocol"
+            / "fixtures"
+            / "corpus.json"
+        ).read_text()
+    )
+    return copy.deepcopy(corpus["documents"][name])
+
+
 def build_turn(
     *,
     stream_id: str,
@@ -460,6 +473,53 @@ class TestHoloStream(unittest.TestCase):
             self.assertEqual(head["body_seq"], 1)
             self.assertEqual(head["holo_seq"], 0)
             self.assertEqual(head["holo_id"], wild_holo["frame_hash"])
+
+    def test_historical_flipbook_resolves_exact_verified_ancestor_states(self):
+        with IsolatedHome():
+            client = zoo.create_app().test_client()
+            stream = f"{SUBJECT}:flipbook"
+            first_output = fixture_output("multi-node-non-humanoid-scene")
+            source0 = build_turn(
+                stream_id=stream,
+                seq=0,
+                head=None,
+                holo=first_output,
+            )
+            first = commit(client, source0)
+            self.assertEqual(first.status_code, 201, first.get_json())
+            first_id = first.get_json()["holo_frame"]["frame_hash"]
+
+            second_output = fixture_output("transition-successor")
+            second_output["base_holo_id"] = first_id
+            source1 = build_turn(
+                stream_id=stream,
+                seq=1,
+                head=source0,
+                holo=second_output,
+            )
+            second = commit(client, source1)
+            self.assertEqual(second.status_code, 201, second.get_json())
+            second_id = second.get_json()["holo_frame"]["frame_hash"]
+
+            flipbook = fixture_output("historical-flipbook")
+            flipbook["base_holo_id"] = second_id
+            flipbook["performance"]["sustain"]["flipbook"][1]["holo_id"] = first_id
+            flipbook["performance"]["sustain"]["flipbook"][2]["holo_id"] = second_id
+            source2 = build_turn(
+                stream_id=stream,
+                seq=2,
+                head=source1,
+                holo=flipbook,
+            )
+            third = commit(client, source2)
+            self.assertEqual(third.status_code, 201, third.get_json())
+            self.assertEqual(third.get_json()["status"], "sighted")
+            self.assertEqual(
+                third.get_json()["holo_frame"]["payload"]["authored"][
+                    "performance"
+                ]["sustain"]["flipbook"][1]["holo_id"],
+                first_id,
+            )
 
     def test_holo_wake_classifies_sustained_machine_and_manual_absence(self):
         with IsolatedHome():

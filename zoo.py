@@ -688,9 +688,10 @@ def _commit_holo_source(frame: dict) -> tuple[dict, int]:
             return response, 422
 
         ancestor_ids = {
-            row["holo_id"]
+            row["holo_id"]: json.loads(row["frame_json"])["payload"]["authored"]
             for row in connection.execute(
-                "SELECT holo_id FROM holo_records WHERE subject_rappid = ?",
+                "SELECT holo_id, frame_json FROM holo_records "
+                "WHERE subject_rappid = ?",
                 (subject,),
             )
         }
@@ -703,7 +704,11 @@ def _commit_holo_source(frame: dict) -> tuple[dict, int]:
             )
             authored_hash = holo_protocol.authored_hash(candidate)
             work_units = _holo_structural_work_units(candidate)
-            compiled = holo_protocol.compile_manifest(candidate)
+            compiled = holo_protocol.compile_manifest(
+                candidate,
+                base=base_authored,
+                ancestor_ids=ancestor_ids,
+            )
         except Exception as exc:
             _record_holo_observation(
                 connection,
@@ -940,9 +945,10 @@ def _ingest_holo_bundle(
             return response, 409 if sightedness == "stale" else 422
 
         ancestor_ids = {
-            row["holo_id"]
+            row["holo_id"]: json.loads(row["frame_json"])["payload"]["authored"]
             for row in connection.execute(
-                "SELECT holo_id FROM holo_records WHERE subject_rappid = ?",
+                "SELECT holo_id, frame_json FROM holo_records "
+                "WHERE subject_rappid = ?",
                 (subject,),
             )
         }
@@ -953,7 +959,11 @@ def _ingest_holo_bundle(
             ancestor_ids=ancestor_ids,
         )
         authored_hash = holo_protocol.authored_hash(candidate)
-        compiled = holo_protocol.compile_manifest(candidate)
+        compiled = holo_protocol.compile_manifest(
+            candidate,
+            base=base_authored,
+            ancestor_ids=ancestor_ids,
+        )
         work_units = _holo_structural_work_units(candidate)
 
         body_head_row = connection.execute(
