@@ -10,8 +10,8 @@ const HOLO_OUTPUT_SCHEMA = JSON.parse(readFileSync(
 ));
 
 const HEX64 = /^[0-9a-f]{64}$/;
-const MAX_CONTEXT_BYTES = 64 * 1024;
-const MAX_HOLO_BYTES = 1024 * 1024;
+const MAX_CONTEXT_BYTES = 512 * 1024;
+const MAX_HOLO_BYTES = 256 * 1024;
 const OUTPUT_SCHEMA_MARKER = /"schema"\s*:\s*"rapp-holo-output\/1"/g;
 const FORBIDDEN_CONTENT = [
   /<\s*\/?\s*[a-z][^>]*>/i,
@@ -22,9 +22,6 @@ const FORBIDDEN_CONTENT = [
   /\bnew\s+Function\s*\(/i,
   /\brequire\s*\(/i,
   /\bimport\s*\(/i,
-  /\bsubprocess\b/i,
-  /\bshell\b/i,
-  /\bshader\b/i,
 ];
 
 function exactKeys(value, expected, label) {
@@ -164,7 +161,7 @@ function assertSchema(value, schema, path = "Holo output") {
 function assertDataOnly(value, path = "Holo output") {
   if (typeof value === "string") {
     if (FORBIDDEN_CONTENT.some((pattern) => pattern.test(value))) {
-      throw new Error(`${path} contains executable, remote, or shell content.`);
+      throw new Error(`${path} contains executable or remote content.`);
     }
     return;
   }
@@ -300,11 +297,12 @@ export function originalTurnHoloContract(contextValue) {
   return [
     "HOLO_OUTPUT_CHANNEL=enabled",
     "Hologram is a first-class output beside text and voice.",
-    "During this original response, author exactly zero or one complete rapp-holo-output/1 object.",
-    "If you author one, call HologramForge once with that exact authored_holo_output.",
+    "During this original response, author exactly one complete rapp-holo-output/1 object.",
+    "If the expression should visually hold, emit a new complete hold state against the current base.",
+    "Call HologramForge once with that exact authored_holo_output.",
     "HologramForge validates only. It cannot design, adapt, repair, clamp, default, or polish.",
     "After acceptance, include that exact object once between RAPP_HOLO_OUTPUT_BEGIN and RAPP_HOLO_OUTPUT_END.",
-    "If you author no holo, omit both the object and markers. Never request a later creative pass.",
+    "Never request a later creative pass.",
     "Choose any visual form representable by the declared IR. The application supplies no visual form.",
     `CURRENT_BASE_HOLO_ID=${JSON.stringify(context.base_holo_id)}`,
     `VERIFIED_HOLO_HISTORY=${JSON.stringify(context.history)}`,
@@ -392,6 +390,19 @@ export function extractHoloOutput(responseValue, contextValue) {
   return stageHoloOutput(candidates[0], context.base_holo_id);
 }
 
+export function stripMarkedHoloOutput(responseValue) {
+  const response = String(responseValue || "");
+  const beginMarker = "RAPP_HOLO_OUTPUT_BEGIN";
+  const endMarker = "RAPP_HOLO_OUTPUT_END";
+  const begin = response.indexOf(beginMarker);
+  const end = response.indexOf(endMarker);
+  if (begin < 0 || end < begin) return response;
+  return (
+    response.slice(0, begin)
+    + response.slice(end + endMarker.length)
+  ).trim();
+}
+
 export async function captureOriginalTurn({
   chat,
   input,
@@ -402,9 +413,18 @@ export async function captureOriginalTurn({
   if (!result || typeof result.response !== "string") {
     throw new Error("Brainstem response must contain text.");
   }
+  let holo = null;
+  let holoError = null;
+  try {
+    holo = extractHoloOutput(result.response, holoContext);
+  } catch (error) {
+    holoError = error.message;
+  }
   return {
     ...result,
-    holo: extractHoloOutput(result.response, holoContext),
+    response: stripMarkedHoloOutput(result.response),
+    holo,
+    holo_error: holoError,
   };
 }
 

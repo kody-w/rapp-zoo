@@ -89,7 +89,14 @@ class HologramOutputAgentTests(unittest.TestCase):
         executable["accessibility"]["description"] = "Load https://example.test/a.js"
         result = self.perform(authored_holo_output=executable)
         self.assertEqual(result["status"], "refused")
-        self.assertIn("executable, remote, or shell content", result["message"])
+        self.assertIn("executable or remote content", result["message"])
+
+        expressive = copy.deepcopy(BLANK)
+        expressive["accessibility"]["description"] = (
+            "A shell of light unfolds through shader-like bands."
+        )
+        result = self.perform(authored_holo_output=expressive)
+        self.assertEqual(result["status"], "ok", result)
 
         invalid_camera = copy.deepcopy(BLANK)
         invalid_camera["state"]["camera"]["ortho_height"] = 1000

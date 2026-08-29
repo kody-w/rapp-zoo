@@ -74,7 +74,12 @@ async function zooJson(pathname, options = {}) {
     });
     const value = await response.json();
     if (!response.ok) {
-      throw new Error(value.error || `${pathname} returned ${response.status}`);
+      const error = new Error(
+        value.error || value.reason || `${pathname} returned ${response.status}`,
+      );
+      error.status = response.status;
+      error.body = value;
+      throw error;
     }
     return value;
   } finally {
@@ -84,6 +89,57 @@ async function zooJson(pathname, options = {}) {
 
 async function intelligenceContext() {
   return validateContext(await zooJson("/api/intelligence-context"));
+}
+
+async function authoritativeHoloContext(context, requestedValue) {
+  const requested = requestedValue === undefined || requestedValue === null
+    ? { enabled: process.env.RAPP_ZOO_HOLO_ENABLED !== "0" }
+    : validateHoloTurnContext(requestedValue);
+  if (!requested.enabled) {
+    return validateHoloTurnContext({
+      enabled: false,
+      base_holo_id: null,
+      history: [],
+    });
+  }
+  const head = (context.holo_heads || []).find(
+    (item) => item.subject_rappid === holoSubjectRappid,
+  );
+  if (!head) {
+    return validateHoloTurnContext({
+      enabled: true,
+      base_holo_id: null,
+      history: [],
+    });
+  }
+  const response = await zooJson(
+    `/api/holo/history?subject_rappid=${encodeURIComponent(holoSubjectRappid)}&limit=8`,
+  );
+  const history = [];
+  for (const item of response.frames || []) {
+    const candidate = {
+      holo_id: item.holo_id,
+      holo_seq: item.holo_seq,
+      visual_parent: item.visual_parent,
+      source_frame_hash: item.source_frame_hash,
+      authored: item.frame?.payload?.authored,
+    };
+    try {
+      validateHoloTurnContext({
+        enabled: true,
+        base_holo_id: head.holo_id,
+        history: [...history, candidate],
+      });
+      history.push(candidate);
+    } catch {
+      break;
+    }
+  }
+  return validateHoloTurnContext({
+    enabled: true,
+    base_holo_id: head.holo_id,
+    history,
+  });
 }
 
 async function commitHoloTurn(value) {
@@ -139,21 +195,29 @@ ipcMain.handle("brainstem:chat", async (event, promptValue, holoContextValue) =>
   trusted(event);
   const prompt = validatePrompt(promptValue);
   const context = await intelligenceContext();
-  const holoContext = validateHoloTurnContext(holoContextValue);
+  const holoContext = await authoritativeHoloContext(context, holoContextValue);
   const turn = await captureOriginalTurn({
     chat: (input) => brainstem.chat(input),
     input: brainstemInput(prompt, context, holoContext),
     holoContext,
   });
-  const materialized = await commitHoloTurn({
-    subject_rappid: holoSubjectRappid,
-    session_id: turn.session_id,
-    text: turn.response,
-    holo: turn.holo?.authored || null,
-  });
+  let materialized;
+  let holoCommitError = null;
+  try {
+    materialized = await commitHoloTurn({
+      subject_rappid: holoSubjectRappid,
+      session_id: turn.session_id || turn.requestId,
+      text: turn.response,
+      holo: turn.holo?.authored || null,
+    });
+  } catch (error) {
+    materialized = error.body || { status: "refused" };
+    holoCommitError = error.message;
+  }
   return {
     ...materialized,
     ...turn,
+    holo_commit_error: holoCommitError,
   };
 });
 ipcMain.handle("brainstem:cancel", (event, requestId) => {

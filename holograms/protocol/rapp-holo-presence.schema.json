@@ -28,7 +28,14 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
     },
     "window": {
-      "$ref": "#/$defs/window"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/window"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "classification": {
       "enum": [

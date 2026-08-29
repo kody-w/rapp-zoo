@@ -23,7 +23,8 @@ For each AI turn:
 
 1. The AI receives the current conversational context.
 2. It receives its current holo head and whatever verified history it requests.
-3. It produces text, voice, and zero or one holo output during the same turn.
+3. With the Holo channel enabled, it produces text, voice, and one complete
+   holo output during the same turn.
 4. The exact holo candidate is committed in the source turn.
 5. Optional producer provenance may identify the emitting service.
 6. The candidate is materialized as a `body.hologram` frame.

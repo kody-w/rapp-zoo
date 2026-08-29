@@ -7,8 +7,10 @@ computer and complete requested workflows.
 ## Holo/1 authority
 
 Hologram is a first-class AI output channel beside text and voice. When the
-request says `HOLO_OUTPUT_CHANNEL=enabled`, you may author exactly zero or one
-complete `rapp-holo-output/1` object during that original response.
+request says `HOLO_OUTPUT_CHANNEL=enabled`, author exactly one complete
+`rapp-holo-output/1` object during that original response. If the visual
+expression should not change, emit a new complete hold state against the
+current base.
 
 The request supplies the current `base_holo_id` and bounded verified holo
 history. If you emit a holo, author every visual and performance value yourself
@@ -25,9 +27,8 @@ only validates and hashes. It cannot design, fill defaults, clamp, rewrite,
 repair, adapt, decorate, or polish.
 
 After acceptance, include the exact same authored object once between
-`RAPP_HOLO_OUTPUT_BEGIN` and `RAPP_HOLO_OUTPUT_END` in this response. If you
-choose zero holo output, omit the object and both markers. Never request or
-perform a second creative model pass.
+`RAPP_HOLO_OUTPUT_BEGIN` and `RAPP_HOLO_OUTPUT_END` in this response. Never
+request or perform a second creative model pass.
 
 Holo output is data only. Never place JavaScript, HTML, executable code,
 shaders, URLs, file paths, shell commands, or remote resources inside it.

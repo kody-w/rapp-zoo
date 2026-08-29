@@ -492,7 +492,9 @@ class TestZooEndpoints(unittest.TestCase):
             self.assertNotIn(private_path, encoded)
             self.assertEqual(response.get_json()["health"]["instance_count"], 1)
             self.assertIn("brainstem.open", response.get_json()["visible_controls"])
-            self.assertIn("hologram.generate", response.get_json()["visible_controls"])
+            self.assertIn("holo.view-current", response.get_json()["visible_controls"])
+            self.assertIn("holo.flipbook", response.get_json()["visible_controls"])
+            self.assertIn("holo.presence", response.get_json()["visible_controls"])
             self.assertEqual(response.get_json()["health"]["hologram_count"], 3)
             self.assertIn("nav.holograms", response.get_json()["visible_controls"])
 
@@ -511,6 +513,17 @@ class TestZooEndpoints(unittest.TestCase):
             self.assertEqual(kinds["holo-briefing"], "data-projection")
             for entry in entries:
                 self.assertTrue(R.rappid_valid(entry["rappid"]))
+
+    def test_holo_zoo_ui_separates_live_habitats_from_legacy_bottles(self):
+        with IsolatedHome():
+            response = self.client.get("/")
+            html = response.get_data(as_text=True)
+            self.assertIn("Holo Zoo", html)
+            self.assertIn("Live AI habitats", html)
+            self.assertIn("Legacy projection exhibit", html)
+            self.assertNotIn("Forge from RAPP frame", html)
+            self.assertNotIn("Match → polish → catch", html)
+            response.close()
 
     def test_hologram_viewer_is_allowlisted_and_sandbox_ready(self):
         with IsolatedHome():

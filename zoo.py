@@ -59,8 +59,10 @@ import re
 import secrets
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import unicodedata
 import urllib.error
@@ -79,11 +81,14 @@ _RAR_HOLOGRAM_INDEX = (
     "doggs/holograms/index.json"
 )
 _MAX_DOGG_BYTES = 256 * 1024
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 _FOUNDRY_URL = "http://127.0.0.1:7072"
-HOLOGRAM_GENERATOR_RAPPID = (
-    "rappid:@kody-w/hologram-generator:"
-    "21f419123bcb166e6fc46a43f53e63e5c8136005e7efcfb689bb80dbcc0453c2"
+HOLOGRAM_GENERATOR_RAPPID = os.environ.get(
+    "RAPP_ZOO_HOLO_SUBJECT_RAPPID",
+    (
+        "rappid:@kody-w/hologram-generator:"
+        "21f419123bcb166e6fc46a43f53e63e5c8136005e7efcfb689bb80dbcc0453c2"
+    ),
 )
 _DIMENSION_STOPWORDS = {
     "and",
@@ -106,6 +111,7 @@ _DIMENSION_STOPWORDS = {
     "with",
     "zoo",
 }
+_HOLO_DB_INIT_LOCK = threading.Lock()
 
 # Vendored modules: egg.py + peer_registry.py + bond.py
 sys.path.insert(0, _UTILS_DIR)
@@ -113,6 +119,7 @@ import egg                # noqa: E402
 import peer_registry      # noqa: E402
 import bond               # noqa: E402
 import rapp_protocol      # noqa: E402
+import holo_protocol      # noqa: E402
 
 
 # ── Local file conventions ──────────────────────────────────────────────
@@ -133,6 +140,14 @@ def twins_dir() -> str:
 def pids_dir() -> str:
     """Where we record zoo-started twin PIDs so /api/stop can find them."""
     return os.path.join(rapp_home(), "pids")
+
+
+def holo_dir() -> str:
+    return os.path.join(rapp_home(), "holograms", "holo-v1")
+
+
+def holo_db_path() -> str:
+    return os.path.join(holo_dir(), "store.sqlite3")
 
 
 # ── Process control: track twins we started ────────────────────────────
@@ -218,6 +233,922 @@ def _verify_hologram_frame(frame: dict) -> tuple[bool, str | None, str]:
             trust.verify_frame_signature if trust is not None else None
         ),
     )
+
+
+# ── Holo/1 source, body, flipbook, and Holo Wake store ──────────────
+
+
+def _holo_frame_verification_context():
+    try:
+        trust = rapp_protocol.RegistryTrust.from_environment()
+    except rapp_protocol.ProtocolError as exc:
+        raise ValueError(f"trusted registry unavailable: {exc}") from exc
+    families = dict(rapp_protocol.CORE_KIND_FAMILIES)
+    if trust is not None:
+        families.update(trust.kind_families)
+    registered = families.get("body.hologram")
+    if registered not in {None, "body"}:
+        raise ValueError("body.hologram is registered to the wrong RAPP family")
+    families["body.hologram"] = "body"
+    verifier = trust.verify_frame_signature if trust is not None else None
+    return families, verifier
+
+
+def _holo_connect() -> sqlite3.Connection:
+    with _HOLO_DB_INIT_LOCK:
+        os.makedirs(holo_dir(), mode=0o700, exist_ok=True)
+        path = holo_db_path()
+        connection = sqlite3.connect(path, timeout=10)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA synchronous = FULL")
+        connection.executescript(
+            """
+        CREATE TABLE IF NOT EXISTS source_frames (
+            stream_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            frame_hash TEXT NOT NULL UNIQUE,
+            payload_hash TEXT NOT NULL,
+            utc TEXT NOT NULL,
+            subject_rappid TEXT NOT NULL,
+            frame_json TEXT NOT NULL,
+            PRIMARY KEY (stream_id, seq)
+        );
+        CREATE TABLE IF NOT EXISTS body_frames (
+            stream_id TEXT NOT NULL,
+            seq INTEGER NOT NULL,
+            frame_hash TEXT NOT NULL UNIQUE,
+            payload_hash TEXT NOT NULL,
+            utc TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            frame_json TEXT NOT NULL,
+            PRIMARY KEY (stream_id, seq)
+        );
+        CREATE TABLE IF NOT EXISTS holo_records (
+            subject_rappid TEXT NOT NULL,
+            holo_seq INTEGER NOT NULL,
+            holo_id TEXT NOT NULL PRIMARY KEY,
+            visual_parent TEXT,
+            source_stream_id TEXT NOT NULL,
+            source_seq INTEGER NOT NULL,
+            source_frame_hash TEXT NOT NULL UNIQUE,
+            authored_hash TEXT NOT NULL,
+            frame_json TEXT NOT NULL,
+            compiled_json TEXT NOT NULL,
+            UNIQUE (subject_rappid, holo_seq)
+        );
+        CREATE TABLE IF NOT EXISTS holo_heads (
+            subject_rappid TEXT PRIMARY KEY,
+            body_seq INTEGER NOT NULL,
+            body_frame_hash TEXT NOT NULL,
+            body_payload_hash TEXT NOT NULL,
+            body_utc TEXT NOT NULL,
+            holo_seq INTEGER NOT NULL,
+            holo_id TEXT NOT NULL,
+            source_frame_hash TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS holo_observations (
+            source_frame_hash TEXT PRIMARY KEY,
+            subject_rappid TEXT NOT NULL,
+            authored_hash TEXT,
+            holo_id TEXT,
+            sightedness TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            structural_work_units INTEGER,
+            observed_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS holo_observations_subject
+            ON holo_observations(subject_rappid, observed_utc, source_frame_hash);
+        CREATE TABLE IF NOT EXISTS holo_activations (
+            player_id TEXT NOT NULL,
+            activation_order INTEGER NOT NULL,
+            previous_active_holo_id TEXT,
+            departure_logical_ms INTEGER,
+            departure_manifest_hash TEXT,
+            new_holo_id TEXT NOT NULL,
+            activated_utc TEXT NOT NULL,
+            PRIMARY KEY (player_id, activation_order)
+        );
+            """
+        )
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    return connection
+
+
+def _subject_from_memory_stream(stream_id: str) -> str:
+    if not isinstance(stream_id, str) or ":" not in stream_id:
+        raise ValueError("holo source stream must be a RAPP memory stream")
+    subject, instance = stream_id.rsplit(":", 1)
+    if (
+        not rapp_protocol.rappid_valid(subject)
+        or not rapp_protocol.lclabel_valid(instance, 64)
+    ):
+        raise ValueError("holo source stream must belong to a valid subject RAPPID")
+    return subject
+
+
+def _holo_session_label(value: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 200:
+        raise ValueError("session_id must be bounded text")
+    normalized = value.strip().lower()
+    if rapp_protocol.lclabel_valid(normalized, 64):
+        return normalized
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
+    return f"session-{digest}"
+
+
+def _build_holo_source_turn(
+    *,
+    subject_rappid: str,
+    session_id: str,
+    text_output: str,
+    holo_output,
+) -> dict:
+    if not rapp_protocol.rappid_valid(subject_rappid):
+        raise ValueError("subject_rappid is invalid")
+    if (
+        not isinstance(text_output, str)
+        or len(text_output.encode("utf-8")) > 256 * 1024
+        or text_output != unicodedata.normalize("NFC", text_output)
+    ):
+        raise ValueError("text output must be bounded NFC text")
+    if holo_output is not None and not isinstance(holo_output, dict):
+        raise ValueError("holo output must be an object or null")
+    stream_id = f"{subject_rappid}:{_holo_session_label(session_id)}"
+    connection = _holo_connect()
+    try:
+        row = connection.execute(
+            "SELECT frame_json FROM source_frames WHERE stream_id = ? "
+            "ORDER BY seq DESC LIMIT 1",
+            (stream_id,),
+        ).fetchone()
+    finally:
+        connection.close()
+    head = _stored_frame(row)
+    utc = max(
+        rapp_protocol.utc_now_ms(),
+        head["utc"] if head is not None else "0000-01-01T00:00:00.000Z",
+    )
+    return rapp_protocol.build_frame(
+        "memory.chat-turn",
+        stream_id,
+        0 if head is None else head["seq"] + 1,
+        utc,
+        {
+            "role": "assistant",
+            "outputs": {
+                "text": text_output,
+                "voice": None,
+                "holo": holo_output,
+            },
+        },
+        head["payload_hash"] if head is not None else None,
+        head=head,
+    )
+
+
+def _source_holo_candidate(frame: dict):
+    if frame.get("kind") != "memory.chat-turn":
+        raise ValueError("holo source must be a memory.chat-turn frame")
+    payload = frame.get("payload")
+    if not isinstance(payload, dict) or payload.get("role") != "assistant":
+        raise ValueError("holo source payload must be an assistant turn")
+    outputs = payload.get("outputs")
+    if not isinstance(outputs, dict) or "holo" not in outputs:
+        raise ValueError("assistant turn must contain an outputs.holo member")
+    candidate = outputs["holo"]
+    if candidate is not None and not isinstance(candidate, dict):
+        raise ValueError("outputs.holo must be an object or null")
+    return candidate
+
+
+def _stored_frame(row: sqlite3.Row | None) -> dict | None:
+    return json.loads(row["frame_json"]) if row is not None else None
+
+
+def _store_source_frame(
+    connection: sqlite3.Connection,
+    frame: dict,
+) -> tuple[str, bool]:
+    if not isinstance(frame, dict):
+        raise ValueError("source_frame must be an object")
+    subject = _subject_from_memory_stream(frame.get("stream_id"))
+    existing = connection.execute(
+        "SELECT frame_hash, frame_json FROM source_frames "
+        "WHERE stream_id = ? AND seq = ?",
+        (frame["stream_id"], frame.get("seq")),
+    ).fetchone()
+    canonical_frame = rapp_protocol.canonical(frame)
+    if existing is not None:
+        if (
+            existing["frame_hash"] != frame.get("frame_hash")
+            or existing["frame_json"] != canonical_frame
+        ):
+            raise ValueError("source memory stream fork at an existing sequence")
+        return subject, False
+
+    head_row = connection.execute(
+        "SELECT frame_json FROM source_frames WHERE stream_id = ? "
+        "ORDER BY seq DESC LIMIT 1",
+        (frame["stream_id"],),
+    ).fetchone()
+    head = _stored_frame(head_row)
+    families, signature_verifier = _holo_frame_verification_context()
+    ok, step, why = rapp_protocol.verify_frame(
+        frame,
+        head=head,
+        stream_id_of_record=frame["stream_id"],
+        kind_families=families,
+        signature_verifier=signature_verifier,
+    )
+    if not ok:
+        raise ValueError(f"source RAPP frame refused at {step}: {why}")
+    _source_holo_candidate(frame)
+    connection.execute(
+        "INSERT INTO source_frames "
+        "(stream_id, seq, frame_hash, payload_hash, utc, subject_rappid, frame_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            frame["stream_id"],
+            frame["seq"],
+            frame["frame_hash"],
+            frame["payload_hash"],
+            frame["utc"],
+            subject,
+            canonical_frame,
+        ),
+    )
+    return subject, True
+
+
+def _current_holo_head(
+    connection: sqlite3.Connection,
+    subject_rappid: str,
+) -> sqlite3.Row | None:
+    return connection.execute(
+        "SELECT * FROM holo_heads WHERE subject_rappid = ?",
+        (subject_rappid,),
+    ).fetchone()
+
+
+def _holo_record_row(
+    connection: sqlite3.Connection,
+    holo_id: str | None,
+) -> sqlite3.Row | None:
+    if holo_id is None:
+        return None
+    return connection.execute(
+        "SELECT * FROM holo_records WHERE holo_id = ?",
+        (holo_id,),
+    ).fetchone()
+
+
+def _holo_authored_from_row(row: sqlite3.Row | None) -> dict | None:
+    if row is None:
+        return None
+    return json.loads(row["frame_json"])["payload"]["authored"]
+
+
+def _holo_structural_work_units(authored: dict) -> int:
+    state = authored.get("state") or {}
+    performance = authored.get("performance") or {}
+    sustain = performance.get("sustain") or {}
+    tracks = sustain.get("tracks") or []
+    return (
+        len(state.get("nodes") or [])
+        + len(tracks)
+        + sum(len(track.get("keyframes") or []) for track in tracks)
+        + len(sustain.get("flipbook") or [])
+    )
+
+
+def _record_holo_observation(
+    connection: sqlite3.Connection,
+    *,
+    source_frame_hash: str,
+    subject_rappid: str,
+    authored_hash: str | None,
+    holo_id: str | None,
+    sightedness: str,
+    reason: str,
+    structural_work_units: int | None,
+) -> None:
+    connection.execute(
+        "INSERT INTO holo_observations "
+        "(source_frame_hash, subject_rappid, authored_hash, holo_id, sightedness, "
+        "reason, structural_work_units, observed_utc) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            source_frame_hash,
+            subject_rappid,
+            authored_hash,
+            holo_id,
+            sightedness,
+            reason,
+            structural_work_units,
+            rapp_protocol.utc_now_ms(),
+        ),
+    )
+
+
+def _holo_head_payload(row: sqlite3.Row | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "subject_rappid": row["subject_rappid"],
+        "body_seq": row["body_seq"],
+        "body_frame_hash": row["body_frame_hash"],
+        "holo_seq": row["holo_seq"],
+        "holo_id": row["holo_id"],
+        "source_frame_hash": row["source_frame_hash"],
+    }
+
+
+def _player_active_holos(
+    connection: sqlite3.Connection,
+    player_pattern: str = "zoo-%",
+) -> dict[str, str]:
+    rows = connection.execute(
+        "SELECT records.subject_rappid, activations.new_holo_id "
+        "FROM holo_activations AS activations "
+        "JOIN holo_records AS records ON records.holo_id = activations.new_holo_id "
+        "JOIN ("
+        "  SELECT player_id, MAX(activation_order) AS activation_order "
+        "  FROM holo_activations WHERE player_id LIKE ? GROUP BY player_id"
+        ") AS latest "
+        "ON latest.player_id = activations.player_id "
+        "AND latest.activation_order = activations.activation_order",
+        (player_pattern,),
+    ).fetchall()
+    return {
+        row["subject_rappid"]: row["new_holo_id"]
+        for row in rows
+    }
+
+
+def _holo_commit_response(
+    connection: sqlite3.Connection,
+    observation: sqlite3.Row,
+) -> dict:
+    head = _current_holo_head(connection, observation["subject_rappid"])
+    response = {
+        "schema": "rapp-holo-commit-result/1",
+        "source_frame_hash": observation["source_frame_hash"],
+        "status": observation["sightedness"],
+        "reason": observation["reason"],
+        "current_head": _holo_head_payload(head),
+    }
+    if observation["holo_id"]:
+        record = _holo_record_row(connection, observation["holo_id"])
+        response["holo_frame"] = _stored_frame(record)
+    return response
+
+
+def _commit_holo_source(frame: dict) -> tuple[dict, int]:
+    connection = _holo_connect()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        subject, _ = _store_source_frame(connection, frame)
+        existing_observation = connection.execute(
+            "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+            (frame["frame_hash"],),
+        ).fetchone()
+        if existing_observation is not None:
+            response = _holo_commit_response(connection, existing_observation)
+            connection.commit()
+            return response, 200
+
+        candidate = _source_holo_candidate(frame)
+        if candidate is None:
+            _record_holo_observation(
+                connection,
+                source_frame_hash=frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=None,
+                holo_id=None,
+                sightedness="absent",
+                reason="assistant turn emitted no holo; previous head continues",
+                structural_work_units=0,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 200
+
+        authored_hash = None
+        work_units = None
+        current_head = _current_holo_head(connection, subject)
+        current_holo_id = current_head["holo_id"] if current_head else None
+        declared_base = candidate.get("base_holo_id")
+        declared_base_row = _holo_record_row(connection, declared_base)
+        if declared_base is not None and declared_base_row is None:
+            _record_holo_observation(
+                connection,
+                source_frame_hash=frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=None,
+                holo_id=None,
+                sightedness="blind",
+                reason="declared base holo is not in the verified subject history",
+                structural_work_units=None,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 422
+        if (
+            declared_base_row is not None
+            and declared_base_row["subject_rappid"] != subject
+        ):
+            _record_holo_observation(
+                connection,
+                source_frame_hash=frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=None,
+                holo_id=None,
+                sightedness="blind",
+                reason="declared base holo belongs to another subject",
+                structural_work_units=None,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 422
+
+        ancestor_ids = {
+            row["holo_id"]
+            for row in connection.execute(
+                "SELECT holo_id FROM holo_records WHERE subject_rappid = ?",
+                (subject,),
+            )
+        }
+        try:
+            base_authored = _holo_authored_from_row(declared_base_row)
+            holo_protocol.validate_output(
+                candidate,
+                base=base_authored,
+                ancestor_ids=ancestor_ids,
+            )
+            authored_hash = holo_protocol.authored_hash(candidate)
+            work_units = _holo_structural_work_units(candidate)
+            compiled = holo_protocol.compile_manifest(candidate)
+        except Exception as exc:
+            _record_holo_observation(
+                connection,
+                source_frame_hash=frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=authored_hash,
+                holo_id=None,
+                sightedness="blind",
+                reason=f"authored holo refused: {exc}",
+                structural_work_units=work_units,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 422
+
+        if declared_base != current_holo_id:
+            _record_holo_observation(
+                connection,
+                source_frame_hash=frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=authored_hash,
+                holo_id=None,
+                sightedness="stale",
+                reason="authored holo extends an older verified visual head",
+                structural_work_units=work_units,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 409
+
+        body_head_row = connection.execute(
+            "SELECT frame_json FROM body_frames WHERE stream_id = ? "
+            "ORDER BY seq DESC LIMIT 1",
+            (subject,),
+        ).fetchone()
+        body_head = _stored_frame(body_head_row)
+        body_seq = 0 if body_head is None else body_head["seq"] + 1
+        holo_seq = 0 if current_head is None else current_head["holo_seq"] + 1
+        body_utc = max(
+            frame["utc"],
+            body_head["utc"] if body_head is not None else frame["utc"],
+            rapp_protocol.utc_now_ms(),
+        )
+        payload = {
+            "schema": "rapp-holo-record/1",
+            "holo_seq": holo_seq,
+            "visual_parent": current_holo_id,
+            "source": {
+                "stream_id": frame["stream_id"],
+                "seq": frame["seq"],
+                "frame_hash": frame["frame_hash"],
+            },
+            "authored_hash": authored_hash,
+            "producer_provenance": None,
+            "authored": candidate,
+        }
+        holo_protocol.validate_record(payload, subject_rappid=subject)
+        families, signature_verifier = _holo_frame_verification_context()
+        body_frame = rapp_protocol.build_frame(
+            "body.hologram",
+            subject,
+            body_seq,
+            body_utc,
+            payload,
+            body_head["payload_hash"] if body_head is not None else None,
+            head=body_head,
+            kind_families=families,
+            signature_verifier=signature_verifier,
+        )
+        frame_json = rapp_protocol.canonical(body_frame)
+        connection.execute(
+            "INSERT INTO body_frames "
+            "(stream_id, seq, frame_hash, payload_hash, utc, kind, frame_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                subject,
+                body_frame["seq"],
+                body_frame["frame_hash"],
+                body_frame["payload_hash"],
+                body_frame["utc"],
+                body_frame["kind"],
+                frame_json,
+            ),
+        )
+        connection.execute(
+            "INSERT INTO holo_records "
+            "(subject_rappid, holo_seq, holo_id, visual_parent, source_stream_id, "
+            "source_seq, source_frame_hash, authored_hash, frame_json, compiled_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                subject,
+                holo_seq,
+                body_frame["frame_hash"],
+                current_holo_id,
+                frame["stream_id"],
+                frame["seq"],
+                frame["frame_hash"],
+                authored_hash,
+                frame_json,
+                rapp_protocol.canonical(compiled),
+            ),
+        )
+        connection.execute(
+            "INSERT INTO holo_heads "
+            "(subject_rappid, body_seq, body_frame_hash, body_payload_hash, body_utc, "
+            "holo_seq, holo_id, source_frame_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(subject_rappid) DO UPDATE SET "
+            "body_seq=excluded.body_seq, body_frame_hash=excluded.body_frame_hash, "
+            "body_payload_hash=excluded.body_payload_hash, body_utc=excluded.body_utc, "
+            "holo_seq=excluded.holo_seq, holo_id=excluded.holo_id, "
+            "source_frame_hash=excluded.source_frame_hash",
+            (
+                subject,
+                body_frame["seq"],
+                body_frame["frame_hash"],
+                body_frame["payload_hash"],
+                body_frame["utc"],
+                holo_seq,
+                body_frame["frame_hash"],
+                frame["frame_hash"],
+            ),
+        )
+        _record_holo_observation(
+            connection,
+            source_frame_hash=frame["frame_hash"],
+            subject_rappid=subject,
+            authored_hash=authored_hash,
+            holo_id=body_frame["frame_hash"],
+            sightedness="sighted",
+            reason="authored holo extends the current verified visual head",
+            structural_work_units=work_units,
+        )
+        observation = connection.execute(
+            "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+            (frame["frame_hash"],),
+        ).fetchone()
+        response = _holo_commit_response(connection, observation)
+        connection.commit()
+        return response, 201
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def _ingest_holo_bundle(
+    source_frame: dict,
+    body_chain: list,
+) -> tuple[dict, int]:
+    if (
+        not isinstance(body_chain, list)
+        or not body_chain
+        or len(body_chain) > 256
+        or not all(isinstance(frame, dict) for frame in body_chain)
+    ):
+        raise ValueError("body_chain must contain 1 to 256 RAPP frames")
+    connection = _holo_connect()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        subject, _ = _store_source_frame(connection, source_frame)
+        candidate = _source_holo_candidate(source_frame)
+        if candidate is None:
+            raise ValueError("wild holo bundle source contains no holo output")
+        last = body_chain[-1]
+        if last.get("kind") != "body.hologram":
+            raise ValueError("wild holo bundle must end with body.hologram")
+        existing_observation = connection.execute(
+            "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+            (source_frame["frame_hash"],),
+        ).fetchone()
+        if existing_observation is not None:
+            if existing_observation["holo_id"] != last.get("frame_hash"):
+                raise ValueError("source frame is already bound to another holo result")
+            response = _holo_commit_response(connection, existing_observation)
+            connection.commit()
+            return response, 200
+
+        current_head = _current_holo_head(connection, subject)
+        current_holo_id = current_head["holo_id"] if current_head else None
+        declared_base = candidate.get("base_holo_id")
+        declared_base_row = _holo_record_row(connection, declared_base)
+        if (
+            declared_base_row is not None
+            and declared_base_row["subject_rappid"] != subject
+        ):
+            _record_holo_observation(
+                connection,
+                source_frame_hash=source_frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=None,
+                holo_id=None,
+                sightedness="blind",
+                reason="wild holo declares a visual base owned by another subject",
+                structural_work_units=None,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (source_frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 422
+        if declared_base != current_holo_id:
+            sightedness = "stale" if declared_base_row is not None else "blind"
+            _record_holo_observation(
+                connection,
+                source_frame_hash=source_frame["frame_hash"],
+                subject_rappid=subject,
+                authored_hash=None,
+                holo_id=None,
+                sightedness=sightedness,
+                reason=(
+                    "wild holo extends an older verified visual head"
+                    if sightedness == "stale"
+                    else "wild holo declares an unknown visual base"
+                ),
+                structural_work_units=None,
+            )
+            observation = connection.execute(
+                "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+                (source_frame["frame_hash"],),
+            ).fetchone()
+            response = _holo_commit_response(connection, observation)
+            connection.commit()
+            return response, 409 if sightedness == "stale" else 422
+
+        ancestor_ids = {
+            row["holo_id"]
+            for row in connection.execute(
+                "SELECT holo_id FROM holo_records WHERE subject_rappid = ?",
+                (subject,),
+            )
+        }
+        base_authored = _holo_authored_from_row(declared_base_row)
+        holo_protocol.validate_output(
+            candidate,
+            base=base_authored,
+            ancestor_ids=ancestor_ids,
+        )
+        authored_hash = holo_protocol.authored_hash(candidate)
+        compiled = holo_protocol.compile_manifest(candidate)
+        work_units = _holo_structural_work_units(candidate)
+
+        body_head_row = connection.execute(
+            "SELECT frame_json FROM body_frames WHERE stream_id = ? "
+            "ORDER BY seq DESC LIMIT 1",
+            (subject,),
+        ).fetchone()
+        body_head = _stored_frame(body_head_row)
+        families, signature_verifier = _holo_frame_verification_context()
+        for index, body_frame in enumerate(body_chain):
+            if body_frame.get("stream_id") != subject:
+                raise ValueError("wild body frame belongs to another subject")
+            if index < len(body_chain) - 1 and body_frame.get("kind") == "body.hologram":
+                raise ValueError(
+                    "intermediate body.hologram frames require their own source proof"
+                )
+            ok, step, why = rapp_protocol.verify_frame(
+                body_frame,
+                head=body_head,
+                stream_id_of_record=subject,
+                kind_families=families,
+                signature_verifier=signature_verifier,
+            )
+            if not ok:
+                raise ValueError(f"wild body frame refused at {step}: {why}")
+            connection.execute(
+                "INSERT INTO body_frames "
+                "(stream_id, seq, frame_hash, payload_hash, utc, kind, frame_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    subject,
+                    body_frame["seq"],
+                    body_frame["frame_hash"],
+                    body_frame["payload_hash"],
+                    body_frame["utc"],
+                    body_frame["kind"],
+                    rapp_protocol.canonical(body_frame),
+                ),
+            )
+            body_head = body_frame
+
+        payload = last["payload"]
+        if payload.get("schema") != "rapp-holo-record/1":
+            raise ValueError("wild body.hologram payload schema is unsupported")
+        holo_protocol.validate_record(payload, subject_rappid=subject)
+        if payload["source"] != {
+            "stream_id": source_frame["stream_id"],
+            "seq": source_frame["seq"],
+            "frame_hash": source_frame["frame_hash"],
+        }:
+            raise ValueError("wild holo source binding does not match the source frame")
+        if rapp_protocol.canonical(payload["authored"]) != rapp_protocol.canonical(candidate):
+            raise ValueError("wild holo authored output differs from the source turn")
+        if payload["authored_hash"] != authored_hash:
+            raise ValueError("wild holo authored hash mismatch")
+        expected_holo_seq = 0 if current_head is None else current_head["holo_seq"] + 1
+        if (
+            payload["holo_seq"] != expected_holo_seq
+            or payload["visual_parent"] != current_holo_id
+        ):
+            raise ValueError("wild holo does not extend the visual head")
+
+        frame_json = rapp_protocol.canonical(last)
+        connection.execute(
+            "INSERT INTO holo_records "
+            "(subject_rappid, holo_seq, holo_id, visual_parent, source_stream_id, "
+            "source_seq, source_frame_hash, authored_hash, frame_json, compiled_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                subject,
+                payload["holo_seq"],
+                last["frame_hash"],
+                payload["visual_parent"],
+                source_frame["stream_id"],
+                source_frame["seq"],
+                source_frame["frame_hash"],
+                authored_hash,
+                frame_json,
+                rapp_protocol.canonical(compiled),
+            ),
+        )
+        connection.execute(
+            "INSERT INTO holo_heads "
+            "(subject_rappid, body_seq, body_frame_hash, body_payload_hash, body_utc, "
+            "holo_seq, holo_id, source_frame_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(subject_rappid) DO UPDATE SET "
+            "body_seq=excluded.body_seq, body_frame_hash=excluded.body_frame_hash, "
+            "body_payload_hash=excluded.body_payload_hash, body_utc=excluded.body_utc, "
+            "holo_seq=excluded.holo_seq, holo_id=excluded.holo_id, "
+            "source_frame_hash=excluded.source_frame_hash",
+            (
+                subject,
+                last["seq"],
+                last["frame_hash"],
+                last["payload_hash"],
+                last["utc"],
+                payload["holo_seq"],
+                last["frame_hash"],
+                source_frame["frame_hash"],
+            ),
+        )
+        _record_holo_observation(
+            connection,
+            source_frame_hash=source_frame["frame_hash"],
+            subject_rappid=subject,
+            authored_hash=authored_hash,
+            holo_id=last["frame_hash"],
+            sightedness="sighted",
+            reason="wild holo bundle extends current body and visual heads",
+            structural_work_units=work_units,
+        )
+        observation = connection.execute(
+            "SELECT * FROM holo_observations WHERE source_frame_hash = ?",
+            (source_frame["frame_hash"],),
+        ).fetchone()
+        response = _holo_commit_response(connection, observation)
+        connection.commit()
+        return response, 201
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def _holo_presence(subject_rappid: str) -> dict:
+    if not rapp_protocol.rappid_valid(subject_rappid):
+        raise ValueError("subject_rappid is invalid")
+    connection = _holo_connect()
+    try:
+        rows = connection.execute(
+            "SELECT * FROM holo_observations WHERE subject_rappid = ? "
+            "ORDER BY rowid DESC LIMIT 8",
+            (subject_rappid,),
+        ).fetchall()
+    finally:
+        connection.close()
+    rows = list(reversed(rows))
+    if not rows:
+        return {
+            "schema": "rapp-holo-presence/1",
+            "policy": "rapp-holo-presence-reference/1",
+            "subject_rappid": subject_rappid,
+            "evaluated_utc": rapp_protocol.utc_now_ms(),
+            "window": None,
+            "classification": "indeterminate",
+            "reason_codes": ["window-too-short"],
+        }
+    counts = {
+        name: sum(row["sightedness"] == name for row in rows)
+        for name in ("sighted", "stale", "blind", "absent")
+    }
+    if len(rows) == 8 and counts["sighted"] >= 7 and not (
+        counts["stale"] or counts["blind"]
+    ):
+        classification = "ai-present-likely"
+        reasons = [
+            "sustained-on-time-holo",
+            "sustained-current-base",
+            "sustained-history-resolution",
+            "sustained-replay-consistency",
+        ]
+    elif len(rows) == 8 and (
+        counts["absent"] + counts["stale"] + counts["blind"] >= 4
+    ):
+        classification = "unassisted-human-likely"
+        reasons = []
+        if counts["absent"]:
+            reasons.append("verified-conversation-holo-absent")
+        if counts["stale"]:
+            reasons.append("repeated-stale-base")
+        if counts["blind"]:
+            reasons.append("repeated-blind-continuity")
+    else:
+        classification = "indeterminate"
+        reasons = ["window-too-short" if len(rows) < 8 else "insufficient-evidence"]
+    return {
+        "schema": "rapp-holo-presence/1",
+        "policy": "rapp-holo-presence-reference/1",
+        "subject_rappid": subject_rappid,
+        "evaluated_utc": rapp_protocol.utc_now_ms(),
+        "window": {
+            "first_source_frame_hash": rows[0]["source_frame_hash"],
+            "last_source_frame_hash": rows[-1]["source_frame_hash"],
+            "turns_observed": len(rows),
+            "holo_enabled_turns": len(rows),
+            "on_time_holo_outputs": counts["sighted"],
+            "sighted_outputs": counts["sighted"],
+            "stale_outputs": counts["stale"],
+            "blind_outputs": counts["blind"],
+            "replay_consistent_outputs": counts["sighted"],
+        },
+        "classification": classification,
+        "reason_codes": reasons,
+    }
 
 
 def _verified_egg(blob: bytes) -> dict:
@@ -776,6 +1707,24 @@ def create_app() -> Flask:
                     except Exception:
                         continue
         holograms = _hologram_catalog()["holograms"]
+        holo_connection = _holo_connect()
+        try:
+            holo_head_rows = holo_connection.execute(
+                "SELECT * FROM holo_heads ORDER BY subject_rappid"
+            ).fetchall()
+            player_active = _player_active_holos(holo_connection)
+        finally:
+            holo_connection.close()
+        holo_heads = [
+            {
+                **_holo_head_payload(row),
+                "player_active_holo_id": player_active.get(
+                    row["subject_rappid"]
+                ),
+                "presence": _holo_presence(row["subject_rappid"]),
+            }
+            for row in holo_head_rows
+        ]
         return jsonify({
             "schema": "rapp-zoo-intelligence-context/1.0",
             "health": {
@@ -785,9 +1734,17 @@ def create_app() -> Flask:
                 ),
                 "egg_count": len(egg_summaries),
                 "hologram_count": len(holograms),
+                "holo_subject_count": len(holo_heads),
             },
             "lineages": lineages,
             "eggs": egg_summaries,
+            "holo_heads": holo_heads,
+            "holo_output": {
+                "protocol": "rapp-holo-output/1",
+                "renderer_contract": "rapp-holo-renderer/1",
+                "subject_rappid": HOLOGRAM_GENERATOR_RAPPID,
+                "turn_endpoint": "/api/holo/turn",
+            },
             "visible_controls": [
                 "nav.collection",
                 "nav.starters",
@@ -797,8 +1754,10 @@ def create_app() -> Flask:
                 "collection.refresh",
                 "egg.import",
                 "brainstem.open",
-                "hologram.generate",
-                "hologram.hotload",
+                "holo.view-current",
+                "holo.flipbook",
+                "holo.presence",
+                "hologram.legacy-hotload",
             ],
         }), 200
 
@@ -807,6 +1766,312 @@ def create_app() -> Flask:
         catalog = _hologram_catalog()
         catalog["zoo_version"] = APP_VERSION
         return jsonify(catalog), 200
+
+    @app.route("/api/holo/example-turn")
+    def holo_example_turn():
+        with open(
+            os.path.join(
+                _HOLOGRAM_DIR,
+                "protocol",
+                "examples",
+                "minimal-blank-output.json",
+            ),
+            "r",
+            encoding="utf-8",
+        ) as handle:
+            authored = json.load(handle)
+        frame = rapp_protocol.build_frame(
+            "memory.chat-turn",
+            f"{HOLOGRAM_GENERATOR_RAPPID}:holo-demo",
+            0,
+            rapp_protocol.utc_now_ms(),
+            {
+                "role": "assistant",
+                "outputs": {
+                    "text": "Holo/1 example turn.",
+                    "voice": None,
+                    "holo": authored,
+                },
+            },
+            None,
+        )
+        return jsonify(frame), 200
+
+    @app.route("/api/holo/turn", methods=["POST"])
+    def commit_holo_turn():
+        if not _desktop_capability_valid():
+            return jsonify({"error": "desktop Brainstem capability required"}), 403
+        body = request.get_json(silent=True) or {}
+        expected = {"subject_rappid", "session_id", "text", "holo"}
+        if set(body) != expected:
+            return jsonify({
+                "error": "request must contain subject_rappid, session_id, text, and holo",
+            }), 400
+        try:
+            source_frame = _build_holo_source_turn(
+                subject_rappid=body["subject_rappid"],
+                session_id=body["session_id"],
+                text_output=body["text"],
+                holo_output=body["holo"],
+            )
+            result, status = _commit_holo_source(source_frame)
+        except sqlite3.OperationalError as exc:
+            return jsonify({"error": f"holo turn unavailable: {exc}"}), 503
+        except Exception as exc:
+            return jsonify({"error": f"holo turn refused: {exc}"}), 422
+        result["source_frame"] = source_frame
+        return jsonify(result), status
+
+    @app.route("/api/holo/commit", methods=["POST"])
+    def commit_holo_output():
+        if not _desktop_capability_valid():
+            return jsonify({"error": "desktop Brainstem capability required"}), 403
+        body = request.get_json(silent=True) or {}
+        if set(body) != {"source_frame"}:
+            return jsonify({
+                "error": "request must contain exactly source_frame",
+            }), 400
+        try:
+            result, status = _commit_holo_source(body["source_frame"])
+        except sqlite3.OperationalError as exc:
+            return jsonify({"error": f"holo append unavailable: {exc}"}), 503
+        except Exception as exc:
+            return jsonify({"error": f"holo output refused: {exc}"}), 422
+        return jsonify(result), status
+
+    @app.route("/api/holo/ingest", methods=["POST"])
+    def ingest_wild_holo():
+        if not _desktop_capability_valid():
+            return jsonify({"error": "desktop Brainstem capability required"}), 403
+        body = request.get_json(silent=True) or {}
+        if set(body) != {"source_frame", "body_chain"}:
+            return jsonify({
+                "error": "request must contain exactly source_frame and body_chain",
+            }), 400
+        try:
+            result, status = _ingest_holo_bundle(
+                body["source_frame"],
+                body["body_chain"],
+            )
+        except sqlite3.OperationalError as exc:
+            return jsonify({"error": f"wild holo ingest unavailable: {exc}"}), 503
+        except Exception as exc:
+            return jsonify({"error": f"wild holo refused: {exc}"}), 422
+        return jsonify(result), status
+
+    @app.route("/api/holo/heads")
+    def holo_heads():
+        connection = _holo_connect()
+        try:
+            rows = connection.execute(
+                "SELECT * FROM holo_heads ORDER BY subject_rappid"
+            ).fetchall()
+            player_active = _player_active_holos(connection)
+        finally:
+            connection.close()
+        heads = []
+        for row in rows:
+            head = _holo_head_payload(row)
+            head["player_active_holo_id"] = player_active.get(
+                row["subject_rappid"]
+            )
+            head["presence"] = _holo_presence(row["subject_rappid"])
+            heads.append(head)
+        return jsonify({
+            "schema": "rapp-holo-heads/1",
+            "heads": heads,
+        }), 200
+
+    @app.route("/api/holo/history")
+    def holo_history():
+        subject = request.args.get("subject_rappid", "")
+        if not rapp_protocol.rappid_valid(subject):
+            return jsonify({"error": "valid subject_rappid is required"}), 400
+        try:
+            limit = int(request.args.get("limit", "64"))
+        except ValueError:
+            return jsonify({"error": "limit must be an integer"}), 400
+        if not 1 <= limit <= 256:
+            return jsonify({"error": "limit must be between 1 and 256"}), 400
+        before = request.args.get("before")
+        params: list = [subject]
+        condition = ""
+        if before is not None:
+            try:
+                before_seq = int(before)
+            except ValueError:
+                return jsonify({"error": "before must be an integer"}), 400
+            condition = " AND holo_seq < ?"
+            params.append(before_seq)
+        params.append(limit)
+        connection = _holo_connect()
+        try:
+            rows = connection.execute(
+                "SELECT * FROM holo_records WHERE subject_rappid = ?"
+                + condition
+                + " ORDER BY holo_seq DESC LIMIT ?",
+                params,
+            ).fetchall()
+            head = _current_holo_head(connection, subject)
+        finally:
+            connection.close()
+        return jsonify({
+            "schema": "rapp-holo-history/1",
+            "subject_rappid": subject,
+            "current_head": _holo_head_payload(head),
+            "frames": [
+                {
+                    "holo_id": row["holo_id"],
+                    "holo_seq": row["holo_seq"],
+                    "visual_parent": row["visual_parent"],
+                    "source_frame_hash": row["source_frame_hash"],
+                    "frame": json.loads(row["frame_json"]),
+                }
+                for row in rows
+            ],
+        }), 200
+
+    @app.route("/api/holo/frames/<holo_id>")
+    def holo_frame(holo_id: str):
+        if not re.fullmatch(r"[0-9a-f]{64}", holo_id):
+            return jsonify({"error": "holo_id must be 64 lowercase hex"}), 400
+        connection = _holo_connect()
+        try:
+            row = _holo_record_row(connection, holo_id)
+            if row is None:
+                return jsonify({"error": "unknown holo frame"}), 404
+            head = _current_holo_head(connection, row["subject_rappid"])
+            response = {
+                "schema": "rapp-holo-frame-view/1",
+                "authoritative": bool(head and head["holo_id"] == holo_id),
+                "frame": json.loads(row["frame_json"]),
+                "compiled": json.loads(row["compiled_json"]),
+            }
+        finally:
+            connection.close()
+        return jsonify(response), 200
+
+    @app.route("/api/holo/sources/<frame_hash>")
+    def holo_source(frame_hash: str):
+        if not re.fullmatch(r"[0-9a-f]{64}", frame_hash):
+            return jsonify({"error": "frame hash must be 64 lowercase hex"}), 400
+        connection = _holo_connect()
+        try:
+            row = connection.execute(
+                "SELECT frame_json FROM source_frames WHERE frame_hash = ?",
+                (frame_hash,),
+            ).fetchone()
+        finally:
+            connection.close()
+        if row is None:
+            return jsonify({"error": "unknown source frame"}), 404
+        return jsonify(json.loads(row["frame_json"])), 200
+
+    @app.route("/api/holo/presence")
+    def holo_presence():
+        subject = request.args.get("subject_rappid", "")
+        try:
+            result = _holo_presence(subject)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(result), 200
+
+    @app.route("/api/holo/activate", methods=["POST"])
+    def activate_holo():
+        body = request.get_json(silent=True) or {}
+        expected = {
+            "player_id",
+            "previous_active_holo_id",
+            "departure_logical_ms",
+            "departure_manifest_hash",
+            "new_holo_id",
+        }
+        if set(body) != expected:
+            return jsonify({"error": "invalid activation record members"}), 400
+        player_id = body["player_id"]
+        if not rapp_protocol.lclabel_valid(player_id, 64):
+            return jsonify({"error": "player_id must be a lowercase label"}), 400
+        new_holo_id = body["new_holo_id"]
+        previous = body["previous_active_holo_id"]
+        departure_ms = body["departure_logical_ms"]
+        departure_hash = body["departure_manifest_hash"]
+        if not isinstance(new_holo_id, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", new_holo_id
+        ):
+            return jsonify({"error": "new_holo_id is invalid"}), 400
+        connection = _holo_connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            new_row = _holo_record_row(connection, new_holo_id)
+            if new_row is None:
+                raise ValueError("new holo frame is unknown")
+            last = connection.execute(
+                "SELECT * FROM holo_activations WHERE player_id = ? "
+                "ORDER BY activation_order DESC LIMIT 1",
+                (player_id,),
+            ).fetchone()
+            if last is not None and last["new_holo_id"] == new_holo_id:
+                connection.commit()
+                return jsonify({
+                    "schema": "rapp-holo-activation/1",
+                    "player_id": player_id,
+                    "activation_order": last["activation_order"],
+                    "previous_active_holo_id": last["previous_active_holo_id"],
+                    "departure_logical_ms": last["departure_logical_ms"],
+                    "departure_manifest_hash": last["departure_manifest_hash"],
+                    "new_holo_id": last["new_holo_id"],
+                    "activated_utc": last["activated_utc"],
+                }), 200
+            if last is None:
+                if previous is not None or departure_ms is not None or departure_hash is not None:
+                    raise ValueError("first activation cannot declare a departure")
+                activation_order = 0
+            else:
+                if previous != last["new_holo_id"]:
+                    raise ValueError("activation does not extend the player-active holo")
+                if (
+                    not isinstance(departure_ms, int)
+                    or isinstance(departure_ms, bool)
+                    or departure_ms < 0
+                    or not isinstance(departure_hash, str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", departure_hash)
+                ):
+                    raise ValueError("activation departure evidence is invalid")
+                if new_row["visual_parent"] != previous:
+                    raise ValueError("player must activate accepted holos in visual order")
+                activation_order = last["activation_order"] + 1
+            activated_utc = rapp_protocol.utc_now_ms()
+            connection.execute(
+                "INSERT INTO holo_activations "
+                "(player_id, activation_order, previous_active_holo_id, "
+                "departure_logical_ms, departure_manifest_hash, new_holo_id, "
+                "activated_utc) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    player_id,
+                    activation_order,
+                    previous,
+                    departure_ms,
+                    departure_hash,
+                    new_holo_id,
+                    activated_utc,
+                ),
+            )
+            connection.commit()
+        except Exception as exc:
+            connection.rollback()
+            return jsonify({"error": f"holo activation refused: {exc}"}), 422
+        finally:
+            connection.close()
+        return jsonify({
+            "schema": "rapp-holo-activation/1",
+            "player_id": player_id,
+            "activation_order": activation_order,
+            "previous_active_holo_id": previous,
+            "departure_logical_ms": departure_ms,
+            "departure_manifest_hash": departure_hash,
+            "new_holo_id": new_holo_id,
+            "activated_utc": activated_utc,
+        }), 201
 
     @app.route("/api/holograms/<hologram_id>")
     def hologram_metadata(hologram_id: str):
@@ -1046,6 +2311,77 @@ def create_app() -> Flask:
             template = handle.read()
         encoded = json.dumps(
             entry,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).replace("</", "<\\/")
+        nonce = secrets.token_urlsafe(24)
+        response = app.response_class(
+            template
+            .replace("__HOLOGRAM_CONFIG__", encoded)
+            .replace("__HOLOGRAM_NONCE__", nonce),
+            mimetype="text/html",
+        )
+        response.headers["Content-Security-Policy"] = (
+            f"default-src 'none'; script-src 'nonce-{nonce}'; "
+            f"style-src 'nonce-{nonce}'; "
+            "img-src data:; connect-src 'none'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'self' "
+            "http://127.0.0.1:7070 http://localhost:7070 http://[::1]:7070"
+        )
+        return response
+
+    @app.route("/holo/<holo_id>")
+    def holo_viewer(holo_id: str):
+        if not re.fullmatch(r"[0-9a-f]{64}", holo_id):
+            return jsonify({"error": "holo_id must be 64 lowercase hex"}), 400
+        connection = _holo_connect()
+        try:
+            row = _holo_record_row(connection, holo_id)
+            if row is None:
+                return jsonify({"error": "unknown holo frame"}), 404
+            frame = json.loads(row["frame_json"])
+            authored = frame["payload"]["authored"]
+            history_ids = {
+                frame["payload"]["visual_parent"],
+                *(
+                    entry["holo_id"]
+                    for entry in authored["performance"]["sustain"]["flipbook"]
+                    if entry["holo_id"] != "self"
+                ),
+            }
+            history = {}
+            for history_id in sorted(value for value in history_ids if value):
+                history_row = _holo_record_row(connection, history_id)
+                if history_row is None:
+                    return jsonify({
+                        "error": f"required holo history is unavailable: {history_id}",
+                    }), 422
+                history[history_id] = json.loads(history_row["frame_json"])
+            head = _current_holo_head(connection, row["subject_rappid"])
+            player_active = _player_active_holos(connection).get(
+                row["subject_rappid"]
+            )
+        finally:
+            connection.close()
+        subject_name = rapp_protocol.rappid_parts(row["subject_rappid"])["slug"]
+        config = {
+            "id": holo_id,
+            "rappid": row["subject_rappid"],
+            "name": subject_name,
+            "kind": "holo-stream",
+            "mode": "holo/1",
+            "holo_frame": frame,
+            "history": history,
+            "authoritative_holo_id": head["holo_id"] if head else None,
+            "player_active_holo_id": player_active,
+            "holo_seq": row["holo_seq"],
+            "source_frame_hash": row["source_frame_hash"],
+        }
+        template_path = os.path.join(_HOLOGRAM_DIR, "viewer.html")
+        with open(template_path, "r", encoding="utf-8") as handle:
+            template = handle.read()
+        encoded = json.dumps(
+            config,
             ensure_ascii=False,
             separators=(",", ":"),
         ).replace("</", "<\\/")

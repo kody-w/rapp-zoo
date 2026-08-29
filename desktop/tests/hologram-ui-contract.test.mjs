@@ -26,32 +26,35 @@ function functionBody(name) {
 }
 
 test("switching an open hologram never closes the modal first", () => {
-  const body = functionBody("openHologram");
+  const body = functionBody("prepareHologramFrame");
   assert.match(
     body,
     /if \(!\$\('hologram-dialog'\)\.open\) \$\('hologram-dialog'\)\.showModal\(\);/,
   );
-
-  const generationStart = source.indexOf(
-    "const result = await desktopBridge.generateHologram",
-  );
-  const transitionStart = source.indexOf("await loadHolograms();", generationStart);
-  const caughtTransition = source.slice(
-    transitionStart,
-    source.indexOf("toast(`Caught", transitionStart),
-  );
-  assert.doesNotMatch(caughtTransition, /hologram-dialog'\)\.close\(\)/);
-  assert.match(caughtTransition, /openHologram\(result\.hologram\.id\)/);
+  assert.match(functionBody("openLegacyHologram"), /prepareHologramFrame/);
+  assert.match(functionBody("openHoloFrame"), /prepareHologramFrame/);
+  assert.doesNotMatch(functionBody("openHoloFrame"), /hologram-dialog'\)\.close/);
 });
 
-test("polishing and caught states survive iframe bound messages", () => {
-  assert.match(source, /hologramPolishing[\s\S]*matched \$\{activeHologram\.name\} · polishing/);
-  assert.match(source, /justCaughtHologramId === activeHologram\.id[\s\S]*new bottle caught/);
+test("Holo Zoo exposes current heads and immutable flipbooks without generation", () => {
+  assert.match(source, /api\('\/api\/holo\/heads'\)/);
+  assert.match(source, /function openHoloFrame/);
+  assert.match(source, /function showHoloHistory/);
+  assert.match(source, /current AI holo/);
+  assert.match(source, /player held prior holo/);
+  assert.doesNotMatch(source, /generateHologram|hologramPolishing|justCaughtHologramId/);
 });
 
 test("remote mobile viewers use an opaque same-host hologram sandbox", () => {
-  const body = functionBody("openHologram");
+  const body = functionBody("prepareHologramFrame");
   assert.match(body, /loopback \? 'allow-scripts allow-same-origin' : 'allow-scripts'/);
   assert.match(body, /: location\.origin/);
   assert.doesNotMatch(body, /allow-downloads/);
+});
+
+test("live Holo activation evidence is persisted outside the sandbox", () => {
+  assert.match(source, /message\.schema === 'rapp-holo-active\/1'/);
+  assert.match(source, /api\('\/api\/holo\/activate'/);
+  assert.match(source, /departure_logical_ms/);
+  assert.match(source, /departure_manifest_hash/);
 });

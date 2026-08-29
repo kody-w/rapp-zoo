@@ -227,42 +227,38 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
         finally:
             shutil.rmtree(agents_dir, ignore_errors=True)
 
-    def test_hologram_forge_agent_accepts_closed_design(self):
+    def test_hologram_forge_agent_accepts_exact_holo_output(self):
         agents_dir = _stage_cartridges()
+        previous_schema = os.environ.get("RAPP_HOLO_OUTPUT_SCHEMA")
+        os.environ["RAPP_HOLO_OUTPUT_SCHEMA"] = str(
+            _REPO_ROOT
+            / "holograms"
+            / "protocol"
+            / "rapp-holo-output.schema.json"
+        )
         try:
             cart_path = os.path.join(agents_dir, "hologram_forge_agent.py")
             loaded = _brainstem._load_agent_from_file(cart_path)
             self.assertIn("HologramForge", loaded)
-            frame = {
-                "spec": "rapp/1",
-                "kind": "body.pulse",
-                "stream_id": "rappid:@kody-w/test:" + "a" * 64,
-                "seq": 0,
-                "utc": "2026-08-28T20:00:00.000Z",
-                "payload": {"query": "make a character"},
-                "payload_hash": "b" * 64,
-                "frame_hash": "c" * 64,
-                "prev": None,
-                "prev_wave": None,
-                "sig": None,
-            }
-            design = {
-                "name": "Frame Ghost",
-                "kind": "character",
-                "accent": "violet",
-                "description": "A reusable bottle shaped by one frame.",
-                "scene": {
-                    "title": "Frame Ghost",
-                    "subtitle": "Fresh slosh, stable memory.",
-                },
-            }
+            authored = json.loads(
+                (
+                    _REPO_ROOT
+                    / "holograms"
+                    / "protocol"
+                    / "examples"
+                    / "minimal-blank-output.json"
+                ).read_text()
+            )
             result = json.loads(loaded["HologramForge"].perform(
-                frame_json=json.dumps(frame),
-                design_json=json.dumps(design),
+                authored_holo_output=authored,
             ))
             self.assertEqual(result["status"], "ok")
-            self.assertEqual(result["design"], design)
+            self.assertEqual(result["authored"], authored)
         finally:
+            if previous_schema is None:
+                os.environ.pop("RAPP_HOLO_OUTPUT_SCHEMA", None)
+            else:
+                os.environ["RAPP_HOLO_OUTPUT_SCHEMA"] = previous_schema
             shutil.rmtree(agents_dir, ignore_errors=True)
 
     def test_summon_twin_perform_creates_viable_workspace(self):

@@ -55,7 +55,7 @@ __manifest__ = {
 }
 
 
-MAX_CANONICAL_BYTES = 1024 * 1024
+MAX_CANONICAL_BYTES = 256 * 1024
 FORBIDDEN_CONTENT = (
     re.compile(r"<\s*/?\s*[a-z][^>]*>", re.IGNORECASE),
     re.compile(r"\bjavascript\s*:", re.IGNORECASE),
@@ -65,9 +65,6 @@ FORBIDDEN_CONTENT = (
     re.compile(r"\bnew\s+Function\s*\(", re.IGNORECASE),
     re.compile(r"\brequire\s*\(", re.IGNORECASE),
     re.compile(r"\bimport\s*\(", re.IGNORECASE),
-    re.compile(r"\bsubprocess\b", re.IGNORECASE),
-    re.compile(r"\bshell\b", re.IGNORECASE),
-    re.compile(r"\bshader\b", re.IGNORECASE),
 )
 _SCHEMA = None
 
@@ -224,7 +221,7 @@ def _assert_data_only(value, path="Holo output"):
     if isinstance(value, str):
         if any(pattern.search(value) for pattern in FORBIDDEN_CONTENT):
             raise ValueError(
-                f"{path} contains executable, remote, or shell content"
+                f"{path} contains executable or remote content"
             )
         return
     if isinstance(value, list):

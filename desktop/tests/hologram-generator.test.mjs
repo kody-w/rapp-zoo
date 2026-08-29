@@ -12,6 +12,7 @@ import {
   originalTurnHoloContract,
   parseBrainstemDesign,
   stageHoloOutput,
+  stripMarkedHoloOutput,
   validateCommitRequest,
   validateDesign,
   validateGenerationRequest,
@@ -45,7 +46,8 @@ test("the original-turn contract supplies head and history without a visual form
   };
   const prompt = originalTurnHoloContract(context);
   assert.match(prompt, /first-class output beside text and voice/);
-  assert.match(prompt, /exactly zero or one/);
+  assert.match(prompt, /author exactly one/);
+  assert.match(prompt, /complete hold state/);
   assert.match(prompt, new RegExp(`CURRENT_BASE_HOLO_ID="${base}"`));
   assert.match(prompt, /VERIFIED_HOLO_HISTORY=/);
   assert.doesNotMatch(prompt, /\b(?:humanoid|character|species)\b/i);
@@ -103,8 +105,12 @@ test("staging adds no visual defaults and refuses malformed or unsafe output", (
   executable.accessibility.description = "Run javascript:alert(1)";
   assert.throws(
     () => stageHoloOutput(executable, null),
-    /executable, remote, or shell content/,
+    /executable or remote content/,
   );
+  const expressive = clone(blank);
+  expressive.accessibility.description =
+    "A shell of light unfolds through shader-like bands.";
+  assert.strictEqual(stageHoloOutput(expressive, null).authored, expressive);
 
   const stale = clone(blank);
   stale.base_holo_id = base;
@@ -182,6 +188,40 @@ test("original-turn capture makes exactly one Brainstem chat call", async () => 
   assert.equal(result.session_id, "session-1");
 });
 
+test("marked Holo output is removed from the visible text response", async () => {
+  const marked = [
+    "Visible answer.",
+    "RAPP_HOLO_OUTPUT_BEGIN",
+    JSON.stringify(blank),
+    "RAPP_HOLO_OUTPUT_END",
+  ].join("\n");
+  assert.equal(stripMarkedHoloOutput(marked), "Visible answer.");
+  const result = await captureOriginalTurn({
+    chat: async () => ({ response: marked, session_id: "session-2" }),
+    input: "original-turn prompt",
+    holoContext: enabled,
+  });
+  assert.equal(result.response, "Visible answer.");
+  assert.deepEqual(result.holo.authored, blank);
+});
+
+test("invalid Holo output does not erase the original text turn", async () => {
+  const malformed = [
+    "Visible answer survives.",
+    "RAPP_HOLO_OUTPUT_BEGIN",
+    '{"schema":"rapp-holo-output/1"}',
+    "RAPP_HOLO_OUTPUT_END",
+  ].join("\n");
+  const result = await captureOriginalTurn({
+    chat: async () => ({ response: malformed, session_id: "session-3" }),
+    input: "original-turn prompt",
+    holoContext: enabled,
+  });
+  assert.equal(result.response, "Visible answer survives.");
+  assert.equal(result.holo, null);
+  assert.match(result.holo_error, /must match|is required|unknown or missing/i);
+});
+
 test("turn commit validation preserves the exact backend request", () => {
   const request = {
     subject_rappid: `rappid:@kody-w/hologram-generator:${"c".repeat(64)}`,
@@ -224,8 +264,9 @@ test("Electron exposes stage and commit while legacy generation cannot call a mo
   assert.match(main, /zooJson\("\/api\/holo\/turn"/);
   assert.match(
     main,
-    /subject_rappid: holoSubjectRappid,[\s\S]*session_id: turn\.session_id,[\s\S]*text: turn\.response,[\s\S]*holo: turn\.holo\?\.authored \|\| null/,
+    /subject_rappid: holoSubjectRappid,[\s\S]*session_id: turn\.session_id \|\| turn\.requestId,[\s\S]*text: turn\.response,[\s\S]*holo: turn\.holo\?\.authored \|\| null/,
   );
+  assert.match(main, /authoritativeHoloContext/);
   assert.match(main, /"X-RAPP-Zoo-Desktop": zoo\.desktopToken/);
   assert.equal(main.match(/brainstem\.chat\(/g)?.length, 1);
   assert.doesNotMatch(

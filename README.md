@@ -57,13 +57,11 @@ Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers
 
 ## Holograms and RAR DOGGs
 
-The next hologram contract is specified in
+The hologram contract is specified in
 [`HOLOGRAM_PROTOCOL.md`](./HOLOGRAM_PROTOCOL.md): hologram is a first-class,
 AI-authored output channel whose immutable `body.hologram` frames form a
 per-AI flipbook. The application verifies and plays that data; it does not
-choose a body, form, emotion, or fallback visual. The bottle behavior described
-below is the released legacy implementation and must not be treated as the
-AI's Holo/1 self.
+choose a body, form, emotion, or fallback visual.
 
 The product split is explicit:
 
@@ -73,12 +71,27 @@ The product split is explicit:
   across RAPP streams and the rolling signal that an AI-capable computational
   participant is present.
 
-The Holograms tab supports two related but different things:
+The Holo Zoo has two deliberately separated areas:
 
-- **3D character holograms** — procedural bodies whose stable appearance is seeded by an artifact RAPPID or egg address.
-- **Data holograms** — volumetric projections that can bind to the path-free live zoo census.
+- **Live AI habitats** — current Holo/1 heads, player-active state, immutable
+  flipbooks, source binding, and the rolling Holo Wake presence heuristic.
+- **Legacy projection exhibit** — the prior character/data bottle demos,
+  retained for compatibility but never presented as an AI's current self.
 
-The bundled `Holo Avatar`, `HOLO in the Nexus`, and `The Briefing` models share one sandboxed, offline Three.js renderer. Their original concepts came from the three standalone `holo-*.html` prototypes; the zoo stores their behavior as closed data rather than three copies of executable inline code.
+During every Holo-enabled Brainstem turn, the AI emits exactly one
+`rapp-holo-output/1` object beside text and voice. The Zoo commits the exact
+candidate into a verified `memory.chat-turn`, materializes it as
+`body.hologram`, and advances a separate visual flipbook head. A null output
+keeps the prior holo performing. Invalid or stale output is surfaced and never
+replaced with a generated avatar.
+
+Wild Holo/1 body chains can be ingested with their exact source frame and
+intervening body frames. Sustained, on-time continuity across changing heads is
+reported as the **Holo Wake**: a practical signal that AI-capable computation is
+present even though ordinary RAPP frame verification remains independent.
+
+The bundled `Holo Avatar`, `HOLO in the Nexus`, and `The Briefing` bottles share
+one sandboxed, offline Three.js renderer. They remain in the legacy exhibit.
 
 RAR publishes the summonable DOGG records at:
 
@@ -87,22 +100,6 @@ https://raw.githubusercontent.com/kody-w/RAR/refs/heads/main/doggs/holograms/ind
 ```
 
 Choosing **Catch RAR bottle** downloads the small JSON record, verifies its SHA-256 from the allowlisted RAR index, validates that it contains no executable or remote content, and atomically stores it under `~/.rapp/holograms/rar/`. The local zoo owns all rendering.
-
-**Forge from RAPP frame** performs the full bottle loop:
-
-1. verify the eleven-key frame;
-2. dimension-match it against caught static DOGGs immediately;
-3. hotload that bottle with the frame as fresh `data_slosh`;
-4. let the app-owned Brainstem and `HologramForge` polish a new closed design;
-5. mint and catch the result under `~/.rapp/holograms/generated/`.
-
-The source tick stays immutable. Different bottles are different lenses over the same data; repeated calls can pour different slosh through the same bottle memory. Hotloading the same tick through two bottles never rewrites either the frame or either bottle.
-
-Because this UI receives one standalone frame rather than a stream repository,
-it accepts only registered, family-compatible genesis frames. Non-genesis
-segments are refused without their verified head and stream-of-record context;
-any present signature is refused unless the configured authenticated registry
-can verify it.
 
 Brainstem users can install `agents/hologram_dogg_agent.py` and say:
 
@@ -119,7 +116,7 @@ Four cartridges ship in [`agents/`](./agents/):
 | [`agents/summon_twin_agent.py`](./agents/summon_twin_agent.py) | `SummonTwin` | Generate a fresh local twin instance with a valid mint-once RAPPID. |
 | [`agents/hatch_egg_agent.py`](./agents/hatch_egg_agent.py) | `HatchEgg` | Verify an organism egg, preserve its artifact identity, and mint a fresh instance identity linked by `grown_from`. |
 | [`agents/hologram_dogg_agent.py`](./agents/hologram_dogg_agent.py) | `HologramDOGG` | List and dimension-match RAR bottles, then catch a hash-verified record into the local zoo. |
-| [`agents/hologram_forge_agent.py`](./agents/hologram_forge_agent.py) | `HologramForge` | Validate Copilot-polished hologram designs against the closed bottle schema. |
+| [`agents/hologram_forge_agent.py`](./agents/hologram_forge_agent.py) | `HologramOutput` / `HologramForge` compatibility | Validate an AI-authored Holo/1 output without designing, polishing, or repairing it. |
 
 Install with one command (after running the rapp-installer):
 
@@ -179,12 +176,22 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 | `POST` | `/api/start`                 | `{instance_rappid}` — start one installation |
 | `POST` | `/api/stop`                  | `{instance_rappid}` — stop one installation |
 | `POST` | `/api/reveal`                | `{path}` — open workspace in OS file manager (path must be inside `~/.rapp/`) |
-| `GET`  | `/api/holograms`             | List bundled, RAR-caught, and generated bottles |
-| `GET`  | `/api/holograms/rar`         | Fetch and validate the public RAR bottle index |
-| `POST` | `/api/holograms/summon`      | Hash-verify and catch one data-only RAR bottle |
-| `GET`  | `/api/holograms/example-frame` | Build a verified example RAPP frame |
-| `POST` | `/api/holograms/match`       | Verify a frame and select the instant cached dimensional lens |
-| `POST` | `/api/holograms/generated`   | Validate and persist a polished generated bottle (desktop capability required) |
+| `GET`  | `/api/holo/heads`            | List authoritative Holo/1 heads, player-active state, and Holo Wake |
+| `GET`  | `/api/holo/history`          | Read one subject's immutable visual flipbook |
+| `GET`  | `/api/holo/frames/<id>`      | Read one materialized `body.hologram` frame |
+| `GET`  | `/api/holo/sources/<hash>`   | Read the exact bound assistant source frame |
+| `GET`  | `/api/holo/presence`         | Evaluate the rolling in-the-wild AI-presence heuristic |
+| `GET`  | `/api/holo/example-turn`     | Build a verified blank Holo/1 assistant turn |
+| `POST` | `/api/holo/turn`             | Commit exact text/holo output from the original Brainstem turn |
+| `POST` | `/api/holo/commit`           | Materialize an already-built `memory.chat-turn` |
+| `POST` | `/api/holo/ingest`           | Ingest source evidence plus a verified wild body-chain segment |
+| `POST` | `/api/holo/activate`         | Persist player-specific activation/departure evidence |
+| `GET`  | `/api/holograms`             | List legacy bundled, RAR-caught, and generated bottles |
+| `GET`  | `/api/holograms/rar`         | Fetch and validate the legacy public RAR bottle index |
+| `POST` | `/api/holograms/summon`      | Hash-verify and catch one legacy data-only RAR bottle |
+| `GET`  | `/api/holograms/example-frame` | Build a verified legacy bottle-match frame |
+| `POST` | `/api/holograms/match`       | Select a legacy cached dimensional lens |
+| `POST` | `/api/holograms/generated`   | Legacy generated-bottle persistence endpoint |
 
 ## Starter rapplications
 

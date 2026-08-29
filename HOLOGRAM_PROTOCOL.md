@@ -197,8 +197,8 @@ intelligence is actively keeping up with the stream.
 
 ## 4. One output, authored in the original turn
 
-When the holo channel is active, one assistant turn contains zero or one holo
-candidate:
+When the holo channel is active, every assistant turn is expected to contain
+exactly one holo candidate:
 
 ```json
 {
@@ -230,8 +230,11 @@ the holo should have been.
 
 ### 4.1 Cardinality
 
-- Zero holo outputs leave the current holo head performing unchanged.
-- One valid holo output may advance the head.
+- One valid holo output advances the head.
+- A visually unchanged expression is still a new complete hold state linked to
+  the current base.
+- A missing holo output leaves the current holo head performing unchanged and
+  records a broken Holo Wake observation; it does not block the text turn.
 - More than one holo output in a source turn is refused.
 - The same source frame and same authored digest are an idempotent replay.
 - The same source frame with different holo data is refused.

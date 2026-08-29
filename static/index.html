@@ -114,16 +114,26 @@
 <!-- ── Holograms ─────────────────────────────────────────────────────── -->
 <section class="tab-panel" id="panel-holograms" role="tabpanel">
   <div class="starters-intro">
-    <h2>Hologram Bottle Rack <span class="muted small" id="holograms-count"></span></h2>
+    <h2>Holo Zoo <span class="muted small" id="holograms-count"></span></h2>
     <p class="muted">
-      <strong>Character holograms</strong> are procedural 3D bodies seeded by identity.
-      <strong>Data holograms</strong> are volumetric projections bound to live zoo state.
-      Each variant is caught as a reusable bottle. Hotloading pours fresh
-      <code>data_slosh</code> through the bottle without changing its memory.
+      <strong>Live habitats</strong> play the latest immutable Holo/1 output
+      authored by each AI. Prior outputs remain a verified flipbook and can
+      continue performing until the next turn arrives. The Zoo validates and
+      displays; it never chooses the hologram.
     </p>
-    <button class="btn primary" id="hologram-generate" data-zoo-control="hologram.generate" hidden>✦ Forge from RAPP frame</button>
   </div>
-  <div id="holograms" class="cards-grid">Loading projections…</div>
+  <div class="holo-zoo-section">
+    <h3>Live AI habitats <span class="muted small" id="holo-heads-count"></span></h3>
+    <div id="holo-heads" class="cards-grid">Watching for Holo/1 streams…</div>
+  </div>
+  <div class="holo-zoo-section legacy-holograms">
+    <h3>Legacy projection exhibit</h3>
+    <p class="muted small">
+      Bottle demonstrations remain available for history and compatibility.
+      They are not an AI's Holo/1 self and never advance a live holo head.
+    </p>
+    <div id="holograms" class="cards-grid">Loading legacy projections…</div>
+  </div>
 </section>
 
 <!-- ── Discover ──────────────────────────────────────────────────────── -->
@@ -173,6 +183,7 @@
     </div>
     <span id="hologram-binding-status" class="pill">demo</span>
   </div>
+  <div id="hologram-mode-note" class="muted small"></div>
   <iframe
     id="hologram-frame"
     title="RAPP Zoo hologram viewer"
@@ -180,31 +191,12 @@
     referrerpolicy="no-referrer"
     allow="fullscreen"
   ></iframe>
+  <div id="holo-flipbook" class="holo-flipbook" hidden></div>
   <div class="dialog-actions">
-    <button class="btn" id="hologram-demo" data-zoo-control="hologram.demo">Demo data</button>
-    <button class="btn primary" id="hologram-bind" data-zoo-control="hologram.bind">Bind live zoo</button>
+    <button class="btn legacy-hologram-control" id="hologram-demo" data-zoo-control="hologram.demo">Demo data</button>
+    <button class="btn primary legacy-hologram-control" id="hologram-bind" data-zoo-control="hologram.bind">Bind live zoo</button>
     <button class="btn" id="hologram-fullscreen">Fullscreen</button>
     <button class="btn" id="hologram-close">Close</button>
-  </div>
-</dialog>
-
-<dialog id="hologram-generate-dialog" class="hologram-generate-dialog">
-  <h3>Forge and catch a hologram bottle</h3>
-  <p>
-    A deterministic dimensional match is projected immediately. The app-owned
-    Brainstem then uses its agents and Copilot to polish a new variant from the
-    same bottle memory plus this frame's fresh <code>data_slosh</code>.
-  </p>
-  <textarea id="hologram-frame-input" rows="13" spellcheck="false" placeholder="Paste an exact RAPP/1 frame JSON object"></textarea>
-  <label class="checkbox">
-    <input id="hologram-randomize" type="checkbox" checked>
-    Generate a surprising new variant instead of a close adaptation
-  </label>
-  <div id="hologram-generate-status" class="muted small"></div>
-  <div class="dialog-actions">
-    <button class="btn" id="hologram-capture-frame">Capture live frame</button>
-    <button class="btn" id="hologram-generate-close">Close</button>
-    <button class="btn primary" id="hologram-generate-submit">Match → polish → catch</button>
   </div>
 </dialog>
 
