@@ -1,19 +1,31 @@
-const FRAME_KEYS = new Set([
-  "spec",
-  "kind",
-  "stream_id",
-  "seq",
-  "utc",
-  "payload",
-  "payload_hash",
-  "frame_hash",
-  "prev",
-  "prev_wave",
-  "sig",
-]);
-const DESIGN_KEYS = new Set(["name", "kind", "accent", "description", "scene"]);
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const HOLO_OUTPUT_SCHEMA = JSON.parse(readFileSync(
+  new URL(
+    "../holograms/protocol/rapp-holo-output.schema.json",
+    import.meta.url,
+  ),
+  "utf8",
+));
+
 const HEX64 = /^[0-9a-f]{64}$/;
-const MAX_FRAME_BYTES = 64 * 1024;
+const MAX_CONTEXT_BYTES = 64 * 1024;
+const MAX_HOLO_BYTES = 1024 * 1024;
+const OUTPUT_SCHEMA_MARKER = /"schema"\s*:\s*"rapp-holo-output\/1"/g;
+const FORBIDDEN_CONTENT = [
+  /<\s*\/?\s*[a-z][^>]*>/i,
+  /\bjavascript\s*:/i,
+  /\bdata\s*:\s*text\/html/i,
+  /\b(?:https?|file)\s*:\/\//i,
+  /\beval\s*\(/i,
+  /\bnew\s+Function\s*\(/i,
+  /\brequire\s*\(/i,
+  /\bimport\s*\(/i,
+  /\bsubprocess\b/i,
+  /\bshell\b/i,
+  /\bshader\b/i,
+];
 
 function exactKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -29,134 +41,418 @@ function exactKeys(value, expected, label) {
   }
 }
 
-function text(value, label, max) {
-  if (
-    typeof value !== "string"
-    || !value.trim()
-    || value.length > max
-    || value !== value.normalize("NFC")
-  ) {
-    throw new Error(`${label} must be bounded NFC text.`);
+function resolveReference(reference) {
+  if (!reference.startsWith("#/")) {
+    throw new Error(`Unsupported Holo schema reference: ${reference}`);
   }
-  return value;
+  return reference
+    .slice(2)
+    .split("/")
+    .reduce(
+      (value, key) => value[key.replaceAll("~1", "/").replaceAll("~0", "~")],
+      HOLO_OUTPUT_SCHEMA,
+    );
 }
 
-export function validateGenerationRequest(value) {
-  exactKeys(value, new Set(["frame", "randomize"]), "Generation request");
-  if (typeof value.randomize !== "boolean") {
-    throw new Error("randomize must be boolean.");
+function typeMatches(value, type) {
+  if (type === "null") return value === null;
+  if (type === "array") return Array.isArray(value);
+  if (type === "object") {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
   }
-  exactKeys(value.frame, FRAME_KEYS, "RAPP frame");
-  if (
-    value.frame.spec !== "rapp/1"
-    || typeof value.frame.payload !== "object"
-    || !value.frame.payload
-    || Array.isArray(value.frame.payload)
-    || !HEX64.test(value.frame.payload_hash)
-    || !HEX64.test(value.frame.frame_hash)
-  ) {
-    throw new Error("RAPP frame shape is invalid.");
+  if (type === "integer") {
+    return Number.isSafeInteger(value) && !Object.is(value, -0);
   }
-  if (Buffer.byteLength(JSON.stringify(value.frame)) > MAX_FRAME_BYTES) {
-    throw new Error("RAPP frame exceeds the hologram generation limit.");
-  }
-  return value;
+  return typeof value === type;
 }
 
-export function validateDesign(value) {
-  exactKeys(value, DESIGN_KEYS, "Hologram design");
-  text(value.name, "name", 60);
-  text(value.description, "description", 500);
-  if (!["character", "data-projection"].includes(value.kind)) {
-    throw new Error("kind must be character or data-projection.");
+function assertSchema(value, schema, path = "Holo output") {
+  if (schema.$ref) {
+    assertSchema(value, resolveReference(schema.$ref), path);
+    return;
   }
-  if (!["violet", "cyan", "ice"].includes(value.accent)) {
-    throw new Error("accent must be violet, cyan, or ice.");
-  }
-  if (value.kind === "character") {
-    exactKeys(value.scene, new Set(["title", "subtitle"]), "Character scene");
-    text(value.scene.title, "scene.title", 120);
-    text(value.scene.subtitle, "scene.subtitle", 240);
-  } else {
-    exactKeys(value.scene, new Set(["prompt", "options"]), "Projection scene");
-    text(value.scene.prompt, "scene.prompt", 300);
-    if (!Array.isArray(value.scene.options) || value.scene.options.length !== 3) {
-      throw new Error("Projection scene must contain exactly three options.");
+  if (schema.oneOf) {
+    let matches = 0;
+    for (const choice of schema.oneOf) {
+      try {
+        assertSchema(value, choice, path);
+        matches += 1;
+      } catch {
+        // A oneOf branch that refuses is not a match.
+      }
     }
-    for (const option of value.scene.options) {
-      exactKeys(option, new Set(["label", "value"]), "Projection option");
-      text(option.label, "option.label", 100);
-      text(option.value, "option.value", 240);
+    if (matches !== 1) {
+      throw new Error(`${path} must match exactly one allowed Holo shape.`);
     }
   }
-  const encoded = JSON.stringify(value).toLowerCase();
-  if (
-    ["<script", "javascript:", "http://", "https://", "shader", "eval(", "subprocess", "shell"]
-      .some((token) => encoded.includes(token))
-  ) {
-    throw new Error("Hologram design contains executable, remote, or shell content.");
+  if (schema.type && !typeMatches(value, schema.type)) {
+    throw new Error(`${path} must be ${schema.type}.`);
   }
-  return value;
-}
-
-function jsonCandidates(response) {
-  const candidates = [];
-  const fence = response.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) candidates.push(fence[1]);
-  candidates.push(response);
-  for (let start = response.indexOf("{"); start >= 0; start = response.indexOf("{", start + 1)) {
-    let depth = 0;
-    let quoted = false;
-    let escaped = false;
-    for (let index = start; index < response.length; index += 1) {
-      const char = response[index];
-      if (quoted) {
-        if (escaped) escaped = false;
-        else if (char === "\\") escaped = true;
-        else if (char === '"') quoted = false;
-      } else if (char === '"') quoted = true;
-      else if (char === "{") depth += 1;
-      else if (char === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          candidates.push(response.slice(start, index + 1));
-          break;
+  if (Object.hasOwn(schema, "const") && value !== schema.const) {
+    throw new Error(`${path} must equal ${JSON.stringify(schema.const)}.`);
+  }
+  if (schema.enum && !schema.enum.includes(value)) {
+    throw new Error(`${path} has an unsupported value.`);
+  }
+  if (typeof value === "string") {
+    if (schema.minLength !== undefined && value.length < schema.minLength) {
+      throw new Error(`${path} is shorter than the Holo limit.`);
+    }
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+      throw new Error(`${path} exceeds the Holo limit.`);
+    }
+    if (schema.pattern && !new RegExp(schema.pattern, "u").test(value)) {
+      throw new Error(`${path} has an invalid format.`);
+    }
+  }
+  if (typeof value === "number") {
+    if (schema.minimum !== undefined && value < schema.minimum) {
+      throw new Error(`${path} is below the Holo limit.`);
+    }
+    if (schema.maximum !== undefined && value > schema.maximum) {
+      throw new Error(`${path} exceeds the Holo limit.`);
+    }
+  }
+  if (Array.isArray(value)) {
+    if (schema.minItems !== undefined && value.length < schema.minItems) {
+      throw new Error(`${path} has too few items.`);
+    }
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+      throw new Error(`${path} has too many items.`);
+    }
+    if (schema.items) {
+      value.forEach((item, index) => {
+        assertSchema(item, schema.items, `${path}[${index}]`);
+      });
+    }
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    for (const required of schema.required || []) {
+      if (!Object.hasOwn(value, required)) {
+        throw new Error(`${path}.${required} is required.`);
+      }
+    }
+    if (schema.additionalProperties === false) {
+      const allowed = new Set(Object.keys(schema.properties || {}));
+      for (const key of Object.keys(value)) {
+        if (!allowed.has(key)) {
+          throw new Error(`${path}.${key} is not part of Holo/1.`);
         }
       }
     }
-  }
-  return candidates;
-}
-
-export function parseBrainstemDesign(response) {
-  for (const candidate of jsonCandidates(String(response || ""))) {
-    try {
-      const parsed = JSON.parse(candidate.trim());
-      const design = parsed?.design || parsed;
-      return validateDesign(design);
-    } catch {
-      // Continue to the next complete JSON candidate.
+    for (const [key, propertySchema] of Object.entries(schema.properties || {})) {
+      if (Object.hasOwn(value, key)) {
+        assertSchema(value[key], propertySchema, `${path}.${key}`);
+      }
     }
   }
-  throw new Error("Brainstem did not return an accepted hologram design object.");
+  for (const item of schema.allOf || []) {
+    assertSchema(value, item, path);
+  }
+  if (schema.if) {
+    let conditionMatches = true;
+    try {
+      assertSchema(value, schema.if, path);
+    } catch {
+      conditionMatches = false;
+    }
+    if (conditionMatches && schema.then) assertSchema(value, schema.then, path);
+    if (!conditionMatches && schema.else) assertSchema(value, schema.else, path);
+  }
 }
 
-export function generationPrompt({ frame, match, randomize }) {
+function assertDataOnly(value, path = "Holo output") {
+  if (typeof value === "string") {
+    if (FORBIDDEN_CONTENT.some((pattern) => pattern.test(value))) {
+      throw new Error(`${path} contains executable, remote, or shell content.`);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertDataOnly(item, `${path}[${index}]`));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      assertDataOnly(item, `${path}.${key}`);
+    }
+  }
+}
+
+function assertJsonValue(value, depth = 1) {
+  if (depth > 64) throw new Error("Holo output exceeds the JSON depth limit.");
+  if (value === null || typeof value === "boolean") return;
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
+      throw new Error("Holo output numbers must be interoperable integers.");
+    }
+    return;
+  }
+  if (typeof value === "string") {
+    for (let index = 0; index < value.length; index += 1) {
+      const code = value.charCodeAt(index);
+      if (code >= 0xd800 && code <= 0xdbff) {
+        const next = value.charCodeAt(index + 1);
+        if (next < 0xdc00 || next > 0xdfff) {
+          throw new Error("Holo output contains an unpaired UTF-16 surrogate.");
+        }
+        index += 1;
+      } else if (code >= 0xdc00 && code <= 0xdfff) {
+        throw new Error("Holo output contains an unpaired UTF-16 surrogate.");
+      }
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => assertJsonValue(item, depth + 1));
+    return;
+  }
+  if (value && typeof value === "object") {
+    Object.entries(value).forEach(([key, item]) => {
+      assertJsonValue(key, depth + 1);
+      assertJsonValue(item, depth + 1);
+    });
+    return;
+  }
+  throw new Error(`Holo output contains non-JSON data: ${typeof value}.`);
+}
+
+export function canonicalJson(value) {
+  assertJsonValue(value);
+  function encode(item) {
+    if (item === null || typeof item === "boolean" || typeof item === "number") {
+      return JSON.stringify(item);
+    }
+    if (typeof item === "string") return JSON.stringify(item);
+    if (Array.isArray(item)) return `[${item.map(encode).join(",")}]`;
+    return `{${Object.keys(item).sort().map(
+      (key) => `${JSON.stringify(key)}:${encode(item[key])}`,
+    ).join(",")}}`;
+  }
+  const canonical = encode(value);
+  if (Buffer.byteLength(canonical) > MAX_HOLO_BYTES) {
+    throw new Error("Holo output exceeds the canonical byte limit.");
+  }
+  return canonical;
+}
+
+export function canonicalHoloHash(value) {
+  return createHash("sha256")
+    .update("rapp-holo/1:authored\n", "ascii")
+    .update(canonicalJson(value), "utf8")
+    .digest("hex");
+}
+
+export function validateHoloOutput(value) {
+  assertJsonValue(value);
+  assertSchema(value, HOLO_OUTPUT_SCHEMA);
+  assertDataOnly(value);
+  canonicalJson(value);
+  return value;
+}
+
+function validateBaseHoloId(value, label = "base_holo_id") {
+  if (value !== null && (typeof value !== "string" || !HEX64.test(value))) {
+    throw new Error(`${label} must be null or 64 lowercase hexadecimal characters.`);
+  }
+  return value;
+}
+
+export function validateHoloTurnContext(value) {
+  if (value === undefined || value === null) {
+    return Object.freeze({
+      enabled: false,
+      base_holo_id: null,
+      history: Object.freeze([]),
+    });
+  }
+  exactKeys(
+    value,
+    new Set(["enabled", "base_holo_id", "history"]),
+    "Holo channel context",
+  );
+  if (typeof value.enabled !== "boolean") {
+    throw new Error("Holo channel enabled must be boolean.");
+  }
+  validateBaseHoloId(value.base_holo_id);
+  if (!Array.isArray(value.history) || value.history.length > 32) {
+    throw new Error("Holo history must be an array of at most 32 verified entries.");
+  }
+  value.history.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`Holo history entry ${index} must be an object.`);
+    }
+  });
+  if (Buffer.byteLength(canonicalJson(value)) > MAX_CONTEXT_BYTES) {
+    throw new Error("Holo channel context exceeds its byte limit.");
+  }
+  return value;
+}
+
+export function originalTurnHoloContract(contextValue) {
+  const context = validateHoloTurnContext(contextValue);
+  if (!context.enabled) {
+    return [
+      "HOLO_OUTPUT_CHANNEL=disabled",
+      "Do not emit a rapp-holo-output/1 object for this response.",
+    ].join("\n");
+  }
   return [
-    "Generate one polished hologram from this verified RAPP frame.",
-    "Use the supplied dimensional DOGG match as cached static intelligence—the bottle.",
-    "Treat the frame payload as fresh data_slosh poured through that bottle.",
-    randomize
-      ? "Create a genuinely surprising new variant; do not merely rename the match."
-      : "Keep the design closely shaped by the matched bottle.",
-    "Use HologramForge to validate your proposed design.",
-    "Return only the accepted design JSON object with exactly:",
-    '{"name":string,"kind":"character"|"data-projection","accent":"violet"|"cyan"|"ice","description":string,"scene":object}',
-    "Character scene is exactly {title,subtitle}.",
-    "Data projection scene is exactly {prompt,options} with exactly three {label,value} objects.",
-    "No code, HTML, URLs, shaders, shell instructions, or file paths.",
-    "",
-    `DIMENSIONAL_MATCH=${JSON.stringify(match)}`,
-    `SOURCE_FRAME=${JSON.stringify(frame)}`,
+    "HOLO_OUTPUT_CHANNEL=enabled",
+    "Hologram is a first-class output beside text and voice.",
+    "During this original response, author exactly zero or one complete rapp-holo-output/1 object.",
+    "If you author one, call HologramForge once with that exact authored_holo_output.",
+    "HologramForge validates only. It cannot design, adapt, repair, clamp, default, or polish.",
+    "After acceptance, include that exact object once between RAPP_HOLO_OUTPUT_BEGIN and RAPP_HOLO_OUTPUT_END.",
+    "If you author no holo, omit both the object and markers. Never request a later creative pass.",
+    "Choose any visual form representable by the declared IR. The application supplies no visual form.",
+    `CURRENT_BASE_HOLO_ID=${JSON.stringify(context.base_holo_id)}`,
+    `VERIFIED_HOLO_HISTORY=${JSON.stringify(context.history)}`,
+    `HOLO_OUTPUT_JSON_SCHEMA=${JSON.stringify(HOLO_OUTPUT_SCHEMA)}`,
   ].join("\n");
 }
+
+export function stageHoloOutput(authored, currentBaseHoloId) {
+  validateBaseHoloId(currentBaseHoloId, "current base_holo_id");
+  validateHoloOutput(authored);
+  if (authored.base_holo_id !== currentBaseHoloId) {
+    throw new Error("Holo output was authored against a stale base_holo_id.");
+  }
+  return {
+    schema: "rapp-holo-stage/1",
+    authored,
+    base_holo_id: authored.base_holo_id,
+    authored_hash: canonicalHoloHash(authored),
+  };
+}
+
+function objectSlices(response) {
+  const stack = [];
+  const slices = [];
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < response.length; index += 1) {
+    const char = response[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === "\"") quoted = false;
+      continue;
+    }
+    if (char === "\"") quoted = true;
+    else if (char === "{") stack.push(index);
+    else if (char === "}" && stack.length) {
+      const start = stack.pop();
+      slices.push(response.slice(start, index + 1));
+    }
+  }
+  return slices;
+}
+
+export function extractHoloOutput(responseValue, contextValue) {
+  const response = String(responseValue || "");
+  const context = validateHoloTurnContext(contextValue);
+  const beginMarker = "RAPP_HOLO_OUTPUT_BEGIN";
+  const endMarker = "RAPP_HOLO_OUTPUT_END";
+  const beginCount = response.split(beginMarker).length - 1;
+  const endCount = response.split(endMarker).length - 1;
+  if (
+    beginCount !== endCount
+    || beginCount > 1
+    || (
+      beginCount === 1
+      && response.indexOf(beginMarker) > response.indexOf(endMarker)
+    )
+  ) {
+    throw new Error("Malformed Holo output markers were refused.");
+  }
+  const markerCount = [...response.matchAll(OUTPUT_SCHEMA_MARKER)].length;
+  const candidates = [];
+  for (const slice of objectSlices(response)) {
+    try {
+      const parsed = JSON.parse(slice);
+      if (parsed?.schema === "rapp-holo-output/1") candidates.push(parsed);
+    } catch {
+      // Schema-marker accounting below turns malformed authored JSON into refusal.
+    }
+  }
+  if (markerCount !== candidates.length) {
+    throw new Error("Malformed rapp-holo-output/1 JSON was refused.");
+  }
+  if (beginCount === 1 && candidates.length !== 1) {
+    throw new Error("Marked Holo output must contain one rapp-holo-output/1 object.");
+  }
+  if (candidates.length > 1) {
+    throw new Error("An assistant turn may contain at most one Holo/1 output.");
+  }
+  if (!context.enabled && candidates.length) {
+    throw new Error("Holo output was emitted while the channel was disabled.");
+  }
+  if (!candidates.length) return null;
+  return stageHoloOutput(candidates[0], context.base_holo_id);
+}
+
+export async function captureOriginalTurn({
+  chat,
+  input,
+  holoContext,
+}) {
+  if (typeof chat !== "function") throw new Error("chat must be callable.");
+  const result = await chat(input);
+  if (!result || typeof result.response !== "string") {
+    throw new Error("Brainstem response must contain text.");
+  }
+  return {
+    ...result,
+    holo: extractHoloOutput(result.response, holoContext),
+  };
+}
+
+function validateStageRecord(value) {
+  exactKeys(
+    value,
+    new Set(["schema", "authored", "base_holo_id", "authored_hash"]),
+    "Holo stage",
+  );
+  if (value.schema !== "rapp-holo-stage/1") {
+    throw new Error("Holo stage schema is invalid.");
+  }
+  const expected = stageHoloOutput(value.authored, value.base_holo_id);
+  if (value.authored_hash !== expected.authored_hash) {
+    throw new Error("Holo stage authored_hash does not match its exact authored object.");
+  }
+  return value;
+}
+
+export function validateCommitRequest(value) {
+  exactKeys(value, new Set(["source_turn", "stage"]), "Holo commit request");
+  exactKeys(
+    value.source_turn,
+    new Set(["stream_id", "seq", "frame_hash"]),
+    "Holo source turn",
+  );
+  if (
+    typeof value.source_turn.stream_id !== "string"
+    || !value.source_turn.stream_id
+    || value.source_turn.stream_id.length > 512
+    || !Number.isSafeInteger(value.source_turn.seq)
+    || value.source_turn.seq < 0
+    || !HEX64.test(value.source_turn.frame_hash)
+  ) {
+    throw new Error("Holo source turn binding is invalid.");
+  }
+  validateStageRecord(value.stage);
+  return value;
+}
+
+function legacyRefusal() {
+  throw new Error(
+    "Legacy post-hoc hologram generation is refused. "
+    + "Enable Holo/1 on the original Brainstem turn and stage its exact output.",
+  );
+}
+
+export const validateGenerationRequest = legacyRefusal;
+export const validateDesign = legacyRefusal;
+export const parseBrainstemDesign = legacyRefusal;
+export const generationPrompt = legacyRefusal;

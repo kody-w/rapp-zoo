@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("rappZooDesktop", Object.freeze({
   brainstemStatus: invoke("brainstem:status"),
   askBrainstem: invoke("brainstem:chat"),
   cancelBrainstem: invoke("brainstem:cancel"),
+  stageHologramOutput: invoke("hologram:stage"),
+  commitHologramOutput: invoke("hologram:commit"),
   generateHologram: invoke("hologram:generate"),
   onState(callback) {
     const listener = (_event, state) => callback(state);
