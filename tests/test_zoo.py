@@ -532,6 +532,11 @@ class TestZooEndpoints(unittest.TestCase):
             html = response.get_data(as_text=True)
             self.assertIn('"id":"holo-avatar"', html)
             self.assertIn("/static/vendor/three-r128.min.js", html)
+            self.assertIn("/static/holo-protocol.js", html)
+            self.assertLess(
+                html.index("/static/holo-protocol.js"),
+                html.index("/static/hologram-runtime.js"),
+            )
             self.assertNotIn("cdnjs.cloudflare.com", html)
             self.assertNotIn("__HOLOGRAM_CONFIG__", html)
             self.assertNotIn("__HOLOGRAM_NONCE__", html)
@@ -539,7 +544,7 @@ class TestZooEndpoints(unittest.TestCase):
             self.assertIn("connect-src 'none'", csp)
             nonce = re.search(r"script-src 'nonce-([^']+)'", csp)
             self.assertIsNotNone(nonce)
-            self.assertEqual(html.count(f'nonce="{nonce.group(1)}"'), 4)
+            self.assertEqual(html.count(f'nonce="{nonce.group(1)}"'), 5)
             self.assertIn("frame-ancestors 'self' http://127.0.0.1:7070", csp)
             self.assertNotIn("'unsafe-inline'", csp)
             response.close()
