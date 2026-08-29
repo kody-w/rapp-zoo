@@ -988,8 +988,8 @@ def _commit_holo_source(frame: dict) -> tuple[dict, int]:
             connection.commit()
             return response, 422
 
-        ancestor_ids = {
-            row["holo_id"]: json.loads(row["frame_json"])["payload"]["authored"]
+        ancestor_records = {
+            row["holo_id"]: json.loads(row["frame_json"])["payload"]
             for row in connection.execute(
                 "SELECT holo_id, frame_json FROM holo_records "
                 "WHERE subject_rappid = ?",
@@ -1001,19 +1001,19 @@ def _commit_holo_source(frame: dict) -> tuple[dict, int]:
             holo_protocol.validate_output(
                 candidate,
                 base=base_authored,
-                ancestor_ids=ancestor_ids,
+                ancestor_ids=ancestor_records,
             )
             authored_hash = holo_protocol.authored_hash(candidate)
             work_units = _holo_structural_work_units(candidate)
             compiled = holo_protocol.compile_manifest(
                 candidate,
                 base=base_authored,
-                ancestor_ids=ancestor_ids,
+                ancestor_ids=ancestor_records,
             )
             replay_compiled = holo_protocol.compile_manifest(
                 candidate,
                 base=base_authored,
-                ancestor_ids=ancestor_ids,
+                ancestor_ids=ancestor_records,
             )
             compiled_json = rapp_protocol.canonical(compiled)
             replay_consistent = (
@@ -1363,8 +1363,8 @@ def _ingest_holo_bundle(
             connection.commit()
             return response, 409 if sightedness == "stale" else 422
 
-        ancestor_ids = {
-            row["holo_id"]: json.loads(row["frame_json"])["payload"]["authored"]
+        ancestor_records = {
+            row["holo_id"]: json.loads(row["frame_json"])["payload"]
             for row in connection.execute(
                 "SELECT holo_id, frame_json FROM holo_records "
                 "WHERE subject_rappid = ?",
@@ -1375,18 +1375,18 @@ def _ingest_holo_bundle(
         holo_protocol.validate_output(
             candidate,
             base=base_authored,
-            ancestor_ids=ancestor_ids,
+            ancestor_ids=ancestor_records,
         )
         authored_hash = holo_protocol.authored_hash(candidate)
         compiled = holo_protocol.compile_manifest(
             candidate,
             base=base_authored,
-            ancestor_ids=ancestor_ids,
+            ancestor_ids=ancestor_records,
         )
         replay_compiled = holo_protocol.compile_manifest(
             candidate,
             base=base_authored,
-            ancestor_ids=ancestor_ids,
+            ancestor_ids=ancestor_records,
         )
         compiled_json = rapp_protocol.canonical(compiled)
         replay_consistent = (
