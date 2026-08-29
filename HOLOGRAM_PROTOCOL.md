@@ -178,9 +178,11 @@ The renderer MUST NOT:
 - mutate an accepted holo with live data.
 
 An unsigned source frame plus subject-string equality is not proof of cognitive
-origin. Holo/1 does not pretend otherwise. Optional producer provenance can be
-attached, while sustained causal holo output supplies the separate practical
-AI-presence heuristic described in section 16.
+origin. Holo/1 does not pretend otherwise. This revision refuses non-null
+producer provenance because it does not yet define the trust-root and
+cryptographic verification profile required to accept one. Sustained causal
+holo output supplies the separate practical AI-presence heuristic described in
+section 16.
 
 If no holo has ever been emitted, the channel is empty. A blank channel is
 correct. A renderer-invented avatar is not.
@@ -198,8 +200,10 @@ finalized.
 The exact `rapp-holo-output/1` object produced by the AI during the source turn.
 
 **Producer provenance**  
-An optional detached-JWS statement identifying a producer that vouches for the
-source and authored digest. It is provenance, not the Holo Wake itself.
+A reserved detached-JWS statement identifying a producer that vouches for the
+source and authored digest. Holo/1 currently requires this field to be null and
+fails closed on non-null values until a cryptographic verification profile is
+standardized. Provenance is not the Holo Wake itself.
 
 **Holo frame**  
 A verified `body.pulse` RAPP frame whose payload is
@@ -275,6 +279,10 @@ exactly one holo candidate:
 The surrounding assistant-turn payload profile can carry other fields, but the
 exact holo candidate MUST be committed in the source frame before its
 `payload_hash` and `frame_hash` are computed.
+
+The empty trait objects above and in later envelope examples abbreviate the
+wire shape; an actual output must satisfy every required field in the normative
+JSON schemas.
 
 This prevents a different visual state from being attached to the turn later.
 Materialization copies the already-authored object; it does not ask a model what
@@ -381,17 +389,20 @@ There are two valid orders:
 A consumer MUST NOT verify a RAPP body frame against the holo head. The holo
 head is not a RAPP chain head.
 
-### 5.2 Subject binding and optional provenance
+### 5.2 Subject binding and reserved provenance
 
 The RAPPID prefix of `source.stream_id` MUST equal the body frame's
 `stream_id`. A holo output cannot be replayed from another organism or memory
 stream.
 
-`producer_provenance` is either null or a provenance object matching
-`rapp-holo-record.schema.json`. When present, its detached JWS verifies the
-producer's statement about the subject, source, and authored digest. When null,
-the record remains a valid Holo/1 output if its RAPP frame, source inclusion,
-visual chain, and IR validate; its provenance result is simply `unattested`.
+`producer_provenance` MUST be null in this revision. A non-null object is
+refused, even when its shape is otherwise valid, because shape validation is
+not cryptographic verification. A future revision may activate detached-JWS
+provenance only after defining trusted key discovery, algorithm policy,
+signature verification, and revocation behavior.
+
+A null value does not invalidate an otherwise conformant Holo/1 record. Its
+provenance result is `unattested`.
 
 For imported or federated output, the source and body frames also MUST satisfy
 the estate's normal signature and registry trust policy. Holo/1 does not weaken
@@ -436,8 +447,7 @@ Record validation also requires:
 - `holo_seq == 0` if and only if `visual_parent == null`;
 - the recomputed authored hash equals both copies of `authored_hash`.
 
-When producer provenance is present, its source, subject, and authored hash also
-must match the record exactly.
+Non-null producer provenance fails closed in this revision.
 
 ---
 
@@ -509,15 +519,33 @@ verified prior holo states as flipbook frames.
 
 ### 6.5 `growl`
 
-Every Holo/1 output carries one AI-authored `rapp-holo-growl/1` trait. It is a
-bounded MIDI motif plus a seed for deterministic autocomplete. The AI chooses
-the seed, register, motif, tempo, program, and timing. The protocol completes
-the motif mechanically; the Zoo does not compose on the AI's behalf.
+Every Holo/1 output carries one AI/model-authored `rapp-holo-growl/1` trait.
+The accepted object already contains both a short prompt and its completed
+original piano continuation. Each note is one structured event:
 
-The completed result is a finite list of MIDI-like note events. A player may
-render it through a fixed local synthesizer only after an explicit user
-gesture. It never autoplays, fetches samples, opens a MIDI device, or executes
-code.
+```text
+NOTE(pitch, delta_onset, duration, velocity)
+```
+
+- `prompt` contains 8–32 note events.
+- `continuation` contains 1–2,048 note events and is already complete.
+- `delta_onset` is measured from the previous note onset.
+- Simultaneous chord notes use `delta_onset = 0` and strictly ascending pitch.
+- Sustain is baked into `duration`.
+- `ticks_per_quarter`, `tempo_milli_bpm`, and MIDI `program` make playback
+  explicit.
+- `context_policy` is pinned to at most 512 notes while generating and retaining
+  the latest 384 notes when a longer continuation requires another model step.
+
+The validator only validates and preserves the authored `prompt +
+continuation`; it never generates, fills, changes, or “polishes” notes from the
+seed. A player may render the immutable event sequence through a fixed local
+piano-like synthesizer only after an explicit user gesture. It never autoplays,
+fetches samples, opens a MIDI device, or executes code.
+
+Growls MUST be original compositions about the organism or its current state.
+The authoring contract must not request reproduction or close imitation of a
+copyrighted game, film, or recording melody.
 
 Growl gives each immutable holo a sonic identity that can continue with its
 visual performance until the next frame arrives.
@@ -1094,7 +1122,8 @@ Preflight may occur outside the append transaction:
 3. Confirm the source payload contains zero or one holo candidate.
 4. Validate the candidate and compile its canonical scene manifest without
    modifying authored data.
-5. Verify optional producer provenance when present.
+5. Confirm `producer_provenance` is null; refuse non-null provenance until a
+   cryptographic verification profile exists.
 6. Resolve and verify every referenced historical holo.
 
 The authoritative commit then occurs inside one per-body-stream transaction:
@@ -1193,8 +1222,10 @@ Initial v1 ceilings:
 | Recursive history depth | 8 |
 | Unique recursively resolved frames | 64 |
 | Referenced historical state bytes | 4 MiB |
-| Growl prefix steps | 16 |
-| Growl completed steps | 64 |
+| Growl prompt notes | 32 |
+| Growl continuation notes | 2,048 |
+| Growl notes, aggregate | 2,080 |
+| Growl aggregate duration | 16,777,215 ticks |
 | Transition duration | 10,000 ms |
 | Sustain duration before repeat | 60,000 ms |
 | Transparent draw calls | 128 |
@@ -1307,7 +1338,7 @@ The UI and evidence model keep four judgments separate:
 | Judgment | Meaning |
 |---|---|
 | **Frame integrity** | The RAPP frame is cryptographically and structurally verified. |
-| **Producer provenance** | An optional trusted producer attests the source and authored digest. |
+| **Producer provenance** | `unattested` in Holo/1; non-null claims fail closed until cryptographically verified by a future profile. |
 | **Stream sightedness** | The output correctly extends the current holo context and resolves every declared continuity/history dependency. |
 | **Origin heuristic** | Timing and structural behavior are machine-likely or indeterminate. |
 
@@ -1438,8 +1469,10 @@ An implementation is not Holo/1 conformant unless all of these are true:
 Before release, the implementation must prove:
 
 - exact AI-authored candidate preservation;
-- optional producer provenance is reported without controlling the Holo Wake
-  classification;
+- null producer provenance is reported as `unattested` without controlling the
+  Holo Wake classification;
+- every non-null producer-provenance mutation is refused until cryptographic
+  verification is standardized;
 - exact source-frame inclusion lookup after later memory turns exist;
 - no second model generation call;
 - same-source identical replay is idempotent;
