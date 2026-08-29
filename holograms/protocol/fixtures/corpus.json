@@ -1,0 +1,3149 @@
+{
+  "schema": "rapp-holo-fixtures/1",
+  "documents": {
+    "blank-valid-output": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#00000000",
+          "fog": null
+        },
+        "nodes": []
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "No visual state.",
+        "reduced_motion": "hold"
+      }
+    },
+    "abstract-custom-mesh": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "fold",
+            "parent": null,
+            "type": "mesh",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                18000,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "vertices": [
+                [
+                  -1800,
+                  -900,
+                  0
+                ],
+                [
+                  1600,
+                  -700,
+                  300
+                ],
+                [
+                  200,
+                  1700,
+                  -400
+                ],
+                [
+                  0,
+                  200,
+                  1800
+                ]
+              ],
+              "triangles": [
+                [
+                  0,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  3,
+                  1
+                ],
+                [
+                  1,
+                  3,
+                  2
+                ],
+                [
+                  2,
+                  3,
+                  0
+                ]
+              ]
+            },
+            "material": {
+              "color": "#36D9C8DD",
+              "emissive": "#082A40",
+              "emissive_strength": 1800,
+              "opacity": 900,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "double",
+              "metallic": 250,
+              "roughness": 600
+            }
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "An asymmetric translucent four-sided fold floats in dark blue fog.",
+        "reduced_motion": "crossfade"
+      }
+    },
+    "multi-node-non-humanoid-scene": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "field",
+            "parent": null,
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "orbit",
+            "parent": "field",
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                70000,
+                0,
+                12000
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "ring",
+              "major_radius": 1800,
+              "minor_radius": 180,
+              "detail": 24
+            },
+            "material": {
+              "color": "#FFB020",
+              "emissive": "#301000",
+              "emissive_strength": 2500,
+              "opacity": 1000,
+              "presentation": "wire",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "signal",
+            "parent": "field",
+            "type": "polyline",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                [
+                  -2200,
+                  -800,
+                  0
+                ],
+                [
+                  -700,
+                  700,
+                  500
+                ],
+                [
+                  900,
+                  -300,
+                  -200
+                ],
+                [
+                  2200,
+                  900,
+                  300
+                ]
+              ],
+              "closed": false,
+              "width": 90
+            },
+            "material": {
+              "color": "#6CE5FFCC",
+              "emissive": "#103060",
+              "emissive_strength": 3200,
+              "opacity": 850,
+              "presentation": "line",
+              "blend": "additive",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "dust",
+            "parent": null,
+            "type": "points",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                {
+                  "position": [
+                    -1200,
+                    1200,
+                    -600
+                  ],
+                  "size": 140
+                },
+                {
+                  "position": [
+                    400,
+                    1500,
+                    200
+                  ],
+                  "size": 90
+                },
+                {
+                  "position": [
+                    1500,
+                    -1100,
+                    500
+                  ],
+                  "size": 180
+                }
+              ]
+            },
+            "material": {
+              "color": "#E8F8FFFF",
+              "emissive": "#305080",
+              "emissive_strength": 2200,
+              "opacity": 1000,
+              "presentation": "points",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "ambient",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "ambient",
+              "color": "#A0B8FF",
+              "intensity": 2400,
+              "range": null,
+              "angle_mdeg": null,
+              "direction": null
+            },
+            "material": null
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "A ring, broken signal path, and sparse points occupy a layered abstract field.",
+        "reduced_motion": "crossfade"
+      }
+    },
+    "transition-successor": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "field",
+            "parent": null,
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "orbit",
+            "parent": "field",
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                76000,
+                14000,
+                30000
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "ring",
+              "major_radius": 2200,
+              "minor_radius": 240,
+              "detail": 24
+            },
+            "material": {
+              "color": "#FFB020",
+              "emissive": "#301000",
+              "emissive_strength": 2500,
+              "opacity": 1000,
+              "presentation": "wire",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "signal",
+            "parent": "field",
+            "type": "polyline",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                [
+                  -2200,
+                  -800,
+                  0
+                ],
+                [
+                  -700,
+                  900,
+                  700
+                ],
+                [
+                  900,
+                  -100,
+                  -500
+                ],
+                [
+                  2200,
+                  900,
+                  300
+                ]
+              ],
+              "closed": false,
+              "width": 90
+            },
+            "material": {
+              "color": "#6CE5FFCC",
+              "emissive": "#103060",
+              "emissive_strength": 3200,
+              "opacity": 850,
+              "presentation": "line",
+              "blend": "additive",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "dust",
+            "parent": null,
+            "type": "points",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                {
+                  "position": [
+                    -1200,
+                    1200,
+                    -600
+                  ],
+                  "size": 140
+                },
+                {
+                  "position": [
+                    400,
+                    1500,
+                    200
+                  ],
+                  "size": 90
+                },
+                {
+                  "position": [
+                    1500,
+                    -1100,
+                    500
+                  ],
+                  "size": 180
+                }
+              ]
+            },
+            "material": {
+              "color": "#E8F8FFFF",
+              "emissive": "#305080",
+              "emissive_strength": 2200,
+              "opacity": 1000,
+              "presentation": "points",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "ambient",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "ambient",
+              "color": "#A0B8FF",
+              "intensity": 2400,
+              "range": null,
+              "angle_mdeg": null,
+              "direction": null
+            },
+            "material": null
+          },
+          {
+            "id": "echo",
+            "parent": "field",
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                -1400
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                700,
+                700,
+                700
+              ]
+            },
+            "geometry": {
+              "shape": "icosahedron",
+              "radius": 900,
+              "detail": 1
+            },
+            "material": {
+              "color": "#AA66FFAA",
+              "emissive": "#331060",
+              "emissive_strength": 4000,
+              "opacity": 700,
+              "presentation": "solid",
+              "blend": "additive",
+              "side": "front",
+              "metallic": 100,
+              "roughness": 500
+            }
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 900,
+        "easing": "ease-in-out",
+        "default": "crossfade",
+        "nodes": [
+          {
+            "id": "field",
+            "mode": "interpolate"
+          },
+          {
+            "id": "orbit",
+            "mode": "interpolate"
+          },
+          {
+            "id": "signal",
+            "mode": "interpolate"
+          },
+          {
+            "id": "dust",
+            "mode": "interpolate"
+          },
+          {
+            "id": "ambient",
+            "mode": "interpolate"
+          },
+          {
+            "id": "echo",
+            "mode": "fade-in"
+          }
+        ]
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "The abstract field widens, bends its signal path, and introduces a violet echo.",
+        "reduced_motion": "crossfade"
+      }
+    },
+    "historical-flipbook": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "field",
+            "parent": null,
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "orbit",
+            "parent": "field",
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                76000,
+                14000,
+                30000
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "ring",
+              "major_radius": 2200,
+              "minor_radius": 240,
+              "detail": 24
+            },
+            "material": {
+              "color": "#FFB020",
+              "emissive": "#301000",
+              "emissive_strength": 2500,
+              "opacity": 1000,
+              "presentation": "wire",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "signal",
+            "parent": "field",
+            "type": "polyline",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                [
+                  -2200,
+                  -800,
+                  0
+                ],
+                [
+                  -700,
+                  900,
+                  700
+                ],
+                [
+                  900,
+                  -100,
+                  -500
+                ],
+                [
+                  2200,
+                  900,
+                  300
+                ]
+              ],
+              "closed": false,
+              "width": 90
+            },
+            "material": {
+              "color": "#6CE5FFCC",
+              "emissive": "#103060",
+              "emissive_strength": 3200,
+              "opacity": 850,
+              "presentation": "line",
+              "blend": "additive",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "dust",
+            "parent": null,
+            "type": "points",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "points": [
+                {
+                  "position": [
+                    -1200,
+                    1200,
+                    -600
+                  ],
+                  "size": 140
+                },
+                {
+                  "position": [
+                    400,
+                    1500,
+                    200
+                  ],
+                  "size": 90
+                },
+                {
+                  "position": [
+                    1500,
+                    -1100,
+                    500
+                  ],
+                  "size": 180
+                }
+              ]
+            },
+            "material": {
+              "color": "#E8F8FFFF",
+              "emissive": "#305080",
+              "emissive_strength": 2200,
+              "opacity": 1000,
+              "presentation": "points",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "ambient",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "ambient",
+              "color": "#A0B8FF",
+              "intensity": 2400,
+              "range": null,
+              "angle_mdeg": null,
+              "direction": null
+            },
+            "material": null
+          },
+          {
+            "id": "echo",
+            "parent": "field",
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                -1400
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                700,
+                700,
+                700
+              ]
+            },
+            "geometry": {
+              "shape": "icosahedron",
+              "radius": 900,
+              "detail": 1
+            },
+            "material": {
+              "color": "#AA66FFAA",
+              "emissive": "#331060",
+              "emissive_strength": 4000,
+              "opacity": 700,
+              "presentation": "solid",
+              "blend": "additive",
+              "side": "front",
+              "metallic": 100,
+              "roughness": 500
+            }
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 900,
+        "easing": "ease-in-out",
+        "default": "crossfade",
+        "nodes": [
+          {
+            "id": "field",
+            "mode": "interpolate"
+          },
+          {
+            "id": "orbit",
+            "mode": "interpolate"
+          },
+          {
+            "id": "signal",
+            "mode": "interpolate"
+          },
+          {
+            "id": "dust",
+            "mode": "interpolate"
+          },
+          {
+            "id": "ambient",
+            "mode": "interpolate"
+          },
+          {
+            "id": "echo",
+            "mode": "fade-in"
+          }
+        ]
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 4000,
+          "repeat": "loop",
+          "tracks": [
+            {
+              "node_id": "orbit",
+              "property": "transform.rotation",
+              "interpolation": "ease-in-out",
+              "keyframes": [
+                {
+                  "at_ms": 0,
+                  "value": [
+                    76000,
+                    14000,
+                    30000
+                  ]
+                },
+                {
+                  "at_ms": 2000,
+                  "value": [
+                    76000,
+                    194000,
+                    30000
+                  ]
+                },
+                {
+                  "at_ms": 4000,
+                  "value": [
+                    76000,
+                    360000,
+                    30000
+                  ]
+                }
+              ]
+            },
+            {
+              "node_id": "echo",
+              "property": "material.color",
+              "interpolation": "linear",
+              "keyframes": [
+                {
+                  "at_ms": 0,
+                  "value": "#AA66FFAA"
+                },
+                {
+                  "at_ms": 2000,
+                  "value": "#40E0D0DD"
+                },
+                {
+                  "at_ms": 4000,
+                  "value": "#AA66FFAA"
+                }
+              ]
+            }
+          ],
+          "flipbook": [
+            {
+              "at_ms": 0,
+              "holo_id": "self",
+              "blend": "crossfade",
+              "blend_ms": 500
+            },
+            {
+              "at_ms": 1500,
+              "holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "blend": "crossfade",
+              "blend_ms": 500
+            },
+            {
+              "at_ms": 3000,
+              "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "blend": "crossfade",
+              "blend_ms": 500
+            }
+          ]
+        }
+      },
+      "accessibility": {
+        "description": "The current field rotates, then recalls two prior abstract states in a loop.",
+        "reduced_motion": "crossfade"
+      }
+    },
+    "budget-safe-sphere": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "sphere-one",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "sphere",
+              "radius": 1000,
+              "detail": 5
+            },
+            "material": {
+              "color": "#FFFFFF",
+              "emissive": "#000000",
+              "emissive_strength": 0,
+              "opacity": 1000,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 700
+            }
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "One maximally detailed protocol sphere.",
+        "reduced_motion": "hold"
+      }
+    },
+    "valid-genesis-record": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 0,
+      "visual_parent": null,
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 7,
+        "frame_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "authored_hash": "6f68bf745de9e3e999e22883ac0594cf6db61df6f5d65b2d50137b1baa3f9ed2",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": null,
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#00000000",
+            "fog": null
+          },
+          "nodes": []
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 0,
+            "repeat": "hold",
+            "tracks": [],
+            "flipbook": []
+          }
+        },
+        "accessibility": {
+          "description": "No visual state.",
+          "reduced_motion": "hold"
+        }
+      }
+    },
+    "valid-successor-record": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 1,
+      "visual_parent": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 8,
+        "frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
+      "producer_provenance": {
+        "statement": {
+          "schema": "rapp-holo-provenance/1",
+          "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "producer_rappid": "rappid:@kody-w/holo-producer:1111111111111111111111111111111111111111111111111111111111111111",
+          "source_stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+          "source_seq": 8,
+          "source_frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
+          "issued_utc": "2026-08-29T15:45:00.000Z"
+        },
+        "sig": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6InJhcHBpZDpAa29keS13L2hvbG8tcHJvZHVjZXI6MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9..Zml4dHVyZQ"
+      },
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#02040AFF",
+            "fog": {
+              "color": "#081020",
+              "near": 2000,
+              "far": 120000
+            }
+          },
+          "nodes": [
+            {
+              "id": "field",
+              "parent": null,
+              "type": "group",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": null,
+              "material": null
+            },
+            {
+              "id": "orbit",
+              "parent": "field",
+              "type": "primitive",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  76000,
+                  14000,
+                  30000
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "shape": "ring",
+                "major_radius": 2200,
+                "minor_radius": 240,
+                "detail": 24
+              },
+              "material": {
+                "color": "#FFB020",
+                "emissive": "#301000",
+                "emissive_strength": 2500,
+                "opacity": 1000,
+                "presentation": "wire",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "signal",
+              "parent": "field",
+              "type": "polyline",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  [
+                    -2200,
+                    -800,
+                    0
+                  ],
+                  [
+                    -700,
+                    900,
+                    700
+                  ],
+                  [
+                    900,
+                    -100,
+                    -500
+                  ],
+                  [
+                    2200,
+                    900,
+                    300
+                  ]
+                ],
+                "closed": false,
+                "width": 90
+              },
+              "material": {
+                "color": "#6CE5FFCC",
+                "emissive": "#103060",
+                "emissive_strength": 3200,
+                "opacity": 850,
+                "presentation": "line",
+                "blend": "additive",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "dust",
+              "parent": null,
+              "type": "points",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  {
+                    "position": [
+                      -1200,
+                      1200,
+                      -600
+                    ],
+                    "size": 140
+                  },
+                  {
+                    "position": [
+                      400,
+                      1500,
+                      200
+                    ],
+                    "size": 90
+                  },
+                  {
+                    "position": [
+                      1500,
+                      -1100,
+                      500
+                    ],
+                    "size": 180
+                  }
+                ]
+              },
+              "material": {
+                "color": "#E8F8FFFF",
+                "emissive": "#305080",
+                "emissive_strength": 2200,
+                "opacity": 1000,
+                "presentation": "points",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "ambient",
+              "parent": null,
+              "type": "light",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "kind": "ambient",
+                "color": "#A0B8FF",
+                "intensity": 2400,
+                "range": null,
+                "angle_mdeg": null,
+                "direction": null
+              },
+              "material": null
+            },
+            {
+              "id": "echo",
+              "parent": "field",
+              "type": "primitive",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  -1400
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  700,
+                  700,
+                  700
+                ]
+              },
+              "geometry": {
+                "shape": "icosahedron",
+                "radius": 900,
+                "detail": 1
+              },
+              "material": {
+                "color": "#AA66FFAA",
+                "emissive": "#331060",
+                "emissive_strength": 4000,
+                "opacity": 700,
+                "presentation": "solid",
+                "blend": "additive",
+                "side": "front",
+                "metallic": 100,
+                "roughness": 500
+              }
+            }
+          ]
+        },
+        "transition": {
+          "duration_ms": 900,
+          "easing": "ease-in-out",
+          "default": "crossfade",
+          "nodes": [
+            {
+              "id": "field",
+              "mode": "interpolate"
+            },
+            {
+              "id": "orbit",
+              "mode": "interpolate"
+            },
+            {
+              "id": "signal",
+              "mode": "interpolate"
+            },
+            {
+              "id": "dust",
+              "mode": "interpolate"
+            },
+            {
+              "id": "ambient",
+              "mode": "interpolate"
+            },
+            {
+              "id": "echo",
+              "mode": "fade-in"
+            }
+          ]
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 0,
+            "repeat": "hold",
+            "tracks": [],
+            "flipbook": []
+          }
+        },
+        "accessibility": {
+          "description": "The abstract field widens, bends its signal path, and introduces a violet echo.",
+          "reduced_motion": "crossfade"
+        }
+      }
+    },
+    "bounded-primitives-and-light": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "capsule",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                -1000,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "capsule",
+              "radius": 700,
+              "height": 2200,
+              "detail": 16
+            },
+            "material": {
+              "color": "#40D0A0",
+              "emissive": "#000000",
+              "emissive_strength": 0,
+              "opacity": 1000,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "torus",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                1200,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "torus",
+              "major_radius": 900,
+              "minor_radius": 220,
+              "detail": 12
+            },
+            "material": {
+              "color": "#FF70C0",
+              "emissive": "#000000",
+              "emissive_strength": 0,
+              "opacity": 1000,
+              "presentation": "wire",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 1000
+            }
+          },
+          {
+            "id": "spot",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                2500,
+                1000
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "spot",
+              "color": "#FFFFFF",
+              "intensity": 5000,
+              "range": 10000,
+              "angle_mdeg": 45000,
+              "direction": [
+                0,
+                -1000,
+                0
+              ]
+            },
+            "material": null
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "A capsule and torus sit beneath one authored spot light.",
+        "reduced_motion": "hold"
+      }
+    },
+    "depth-eight-hierarchy": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#00000000",
+          "fog": null
+        },
+        "nodes": [
+          {
+            "id": "g0",
+            "parent": null,
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g1",
+            "parent": "g0",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g2",
+            "parent": "g1",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g3",
+            "parent": "g2",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g4",
+            "parent": "g3",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g5",
+            "parent": "g4",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g6",
+            "parent": "g5",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g7",
+            "parent": "g6",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          },
+          {
+            "id": "g8",
+            "parent": "g7",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "Nine authored groups form a maximum-depth hierarchy.",
+        "reduced_motion": "hold"
+      }
+    }
+  },
+  "contexts": {
+    "none": {},
+    "successor": {
+      "base_state": {
+        "document": "multi-node-non-humanoid-scene",
+        "path": [
+          "state"
+        ]
+      }
+    },
+    "historical": {
+      "base_state": {
+        "document": "multi-node-non-humanoid-scene",
+        "path": [
+          "state"
+        ]
+      },
+      "ancestors": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "state": {
+            "document": "blank-valid-output",
+            "path": [
+              "state"
+            ]
+          },
+          "verified_ancestor": true
+        },
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+          "state": {
+            "document": "multi-node-non-humanoid-scene",
+            "path": [
+              "state"
+            ]
+          },
+          "verified_ancestor": true
+        }
+      }
+    },
+    "genesis-record": {
+      "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "source_binding": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 7,
+        "frame_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "authored": {
+          "document": "blank-valid-output",
+          "path": []
+        }
+      },
+      "expected_visual_parent": null
+    },
+    "successor-record": {
+      "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "source_binding": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 8,
+        "frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "authored": {
+          "document": "transition-successor",
+          "path": []
+        }
+      },
+      "expected_visual_parent": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "base_state": {
+        "document": "multi-node-non-humanoid-scene",
+        "path": [
+          "state"
+        ]
+      }
+    },
+    "stale-successor-record": {
+      "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "source_binding": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 8,
+        "frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "authored": {
+          "document": "transition-successor",
+          "path": []
+        }
+      },
+      "expected_visual_parent": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "base_state": {
+        "document": "multi-node-non-humanoid-scene",
+        "path": [
+          "state"
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "blank-valid-output",
+      "kind": "output",
+      "accept": true,
+      "document": "blank-valid-output",
+      "context": "none",
+      "manifest_hash": "47e11c559017f67efba06816d379d33596e41010deee7944ae1267d1831b19e8"
+    },
+    {
+      "name": "abstract-custom-mesh",
+      "kind": "output",
+      "accept": true,
+      "document": "abstract-custom-mesh",
+      "context": "none",
+      "manifest_hash": "4e52a507a6200763bbcaa90e5a89cc5a410e27dc38542d58be1af2b36b52ed10"
+    },
+    {
+      "name": "multi-node-non-humanoid-scene",
+      "kind": "output",
+      "accept": true,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "manifest_hash": "9b1cb874650cde4a64c8f743ef48c6de87644ae7faeee02f5c09ac472f9da042"
+    },
+    {
+      "name": "transition-successor",
+      "kind": "output",
+      "accept": true,
+      "document": "transition-successor",
+      "context": "successor",
+      "manifest_hash": "9c484fef153e773f46d18547bb457f2209fbf692e4d7463451d834c0e762d346"
+    },
+    {
+      "name": "historical-flipbook",
+      "kind": "output",
+      "accept": true,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "manifest_hash": "9c484fef153e773f46d18547bb457f2209fbf692e4d7463451d834c0e762d346"
+    },
+    {
+      "name": "budget-safe-sphere",
+      "kind": "output",
+      "accept": true,
+      "document": "budget-safe-sphere",
+      "context": "none",
+      "manifest_hash": "81dce1e002da48fc0cf8f1f727f8fce8e472f9175416bf0153078d1d50a778c4"
+    },
+    {
+      "name": "valid-genesis-record",
+      "kind": "record",
+      "accept": true,
+      "document": "valid-genesis-record",
+      "context": "genesis-record",
+      "manifest_hash": "47e11c559017f67efba06816d379d33596e41010deee7944ae1267d1831b19e8"
+    },
+    {
+      "name": "valid-successor-record",
+      "kind": "record",
+      "accept": true,
+      "document": "valid-successor-record",
+      "context": "successor-record",
+      "manifest_hash": "9c484fef153e773f46d18547bb457f2209fbf692e4d7463451d834c0e762d346"
+    },
+    {
+      "name": "unknown-key",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "unexpected"
+          ],
+          "value": true
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "float",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "camera",
+            "near"
+          ],
+          "value": 1.5
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "cycle",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "parent"
+          ],
+          "value": "orbit"
+        },
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "parent"
+          ],
+          "value": "field"
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "bad-mesh-index",
+      "kind": "output",
+      "accept": false,
+      "document": "abstract-custom-mesh",
+      "context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "triangles",
+            0,
+            2
+          ],
+          "value": 9
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "duplicate-ids",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "id"
+          ],
+          "value": "field"
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "bad-track",
+      "kind": "output",
+      "accept": false,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "performance",
+            "sustain",
+            "tracks",
+            0,
+            "keyframes",
+            0,
+            "at_ms"
+          ],
+          "value": 1
+        }
+      ],
+      "baseline_context": "historical"
+    },
+    {
+      "name": "overlapping-crossfade",
+      "kind": "output",
+      "accept": false,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "performance",
+            "sustain",
+            "flipbook",
+            2,
+            "blend_ms"
+          ],
+          "value": 2000
+        }
+      ],
+      "baseline_context": "historical"
+    },
+    {
+      "name": "invalid-ancestor",
+      "kind": "output",
+      "accept": false,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "performance",
+            "sustain",
+            "flipbook",
+            1,
+            "holo_id"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "baseline_context": "historical"
+    },
+    {
+      "name": "budget-overflow",
+      "kind": "output",
+      "accept": false,
+      "document": "budget-safe-sphere",
+      "context": "none",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "state",
+            "nodes",
+            "-"
+          ],
+          "value": {
+            "id": "sphere-two",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                2500,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "sphere",
+              "radius": 1000,
+              "detail": 5
+            },
+            "material": {
+              "color": "#FFFFFF",
+              "emissive": "#000000",
+              "emissive_strength": 0,
+              "opacity": 1000,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "front",
+              "metallic": 0,
+              "roughness": 700
+            }
+          }
+        }
+      ],
+      "baseline_context": "none"
+    },
+    {
+      "name": "stale-record",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-successor-record",
+      "context": "stale-successor-record",
+      "patches": [],
+      "baseline_context": "successor-record"
+    },
+    {
+      "name": "mismatched-record",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-successor-record",
+      "context": "successor-record",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "source",
+            "frame_hash"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "baseline_context": "successor-record"
+    },
+    {
+      "name": "bounded-primitives-and-light",
+      "kind": "output",
+      "accept": true,
+      "document": "bounded-primitives-and-light",
+      "context": "none",
+      "manifest_hash": "410c990320cacf033de0eca8064c9164f588f69fe03f3539db6463454fadb588"
+    },
+    {
+      "name": "depth-eight-hierarchy",
+      "kind": "output",
+      "accept": true,
+      "document": "depth-eight-hierarchy",
+      "context": "none",
+      "manifest_hash": "4b04180a545c47a820ee869014a7c60d65ed0dc84bb1851596804caabcf395be"
+    },
+    {
+      "name": "coincident-camera",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "camera",
+            "target"
+          ],
+          "value": [
+            0,
+            1000,
+            6000
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bad-fog-planes",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "environment",
+            "fog",
+            "far"
+          ],
+          "value": 2000
+        }
+      ]
+    },
+    {
+      "name": "degenerate-mesh",
+      "kind": "output",
+      "accept": false,
+      "document": "abstract-custom-mesh",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "vertices",
+            2
+          ],
+          "value": [
+            -100,
+            -800,
+            150
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bad-radial-radii",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "geometry",
+            "minor_radius"
+          ],
+          "value": 1800
+        }
+      ]
+    },
+    {
+      "name": "bad-capsule-height",
+      "kind": "output",
+      "accept": false,
+      "document": "bounded-primitives-and-light",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "height"
+          ],
+          "value": 1000
+        }
+      ]
+    },
+    {
+      "name": "zero-light-direction",
+      "kind": "output",
+      "accept": false,
+      "document": "bounded-primitives-and-light",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            2,
+            "geometry",
+            "direction"
+          ],
+          "value": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bad-material-presentation",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "material",
+            "presentation"
+          ],
+          "value": "line"
+        }
+      ]
+    },
+    {
+      "name": "incompatible-interpolate",
+      "kind": "output",
+      "accept": false,
+      "document": "transition-successor",
+      "context": "successor",
+      "baseline_context": "successor",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "geometry"
+          ],
+          "value": {
+            "shape": "box",
+            "size": [
+              1000,
+              1000,
+              1000
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "duplicate-track-target",
+      "kind": "output",
+      "accept": false,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "baseline_context": "historical",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "performance",
+            "sustain",
+            "tracks",
+            "-"
+          ],
+          "value": {
+            "node_id": "orbit",
+            "property": "transform.rotation",
+            "interpolation": "ease-in-out",
+            "keyframes": [
+              {
+                "at_ms": 0,
+                "value": [
+                  76000,
+                  14000,
+                  30000
+                ]
+              },
+              {
+                "at_ms": 2000,
+                "value": [
+                  76000,
+                  194000,
+                  30000
+                ]
+              },
+              {
+                "at_ms": 4000,
+                "value": [
+                  76000,
+                  360000,
+                  30000
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "bad-flipbook-order",
+      "kind": "output",
+      "accept": false,
+      "document": "historical-flipbook",
+      "context": "historical",
+      "baseline_context": "historical",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "performance",
+            "sustain",
+            "flipbook",
+            2,
+            "at_ms"
+          ],
+          "value": 1400
+        }
+      ]
+    },
+    {
+      "name": "parent-depth-overflow",
+      "kind": "output",
+      "accept": false,
+      "document": "depth-eight-hierarchy",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "state",
+            "nodes",
+            "-"
+          ],
+          "value": {
+            "id": "g9",
+            "parent": "g8",
+            "type": "group",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": null,
+            "material": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "mismatched-provenance",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-successor-record",
+      "context": "successor-record",
+      "baseline_context": "successor-record",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "producer_provenance",
+            "statement",
+            "authored_hash"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
+    }
+  ],
+  "helpers": {
+    "round_div": [
+      {
+        "args": [
+          5,
+          2
+        ],
+        "expected": 3
+      },
+      {
+        "args": [
+          -5,
+          2
+        ],
+        "expected": -3
+      },
+      {
+        "args": [
+          4,
+          3
+        ],
+        "expected": 1
+      },
+      {
+        "args": [
+          -4,
+          3
+        ],
+        "expected": -1
+      }
+    ],
+    "easing": [
+      {
+        "args": [
+          "linear",
+          250000
+        ],
+        "expected": 250000
+      },
+      {
+        "args": [
+          "ease-in",
+          250000
+        ],
+        "expected": 62500
+      },
+      {
+        "args": [
+          "ease-out",
+          250000
+        ],
+        "expected": 437500
+      },
+      {
+        "args": [
+          "ease-in-out",
+          750000
+        ],
+        "expected": 875000
+      }
+    ],
+    "local_sustain_time": [
+      {
+        "args": [
+          1000,
+          500,
+          0,
+          "hold"
+        ],
+        "expected": 0
+      },
+      {
+        "args": [
+          7000,
+          1000,
+          4000,
+          "once"
+        ],
+        "expected": 4000
+      },
+      {
+        "args": [
+          5500,
+          500,
+          2000,
+          "loop"
+        ],
+        "expected": 1000
+      },
+      {
+        "args": [
+          5500,
+          500,
+          2000,
+          "ping-pong"
+        ],
+        "expected": 1000
+      }
+    ],
+    "property_tracks": [
+      {
+        "track": {
+          "document": "historical-flipbook",
+          "path": [
+            "performance",
+            "sustain",
+            "tracks",
+            0
+          ]
+        },
+        "at_ms": 1000,
+        "expected": [
+          76000,
+          104000,
+          30000
+        ]
+      },
+      {
+        "track": {
+          "document": "historical-flipbook",
+          "path": [
+            "performance",
+            "sustain",
+            "tracks",
+            1
+          ]
+        },
+        "at_ms": 1000,
+        "expected": [
+          117,
+          163,
+          231,
+          196
+        ]
+      }
+    ],
+    "flipbook": [
+      {
+        "at_ms": 0,
+        "expected": [
+          {
+            "holo_id": "self",
+            "weight": 1000000
+          }
+        ]
+      },
+      {
+        "at_ms": 1250,
+        "expected": [
+          {
+            "holo_id": "self",
+            "weight": 500000
+          },
+          {
+            "holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "weight": 500000
+          }
+        ]
+      },
+      {
+        "at_ms": 2750,
+        "expected": [
+          {
+            "holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "weight": 500000
+          },
+          {
+            "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "weight": 500000
+          }
+        ]
+      },
+      {
+        "at_ms": 3750,
+        "expected": [
+          {
+            "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "weight": 500000
+          },
+          {
+            "holo_id": "self",
+            "weight": 500000
+          }
+        ]
+      }
+    ]
+  }
+}
