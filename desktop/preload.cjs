@@ -4,17 +4,13 @@ const invoke = (channel) => (...args) => ipcRenderer.invoke(channel, ...args);
 
 contextBridge.exposeInMainWorld("rappZooDesktop", Object.freeze({
   status: invoke("desktop:status"),
-  copilotStatus: invoke("copilot:status"),
-  askCopilot: invoke("copilot:ask"),
-  cancelCopilot: invoke("copilot:cancel"),
+  brainstemStatus: invoke("brainstem:status"),
+  askBrainstem: invoke("brainstem:chat"),
+  cancelBrainstem: invoke("brainstem:cancel"),
+  generateHologram: invoke("hologram:generate"),
   onState(callback) {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on("desktop:state", listener);
     return () => ipcRenderer.removeListener("desktop:state", listener);
-  },
-  onCopilotChunk(callback) {
-    const listener = (_event, chunk) => callback(chunk);
-    ipcRenderer.on("copilot:chunk", listener);
-    return () => ipcRenderer.removeListener("copilot:chunk", listener);
   },
 }));

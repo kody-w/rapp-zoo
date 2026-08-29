@@ -1,11 +1,17 @@
-const CACHE = "rapp-zoo-shell-v1";
+const CACHE = "rapp-zoo-shell-v2";
 const SHELL = [
   "/",
   "/manifest.webmanifest",
   "/static/zoo.css",
   "/static/zoo.js",
+  "/static/hologram.css",
+  "/static/hologram-runtime.js",
   "/static/vendor/jszip.min.js",
+  "/static/vendor/three-r128.min.js",
   "/static/icon.svg",
+  "/holograms/holo-avatar",
+  "/holograms/holo-nexus",
+  "/holograms/holo-briefing",
 ];
 
 self.addEventListener("install", (event) => {

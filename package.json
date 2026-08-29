@@ -1,6 +1,6 @@
 {
   "name": "rapp-zoo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Frontier Electron shell and mobile PWA for the RAPP/1 organism zoo.",
@@ -12,7 +12,7 @@
   "scripts": {
     "desktop": "electron .",
     "desktop:dev": "RAPP_ZOO_DESKTOP_DEV=1 electron .",
-    "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/copilot-bridge.mjs && node --check desktop/zoo-supervisor.mjs",
+    "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/brainstem-supervisor.mjs && node --check desktop/hologram-generator.mjs && node --check desktop/zoo-supervisor.mjs",
     "test:desktop": "node --test desktop/tests/*.test.mjs",
     "test": "npm run check:desktop && npm run test:desktop",
     "dist": "electron-builder",
@@ -21,7 +21,8 @@
   "devDependencies": {
     "electron": "43.2.0",
     "electron-builder": "^26.0.12",
-    "jszip": "3.10.1"
+    "jszip": "3.10.1",
+    "three": "^0.128.0"
   },
   "build": {
     "appId": "io.github.kody-w.rapp-zoo",
@@ -29,6 +30,7 @@
     "asar": true,
     "asarUnpack": [
       "agents/**/*",
+      "holograms/**/*",
       "holocards/**/*",
       "installer/**/*",
       "starters/**/*",
@@ -44,6 +46,7 @@
     "files": [
       "desktop/**/*",
       "agents/**/*",
+      "holograms/**/*",
       "holocards/**/*",
       "installer/**/*",
       "starters/**/*",

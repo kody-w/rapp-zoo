@@ -61,6 +61,63 @@ class TestCanonicalization(unittest.TestCase):
             __import__("hashlib").sha256(b"kody-w/test").hexdigest(),
         )
 
+    def test_frame_build_verify_and_tamper_refusal(self):
+        stream = R.mint_rappid("kody-w", "frame", uuid_bytes=b"f" * 16)
+        frame = R.build_frame(
+            "body.pulse",
+            stream,
+            0,
+            "2026-08-28T20:00:00.000Z",
+            {"query": "briefing", "dimensions": ["status"]},
+            None,
+        )
+        self.assertEqual(
+            R.verify_frame(
+                frame,
+                stream_id_of_record=stream,
+            ),
+            (True, None, "ok"),
+        )
+        tampered = {**frame, "payload": {"query": "other"}}
+        self.assertEqual(R.verify_frame(tampered)[1], "2")
+
+        successor = R.build_frame(
+            "body.pulse",
+            stream,
+            1,
+            "2026-08-28T20:00:01.000Z",
+            {"query": "next"},
+            frame["payload_hash"],
+            head=frame,
+        )
+        self.assertEqual(R.verify_frame(successor)[1], "4")
+        self.assertEqual(
+            R.verify_frame(
+                successor,
+                head=frame,
+                stream_id_of_record=stream,
+            ),
+            (True, None, "ok"),
+        )
+
+        def rehash(candidate):
+            candidate["frame_hash"] = R.H(
+                "rapp/1:wave",
+                {
+                    key: value
+                    for key, value in candidate.items()
+                    if key not in {"frame_hash", "sig"}
+                },
+            )
+            return candidate
+
+        unregistered = rehash({**frame, "kind": "evil.execute"})
+        self.assertEqual(R.verify_frame(unregistered)[1], "1")
+        wrong_family = rehash({**frame, "kind": "memory.chat-turn"})
+        self.assertEqual(R.verify_frame(wrong_family)[1], "1")
+        malformed_sig = {**frame, "sig": "not-a-jws"}
+        self.assertEqual(R.verify_frame(malformed_sig)[1], "1")
+
 
 class TestEggs(unittest.TestCase):
     def test_deterministic_organism_zip(self):
@@ -151,6 +208,12 @@ class TestEggs(unittest.TestCase):
             "entries": [
                 {"type": "estate_owner", "rappid": owner_rid},
                 {
+                    "type": "kind",
+                    "kind": "body.pulse",
+                    "family": "body",
+                    "deprecated": False,
+                },
+                {
                     "type": "spki",
                     "rappid": owner_rid,
                     "spki_der_b64": base64.b64encode(spki).decode(),
@@ -195,6 +258,32 @@ class TestEggs(unittest.TestCase):
             (True, None, "ok"),
         )
         self.assertEqual(R.verify_egg(invite)[1], "§10")
+
+        frame = R.build_frame(
+            "body.pulse",
+            owner_rid,
+            0,
+            "2026-08-28T20:00:00.000Z",
+            {"query": "signed briefing"},
+            None,
+        )
+        unsigned_frame = {
+            key: value for key, value in frame.items() if key != "sig"
+        }
+        frame["sig"] = R.sign_detached_jws(
+            unsigned_frame,
+            private_key,
+            owner_rid,
+        )
+        self.assertEqual(R.verify_frame(frame)[1], "6")
+        self.assertEqual(
+            R.verify_frame(
+                frame,
+                kind_families=trust.kind_families,
+                signature_verifier=trust.verify_frame_signature,
+            ),
+            (True, None, "ok"),
+        )
 
     def test_owner_rotation_accepts_history_and_refuses_superseded_signer(self):
         from cryptography.hazmat.primitives import serialization

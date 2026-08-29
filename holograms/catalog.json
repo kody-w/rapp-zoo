@@ -1,0 +1,110 @@
+{
+  "schema": "rapp-zoo-holograms/1.0",
+  "holograms": [
+    {
+      "id": "holo-avatar",
+      "rappid": "rappid:@kody-w/holo-avatar:ce3a3fef2bdcb4debdcc08a4d0e8a1982756d2e269719ccb342a5f734abaf8c2",
+      "name": "Holo Avatar",
+      "kind": "character",
+      "version": "1.0.0",
+      "engine": "three-r128",
+      "description": "A deterministic humanoid companion whose proportions and markings are seeded by a RAPP identity or egg address.",
+      "source_file": "holo-avatar.html",
+      "default_seed": "04356bded8854372649c4eba1516673fbb136b39f7f8c29da2437fd6a1aac201",
+      "accent": "violet",
+      "data_binding": "identity-seed",
+      "bottle": true,
+      "dimensions": [
+        "identity",
+        "character",
+        "companion",
+        "avatar",
+        "embodiment"
+      ],
+      "scene": {
+        "title": "A creature grown from its own frame",
+        "subtitle": "Same identity seed, same character on every machine."
+      }
+    },
+    {
+      "id": "holo-nexus",
+      "rappid": "rappid:@kody-w/holo-nexus:acc37c05ec39e4086b7b9afa3c5fa23f75e9ad9127209e6b1ffb5bcd6c37a217",
+      "name": "HOLO in the Nexus",
+      "kind": "data-projection",
+      "version": "1.0.0",
+      "engine": "three-r128",
+      "description": "A fixed emitter projection that turns an options frame or live zoo state into a volumetric command surface.",
+      "source_file": "holo-nexus.html",
+      "default_seed": "b691c0494fae2213b9668e4e545d0b48bb490015b06447dc0255b2e8c0b62b64",
+      "accent": "cyan",
+      "data_binding": "live-zoo",
+      "bottle": true,
+      "dimensions": [
+        "options",
+        "decision",
+        "backup",
+        "command",
+        "projection"
+      ],
+      "scene": {
+        "prompt": "How do you want to back up the estate tonight?",
+        "options": [
+          {
+            "label": "Snapshot with provenance",
+            "value": "Snapshot the estate tree and preserve proof that nothing drifted."
+          },
+          {
+            "label": "Census only",
+            "value": "Generate a deterministic census for peer access."
+          },
+          {
+            "label": "Git-backed archive",
+            "value": "Commit the state, then generate the census."
+          }
+        ]
+      }
+    },
+    {
+      "id": "holo-briefing",
+      "rappid": "rappid:@kody-w/holo-briefing:6cf05183da3770824c1d20bfcc0cead35d48d06f98f7764335f5ba7d2fdc8712",
+      "name": "The Briefing",
+      "kind": "data-projection",
+      "version": "1.0.0",
+      "engine": "three-r128",
+      "description": "A persistent briefing character that projects the estate census and the three highest-leverage next moves.",
+      "source_file": "holo-briefing.html",
+      "default_seed": "04356bded8854372649c4eba1516673fbb136b39f7f8c29da2437fd6a1aac201",
+      "accent": "ice",
+      "data_binding": "live-zoo",
+      "bottle": true,
+      "dimensions": [
+        "briefing",
+        "status",
+        "priorities",
+        "census",
+        "projection"
+      ],
+      "scene": {
+        "prompt": "Three things need you. Which first?",
+        "options": [
+          {
+            "label": "Keep me alive",
+            "value": "Protect the currently live organism instances."
+          },
+          {
+            "label": "Open the lineage",
+            "value": "Inspect artifact-to-instance ancestry before acting."
+          },
+          {
+            "label": "Remove drift",
+            "value": "Resolve anything the current protocol verifier refuses."
+          }
+        ],
+        "briefing": {
+          "trust": "VERIFIED",
+          "revision": "rev-6"
+        }
+      }
+    }
+  ]
+}

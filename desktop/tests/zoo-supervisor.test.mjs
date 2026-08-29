@@ -47,6 +47,7 @@ test("child exit immediately revokes renderer trust", async () => {
   child.stderr = new EventEmitter();
   child.kill = () => true;
   let calls = 0;
+  let spawnOptions = null;
   let supervisor;
   const fetchImpl = async () => {
     calls += 1;
@@ -67,10 +68,14 @@ test("child exit immediately revokes renderer trust", async () => {
     appRoot: "/tmp/app",
     userData,
     fetchImpl,
-    spawnImpl: () => child,
+    spawnImpl: (_command, _args, options) => {
+      spawnOptions = options;
+      return child;
+    },
   });
   supervisor.ensureRuntime = async () => process.execPath;
   await supervisor.start();
+  assert.equal(spawnOptions.env.PYTHONDONTWRITEBYTECODE, "1");
   assert.equal(supervisor.state().trusted, true);
   child.emit("exit", 1, null);
   assert.equal(supervisor.state().state, "crashed");
@@ -81,4 +86,30 @@ test("child exit immediately revokes renderer trust", async () => {
     supervisor.log = null;
   }
   rmSync(userData, { recursive: true, force: true });
+});
+
+test("zoo spawn errors fail without retaining trust", async () => {
+  const userData = mkdtempSync(path.join(tmpdir(), "rapp-zoo-spawn-"));
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.kill = () => true;
+  const supervisor = new ZooSupervisor({
+    appRoot: "/tmp/app",
+    userData,
+    fetchImpl: async () => ({ ok: false }),
+    spawnImpl: () => {
+      setImmediate(() => child.emit("error", new Error("spawn EACCES")));
+      return child;
+    },
+  });
+  supervisor.ensureRuntime = async () => process.execPath;
+  try {
+    await assert.rejects(supervisor.start(), /spawn EACCES/);
+    assert.equal(supervisor.state().state, "failed");
+    assert.equal(supervisor.state().trusted, false);
+    assert.equal(supervisor.state().owned, false);
+  } finally {
+    rmSync(userData, { recursive: true, force: true });
+  }
 });

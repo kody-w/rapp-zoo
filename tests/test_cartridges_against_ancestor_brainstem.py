@@ -28,6 +28,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -98,7 +99,12 @@ class _Iso:
 def _stage_cartridges() -> str:
     """Copy our cartridges into a temp agents/ dir suitable for AGENTS_PATH."""
     tmp_agents = tempfile.mkdtemp()
-    for cart in ("summon_twin_agent.py", "hatch_egg_agent.py"):
+    for cart in (
+        "summon_twin_agent.py",
+        "hatch_egg_agent.py",
+        "hologram_dogg_agent.py",
+        "hologram_forge_agent.py",
+    ):
         src = _REPO_ROOT / "agents" / cart
         shutil.copy2(src, os.path.join(tmp_agents, cart))
     return tmp_agents
@@ -160,6 +166,102 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
             self.assertEqual(instance.name, "HatchEgg")
             tool = instance.to_tool()
             self.assertIn("egg_path", tool["function"]["parameters"]["properties"])
+        finally:
+            shutil.rmtree(agents_dir, ignore_errors=True)
+
+    def test_hologram_dogg_agent_loads_and_lists_catalog(self):
+        agents_dir = _stage_cartridges()
+        try:
+            cart_path = os.path.join(agents_dir, "hologram_dogg_agent.py")
+            loaded = _brainstem._load_agent_from_file(cart_path)
+            self.assertIn("HologramDOGG", loaded)
+            instance = loaded["HologramDOGG"]
+            tool = instance.to_tool()
+            self.assertIn(
+                "hologram_id",
+                tool["function"]["parameters"]["properties"],
+            )
+            self.assertIn(
+                "frame_json",
+                tool["function"]["parameters"]["properties"],
+            )
+            catalog = {
+                "schema": "rar-hologram-dogg-index/1.0",
+                "entries": [{
+                    "id": "holo-avatar",
+                    "name": "Holo Avatar",
+                    "kind": "character",
+                    "bottle": True,
+                    "dimensions": ["identity", "character"],
+                    "rappid": "rappid:@kody-w/holo-avatar:" + "a" * 64,
+                }, {
+                    "id": "holo-briefing",
+                    "name": "The Briefing",
+                    "kind": "data-projection",
+                    "bottle": True,
+                    "dimensions": ["briefing", "status", "priorities"],
+                    "rappid": "rappid:@kody-w/holo-briefing:" + "b" * 64,
+                }],
+            }
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=io.BytesIO(json.dumps(catalog).encode()),
+            ):
+                result = json.loads(instance.perform(action="list"))
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["holograms"][0]["id"], "holo-avatar")
+            with mock.patch(
+                "urllib.request.urlopen",
+                return_value=io.BytesIO(json.dumps(catalog).encode()),
+            ):
+                result = json.loads(instance.perform(
+                    action="match",
+                    frame_json=json.dumps({
+                        "payload": {"status": "ready", "priorities": ["ship"]},
+                    }),
+                ))
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["mode"], "dimensional")
+            self.assertEqual(result["bottle"]["id"], "holo-briefing")
+            self.assertEqual(result["matched_dimensions"], ["priorities", "status"])
+        finally:
+            shutil.rmtree(agents_dir, ignore_errors=True)
+
+    def test_hologram_forge_agent_accepts_closed_design(self):
+        agents_dir = _stage_cartridges()
+        try:
+            cart_path = os.path.join(agents_dir, "hologram_forge_agent.py")
+            loaded = _brainstem._load_agent_from_file(cart_path)
+            self.assertIn("HologramForge", loaded)
+            frame = {
+                "spec": "rapp/1",
+                "kind": "body.pulse",
+                "stream_id": "rappid:@kody-w/test:" + "a" * 64,
+                "seq": 0,
+                "utc": "2026-08-28T20:00:00.000Z",
+                "payload": {"query": "make a character"},
+                "payload_hash": "b" * 64,
+                "frame_hash": "c" * 64,
+                "prev": None,
+                "prev_wave": None,
+                "sig": None,
+            }
+            design = {
+                "name": "Frame Ghost",
+                "kind": "character",
+                "accent": "violet",
+                "description": "A reusable bottle shaped by one frame.",
+                "scene": {
+                    "title": "Frame Ghost",
+                    "subtitle": "Fresh slosh, stable memory.",
+                },
+            }
+            result = json.loads(loaded["HologramForge"].perform(
+                frame_json=json.dumps(frame),
+                design_json=json.dumps(design),
+            ))
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["design"], design)
         finally:
             shutil.rmtree(agents_dir, ignore_errors=True)
 
@@ -308,9 +410,8 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
         finally:
             shutil.rmtree(agents_dir, ignore_errors=True)
 
-    def test_full_loader_picks_up_both_cartridges(self):
-        """End-to-end: AGENTS_PATH=our_dir, call load_agents() — both
-        cartridges should appear as registered tools."""
+    def test_full_loader_picks_up_all_cartridges(self):
+        """End-to-end: every shipped cartridge registers as a tool."""
         agents_dir = _stage_cartridges()
         try:
             with _Iso():
@@ -324,7 +425,9 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
 
                 self.assertIn("SummonTwin", agents)
                 self.assertIn("HatchEgg", agents)
-                # Both have valid OpenAI tool definitions
+                self.assertIn("HologramDOGG", agents)
+                self.assertIn("HologramForge", agents)
+                # Every cartridge has a valid OpenAI tool definition.
                 for name, instance in agents.items():
                     tool = instance.to_tool()
                     self.assertEqual(tool["type"], "function")
