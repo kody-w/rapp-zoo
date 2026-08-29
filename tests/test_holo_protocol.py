@@ -36,16 +36,21 @@ def apply_patches(value, patches):
         for part in patch["path"][:-1]:
             target = target[part]
         final = patch["path"][-1]
-        replacement = copy.deepcopy(patch["value"])
         if patch["op"] == "replace":
-            target[final] = replacement
+            target[final] = copy.deepcopy(patch["value"])
+        elif patch["op"] == "remove":
+            if isinstance(target, list):
+                target.pop(final)
+            else:
+                del target[final]
         elif patch["op"] == "add" and isinstance(target, list):
+            replacement = copy.deepcopy(patch["value"])
             if final == "-":
                 target.append(replacement)
             else:
                 target.insert(final, replacement)
         elif patch["op"] == "add":
-            target[final] = replacement
+            target[final] = copy.deepcopy(patch["value"])
         else:
             raise AssertionError(f"unsupported fixture patch: {patch}")
     return value

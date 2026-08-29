@@ -2957,6 +2957,48 @@
           "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
         }
       ]
+    },
+    {
+      "name": "legacy-authorship-field",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-genesis-record",
+      "context": "genesis-record",
+      "baseline_context": "genesis-record",
+      "patches": [
+        {
+          "op": "remove",
+          "path": [
+            "producer_provenance"
+          ]
+        },
+        {
+          "op": "add",
+          "path": [
+            "authorship"
+          ],
+          "value": null
+        }
+      ]
+    },
+    {
+      "name": "legacy-model-output-hash",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-successor-record",
+      "context": "successor-record",
+      "baseline_context": "successor-record",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "producer_provenance",
+            "statement",
+            "model_output_hash"
+          ],
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ]
     }
   ],
   "helpers": {

@@ -58,6 +58,9 @@ function applyPatches(value, patches) {
     const replacement = clone(patch.value);
     if (patch.op === "replace") {
       target[final] = replacement;
+    } else if (patch.op === "remove") {
+      if (Array.isArray(target)) target.splice(final, 1);
+      else delete target[final];
     } else if (patch.op === "add" && Array.isArray(target)) {
       if (final === "-") target.push(replacement);
       else target.splice(final, 0, replacement);
