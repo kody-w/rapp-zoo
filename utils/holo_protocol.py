@@ -1190,7 +1190,10 @@ def _compiled_geometry(node: dict):
 def compile_scene_manifest(authored: dict, *, _validated: bool = False) -> dict:
     """Compile a canonical, fixed-point logical scene manifest."""
     if not _validated:
-        _validate_output_manifest(authored)
+        return _validate_output_manifest(
+            authored,
+            require_ancestor_resolution=False,
+        )
     state = authored["state"]
     camera = copy.deepcopy(state["camera"])
     camera["normalized_up"] = _normalize_vector(camera["up"])

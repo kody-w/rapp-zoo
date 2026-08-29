@@ -1064,7 +1064,9 @@
   }
 
   function compileSceneManifest(authored, validated = false) {
-    if (!validated) validateOutputManifest(authored);
+    if (!validated) {
+      return validateOutputManifest(authored, { requireAncestorResolution: false });
+    }
     const state = authored.state;
     const camera = clone(state.camera);
     camera.normalized_up = normalizeVector(camera.up);

@@ -236,6 +236,10 @@ test("stable adapters accept an output base and ancestor ID set", () => {
     H.compileManifest(value, { base, ancestorIds }).schema,
     "rapp-holo-compiled/1",
   );
+  assert.equal(
+    H.compileSceneManifest(value).schema,
+    "rapp-holo-compiled/1",
+  );
 });
 
 

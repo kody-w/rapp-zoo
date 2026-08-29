@@ -168,6 +168,10 @@ class TestHoloProtocolFixtures(unittest.TestCase):
             ],
             "rapp-holo-compiled/1",
         )
+        self.assertEqual(
+            H.compile_scene_manifest(value)["schema"],
+            "rapp-holo-compiled/1",
+        )
 
     def test_stable_record_adapter_preserves_exact_payload(self):
         record = copy.deepcopy(CORPUS["documents"]["valid-successor-record"])
