@@ -124,6 +124,12 @@ function output({
       prompt: [
         { pitch: 60, delta_onset: 0, duration: 4, velocity: 96 },
         { pitch: 64, delta_onset: 0, duration: 4, velocity: 90 },
+        { pitch: 67, delta_onset: 0, duration: 4, velocity: 88 },
+        { pitch: 62, delta_onset: 4, duration: 4, velocity: 94 },
+        { pitch: 65, delta_onset: 0, duration: 4, velocity: 89 },
+        { pitch: 69, delta_onset: 0, duration: 4, velocity: 86 },
+        { pitch: 64, delta_onset: 4, duration: 4, velocity: 92 },
+        { pitch: 67, delta_onset: 0, duration: 4, velocity: 87 },
       ],
       continuation: [
         { pitch: 67, delta_onset: 4, duration: 8, velocity: 92 },
@@ -534,10 +540,8 @@ test("growl completion and WebAudio scheduling are deterministic and gesture-onl
 
   assert.deepEqual(authoredGrowl, originalGrowl);
   assert.deepEqual(events, [
-    { pitch: 60, delta_onset: 0, duration: 4, velocity: 96 },
-    { pitch: 64, delta_onset: 0, duration: 4, velocity: 90 },
-    { pitch: 67, delta_onset: 4, duration: 8, velocity: 92 },
-    { pitch: 69, delta_onset: 4, duration: 4, velocity: 88 },
+    ...authoredGrowl.prompt,
+    ...authoredGrowl.continuation,
   ]);
   assert.deepEqual(schedule.preset, {
     name: "round",
@@ -546,14 +550,20 @@ test("growl completion and WebAudio scheduling are deterministic and gesture-onl
     release_us: 110000,
   });
   assert.equal(schedule.step_us, 5000);
-  assert.equal(schedule.duration_us, 60000);
+  assert.equal(schedule.duration_us, 100000);
   assert.deepEqual(
     schedule.events.map((event) => [event.start_us, event.duration_us]),
     [
       [0, 20000],
       [0, 20000],
-      [20000, 40000],
+      [0, 20000],
+      [20000, 20000],
+      [20000, 20000],
+      [20000, 20000],
       [40000, 20000],
+      [40000, 20000],
+      [60000, 40000],
+      [80000, 20000],
     ],
   );
   assert.deepEqual(
@@ -620,7 +630,10 @@ test("growl completion and WebAudio scheduling are deterministic and gesture-onl
   assert.equal(contexts, 0);
   await player.play(authoredGrowl, { user_gesture: true });
   assert.equal(contexts, 1);
-  assert.equal(audioCalls.filter(([name]) => name === "start").length, 4);
+  assert.equal(
+    audioCalls.filter(([name]) => name === "start").length,
+    events.length,
+  );
   assert.ok(
     audioCalls
       .filter(([name]) => name === "start")
