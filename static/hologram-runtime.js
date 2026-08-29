@@ -23,6 +23,62 @@
     return result;
   }
 
+  async function departureManifestHash(
+    manifest,
+    api = root.RappHoloProtocol,
+    cryptoApi = root.crypto,
+  ) {
+    if (typeof api?.canonical !== "function") {
+      throw new Error("RappHoloProtocol canonicalization is unavailable.");
+    }
+    if (typeof cryptoApi?.subtle?.digest !== "function") {
+      throw new Error("SHA-256 is unavailable for Holo/1 activation evidence.");
+    }
+    const bytes = new TextEncoder().encode(
+      `rapp-holo/1:departure\n${api.canonical(manifest)}`,
+    );
+    const digest = await cryptoApi.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(digest)]
+      .map((value) => value.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function activeMessage(evidence, manifestHash) {
+    const firstActivation = evidence.previous_active_holo_id === null;
+    return {
+      schema: "rapp-holo-active/1",
+      holo_id: evidence.holo_id,
+      previous_active_holo_id: evidence.previous_active_holo_id,
+      departure_logical_ms: firstActivation
+        ? null
+        : evidence.departure_logical_ms,
+      departure_manifest_hash: firstActivation ? null : manifestHash,
+      authoritative: evidence.authoritative_holo_id === evidence.holo_id,
+    };
+  }
+
+  function readyMessage(playerId, state) {
+    return {
+      schema: "rapp-holo-ready/1",
+      player_id: playerId || null,
+      authoritative_holo_id: state.authoritative_holo_id,
+      player_active_holo_id: state.player_active_holo_id,
+    };
+  }
+
+  function errorMessage(error, state) {
+    return {
+      schema: "rapp-holo-error/1",
+      holo_id: state.authoritative_holo_id,
+      player_active_holo_id: state.player_active_holo_id,
+      authoritative: Boolean(
+        state.authoritative_holo_id
+        && state.authoritative_holo_id === state.player_active_holo_id
+      ),
+      error: String(error?.message || error),
+    };
+  }
+
   function protocolColor(value) {
     if (Array.isArray(value)) return clone(value);
     const raw = String(value).slice(1);
@@ -729,9 +785,10 @@
           );
         }
         const cutover = acceptance.activated_at ?? now();
+        const previousActiveHoloId = state.player_active_holo_id;
         const departureLogicalMs = state.active
           ? logicalMs(cutover)
-          : 0;
+          : null;
         const departure = state.active
           ? evaluateActive(departureLogicalMs)
           : null;
@@ -758,8 +815,10 @@
         state.player_active_holo_id = candidate.holo_id;
         options.onAccepted?.({
           authoritative_holo_id: state.authoritative_holo_id,
-          player_active_holo_id: state.player_active_holo_id,
+          holo_id: state.player_active_holo_id,
+          previous_active_holo_id: previousActiveHoloId,
           departure_logical_ms: departureLogicalMs,
+          departure_manifest: clone(departure),
         });
         return true;
       } catch (error) {
@@ -786,9 +845,19 @@
       };
     }
 
+    function metadata() {
+      return {
+        authoritative_holo_id: state.authoritative_holo_id,
+        player_active_holo_id: state.player_active_holo_id,
+        logical_ms: logicalMs(),
+        errors: clone(state.errors),
+      };
+    }
+
     return Object.freeze({
       acceptUpdate,
       evaluateAt: evaluateActive,
+      metadata,
       snapshot,
     });
   }
@@ -842,9 +911,13 @@
   }
 
   root.RappHoloPlayerTest = Object.freeze({
+    activeMessage,
     createController: createHoloController,
+    departureManifestHash,
+    errorMessage,
     normalizePlayerUpdate,
     rasterPlan,
+    readyMessage,
   });
 
   if (typeof document === "undefined") return;
@@ -1430,10 +1503,30 @@
     let rasterizer = null;
     let animationStarted = false;
     let lastFrameError = null;
+    let activationMessageQueue = Promise.resolve();
+
+    function postHoloError(error) {
+      const state = controller?.metadata() || {
+        authoritative_holo_id: announcedHoloId(config),
+        player_active_holo_id: null,
+      };
+      parent.postMessage(errorMessage(error, state), "*");
+    }
+
+    function queueActiveMessage(evidence) {
+      activationMessageQueue = activationMessageQueue.then(async () => {
+        const manifestHash = evidence.previous_active_holo_id === null
+          ? null
+          : await departureManifestHash(evidence.departure_manifest);
+        parent.postMessage(activeMessage(evidence, manifestHash), "*");
+      }).catch((error) => {
+        postHoloError(error);
+      });
+    }
 
     function sendStatus(error = null) {
       const state = controller
-        ? controller.snapshot()
+        ? (error ? controller.metadata() : controller.snapshot())
         : {
           authoritative_holo_id: null,
           player_active_holo_id: null,
@@ -1482,6 +1575,7 @@
         if (message !== lastFrameError) {
           lastFrameError = message;
           sendStatus(message);
+          postHoloError(message);
         }
       }
     }
@@ -1516,7 +1610,9 @@
         authoritative_holo_id: announcedHoloId(config),
         onError(error) {
           sendStatus(error.message);
+          postHoloError(error.message);
         },
+        onAccepted: queueActiveMessage,
       });
       addEventListener("resize", () => rasterizer?.resize());
       addEventListener("message", (event) => {
@@ -1533,6 +1629,10 @@
         accept(message);
       });
       renderStatus();
+      parent.postMessage(
+        readyMessage(config.id, controller.metadata()),
+        "*",
+      );
       parent.postMessage({
         schema: "rapp-zoo-hologram-ready/1.0",
         hologram_id: config.id || null,
@@ -1548,6 +1648,7 @@
       subtitle.textContent = message;
       renderFacts([["status", message]]);
       sendStatus(message);
+      postHoloError(message);
     }
   }
 

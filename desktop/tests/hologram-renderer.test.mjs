@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, webcrypto } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -31,6 +32,14 @@ const SCALE = 1000000;
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function canonical(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  return `{${Object.keys(value).sort().map(
+    (key) => `${JSON.stringify(key)}:${canonical(value[key])}`,
+  ).join(",")}}`;
 }
 
 function material(
@@ -181,6 +190,7 @@ function fakeProtocol() {
   const calls = [];
   return {
     calls,
+    canonical,
     compilePlayerUpdate(input) {
       calls.push(["compile", plain(input)]);
       if (input.authored.accessibility.description === "INVALID") {
@@ -268,6 +278,7 @@ function loadHooks(protocol) {
   const context = vm.createContext({
     console,
     RappHoloProtocol: protocol,
+    TextEncoder,
   });
   context.window = context;
   context.globalThis = context;
@@ -503,6 +514,55 @@ test("a successor transition freezes and weights the prior active composition", 
   assert.equal(controller.snapshot(500).player_active_holo_id, B);
 });
 
+test("activation evidence hashes the exact frozen departure manifest", async () => {
+  let clock = 0;
+  const accepted = [];
+  const protocol = fakeProtocol();
+  const hooks = loadHooks(protocol);
+  const controller = hooks.createController({
+    protocol,
+    now: () => clock,
+    onAccepted: (evidence) => accepted.push(plain(evidence)),
+  });
+  const first = output();
+  assert.equal(controller.acceptUpdate(update(A, first)), true);
+  assert.equal(accepted[0].previous_active_holo_id, null);
+  assert.equal(accepted[0].departure_logical_ms, null);
+  assert.equal(accepted[0].departure_manifest, null);
+  assert.deepEqual(plain(hooks.activeMessage(accepted[0], null)), {
+    schema: "rapp-holo-active/1",
+    holo_id: A,
+    previous_active_holo_id: null,
+    departure_logical_ms: null,
+    departure_manifest_hash: null,
+    authoritative: true,
+  });
+
+  clock = 250;
+  const second = output({ base: A });
+  assert.equal(controller.acceptUpdate(update(B, second, {
+    base: { holo_id: A, authored: first },
+  })), true);
+  const evidence = accepted[1];
+  const hash = await hooks.departureManifestHash(
+    evidence.departure_manifest,
+    protocol,
+    webcrypto,
+  );
+  const expected = createHash("sha256").update(
+    `rapp-holo/1:departure\n${canonical(evidence.departure_manifest)}`,
+  ).digest("hex");
+  assert.equal(hash, expected);
+  assert.deepEqual(plain(hooks.activeMessage(evidence, hash)), {
+    schema: "rapp-holo-active/1",
+    holo_id: B,
+    previous_active_holo_id: A,
+    departure_logical_ms: 250,
+    departure_manifest_hash: expected,
+    authoritative: true,
+  });
+});
+
 test("historical flipbook renders only the explicitly selected ancestor", () => {
   const protocol = fakeProtocol();
   const hooks = loadHooks(protocol);
@@ -613,4 +673,30 @@ test("viewer loads the nonce-bound protocol before runtime and caches both", () 
   );
   assert.match(serviceWorkerSource, /"\/static\/holo-protocol\.js"/);
   assert.match(serviceWorkerSource, /"\/static\/hologram-runtime\.js"/);
+  const hooks = loadHooks(fakeProtocol());
+  assert.deepEqual(
+    plain(hooks.readyMessage("zoo-player", {
+      authoritative_holo_id: B,
+      player_active_holo_id: A,
+    })),
+    {
+      schema: "rapp-holo-ready/1",
+      player_id: "zoo-player",
+      authoritative_holo_id: B,
+      player_active_holo_id: A,
+    },
+  );
+  assert.deepEqual(
+    plain(hooks.errorMessage("activation refused", {
+      authoritative_holo_id: B,
+      player_active_holo_id: A,
+    })),
+    {
+      schema: "rapp-holo-error/1",
+      holo_id: B,
+      player_active_holo_id: A,
+      authoritative: false,
+      error: "activation refused",
+    },
+  );
 });
