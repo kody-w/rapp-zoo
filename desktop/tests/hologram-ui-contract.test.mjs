@@ -35,10 +35,9 @@ function functionBody(name) {
 
 test("switching an open hologram never closes the modal first", () => {
   const body = functionBody("prepareHologramFrame");
-  assert.match(
-    body,
-    /if \(!\$\('hologram-dialog'\)\.open\) \$\('hologram-dialog'\)\.showModal\(\);/,
-  );
+  assert.match(body, /if \(!\$\('hologram-dialog'\)\.open\)/);
+  assert.match(body, /\$\('hologram-dialog'\)\.show\(\)/);
+  assert.match(body, /\$\('hologram-dialog'\)\.showModal\(\)/);
   assert.match(functionBody("openLegacyHologram"), /prepareHologramFrame/);
   assert.match(functionBody("openHoloFrame"), /prepareHologramFrame/);
   assert.doesNotMatch(functionBody("openHoloFrame"), /hologram-dialog'\)\.close/);

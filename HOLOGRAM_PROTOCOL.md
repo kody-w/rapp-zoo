@@ -24,12 +24,43 @@ body plan, emotion classifier, or visual template.
 The AI authors the hologram. The protocol carries it. The renderer verifies and
 plays it.
 
+Holo/1 is infrastructure, not a RAPP Factory feature. RAPP Factory can be one
+authoring and inspection client, but the same output channel works for any
+organism, assistant, game, simulation, meeting, workflow, device, or future
+interface that can emit and consume verified RAPP frames.
+
 This repository separates two deployments:
 
 - [`HOLO_ZOO.md`](./HOLO_ZOO.md) - the controlled local player, archive,
   debugger, and conformance lab;
 - [`HOLO_IN_THE_WILD.md`](./HOLO_IN_THE_WILD.md) - the live distributed stream
   and its practical AI-presence signal.
+
+### 1.1 Stable substrate, adaptable profiles
+
+New use cases do not fork the hologram protocol. They change ordinary authored
+data:
+
+- source-frame payload and registered source kind;
+- complete scene state;
+- transition from the current visual head;
+- sustain tracks and historical flipbook choices;
+- accessibility description;
+- application-specific context supplied to the AI.
+
+The invariant substrate stays fixed:
+
+```text
+verified source -> exact AI output -> immutable body.hologram
+                -> visual head -> deterministic player -> Holo Wake
+```
+
+A **Holo profile** is therefore a small set of frame and context conventions,
+not another renderer or avatar system. Profiles may describe a factory,
+customer briefing, game character, ambient agent, operations room, teaching
+tool, performance, or an unforeseen use case. They MUST NOT add executable
+content, change Holo identity rules, bypass the visual parent, or prescribe what
+the AI must look like.
 
 ---
 

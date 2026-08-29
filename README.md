@@ -71,6 +71,11 @@ The product split is explicit:
   across RAPP streams and the rolling signal that an AI-capable computational
   participant is present.
 
+Holo/1 is broader than RAPP Factory. Factory is one possible client; other use
+cases reuse the same source binding, immutable visual lineage, safe IR, player,
+and Holo Wake while changing only their frame payload and AI-authored scene
+data.
+
 The Holo Zoo has two deliberately separated areas:
 
 - **Live AI habitats** — current Holo/1 heads, player-active state, immutable

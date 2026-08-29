@@ -2336,7 +2336,7 @@ def create_app() -> Flask:
             f"style-src 'nonce-{nonce}'; "
             "img-src data:; connect-src 'none'; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'self' "
-            "http://127.0.0.1:7070 http://localhost:7070 http://[::1]:7070"
+            "http://127.0.0.1:7070 http://localhost:7070"
         )
         return response
 
@@ -2409,7 +2409,7 @@ def create_app() -> Flask:
             f"style-src 'nonce-{nonce}'; "
             "img-src data:; connect-src 'none'; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'self' "
-            "http://127.0.0.1:7070 http://localhost:7070 http://[::1]:7070"
+            "http://127.0.0.1:7070 http://localhost:7070"
         )
         return response
 

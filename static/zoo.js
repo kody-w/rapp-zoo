@@ -751,7 +751,16 @@ function prepareHologramFrame(src) {
     ? `${location.protocol}//hologram.localhost:${location.port}`
     : location.origin;
   frame.src = hologramOrigin + src;
-  if (!$('hologram-dialog').open) $('hologram-dialog').showModal();
+  if (!$('hologram-dialog').open) {
+    if (
+      desktopBridge
+      && window.matchMedia('(min-width: 1100px)').matches
+    ) {
+      $('hologram-dialog').show();
+    } else {
+      $('hologram-dialog').showModal();
+    }
+  }
 }
 
 function openLegacyHologram(id) {
