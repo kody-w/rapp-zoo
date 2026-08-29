@@ -2365,12 +2365,14 @@ def create_app() -> Flask:
             connection.close()
         subject_name = rapp_protocol.rappid_parts(row["subject_rappid"])["slug"]
         config = {
+            "schema": "rapp-holo-player-update/1",
             "id": holo_id,
             "rappid": row["subject_rappid"],
             "name": subject_name,
             "kind": "holo-stream",
             "mode": "holo/1",
-            "holo_frame": frame,
+            "record": frame,
+            "base": history.get(frame["payload"]["visual_parent"]),
             "history": history,
             "authoritative_holo_id": head["holo_id"] if head else None,
             "player_active_holo_id": player_active,
