@@ -591,7 +591,7 @@ async function loadHolograms() {
       const open = event.target.closest('button[data-holo-open]');
       if (open) {
         const head = holoHeads.find(item => item.holo_id === open.dataset.holoOpen);
-        if (head) openHoloFrame(head);
+        if (head) openCurrentHolo(head);
         return;
       }
       const history = event.target.closest('button[data-holo-history]');
@@ -653,6 +653,14 @@ async function loadHolograms() {
       if (summon) summonHologramDogg(summon.dataset.hologramSummon, summon);
     };
     bindHoloTilt(legacyRoot);
+    if (activeHologram?.mode === 'holo/1' && activeHologram.live) {
+      const newest = holoHeads.find(
+        head => head.subject_rappid === activeHologram.subject_rappid,
+      );
+      if (newest && newest.holo_id !== activeHologram.target_holo_id) {
+        await queueHoloCatchup(newest);
+      }
+    }
   } catch (error) {
     headsRoot.innerHTML = `<div class="err">${escapeHtml(error.message)}</div>`;
     legacyRoot.innerHTML = '<div class="empty">Legacy exhibit unavailable.</div>';
@@ -727,6 +735,65 @@ function holoHeadHTML(head) {
     </article>`;
 }
 
+function holoPlayerId(subjectRappid) {
+  return `zoo-${simpleHash(subjectRappid).toString(16)}`;
+}
+
+async function holoHistory(subjectRappid) {
+  return api(
+    `/api/holo/history?subject_rappid=${encodeURIComponent(subjectRappid)}&limit=256`,
+  );
+}
+
+function holoPlayerUpdate(item, historyData, authoritativeHoloId) {
+  const older = Object.fromEntries(
+    historyData.frames
+      .filter(frame => frame.holo_seq < item.holo_seq)
+      .map(frame => [frame.holo_id, frame.frame]),
+  );
+  return {
+    schema: 'rapp-holo-player-update/1',
+    authoritative_holo_id: authoritativeHoloId,
+    holo_id: item.holo_id,
+    record: item.frame,
+    base: item.visual_parent ? older[item.visual_parent] : null,
+    history: older,
+  };
+}
+
+function sendNextHoloUpdate() {
+  if (
+    activeHologram?.mode !== 'holo/1'
+    || !activeHologram.live
+    || activeHologram.updateInFlight
+    || !activeHologram.pendingUpdates?.length
+    || !$('hologram-frame').contentWindow
+  ) return;
+  const item = activeHologram.pendingUpdates.shift();
+  activeHologram.updateInFlight = item.holo_id;
+  $('hologram-frame').contentWindow.postMessage(
+    holoPlayerUpdate(
+      item,
+      activeHologram.historyData,
+      activeHologram.target_holo_id,
+    ),
+    '*',
+  );
+}
+
+async function queueHoloCatchup(head) {
+  const data = await holoHistory(head.subject_rappid);
+  const ascending = data.frames.slice().reverse();
+  const currentIndex = ascending.findIndex(
+    item => item.holo_id === activeHologram?.id,
+  );
+  if (!activeHologram || currentIndex < 0) return;
+  activeHologram.historyData = data;
+  activeHologram.target_holo_id = head.holo_id;
+  activeHologram.pendingUpdates = ascending.slice(currentIndex + 1);
+  sendNextHoloUpdate();
+}
+
 function sendHologramContext(context) {
   if (
     !activeHologram
@@ -794,6 +861,10 @@ async function openHoloFrame(item) {
     mode: 'holo/1',
     subject_rappid: subject,
     holo_seq: item.holo_seq ?? item.frame?.payload?.holo_seq,
+    live: false,
+    target_holo_id: current?.holo_id || holoId,
+    pendingUpdates: [],
+    updateInFlight: null,
   };
   activeHologramContext = null;
   $('hologram-viewer-kind').textContent =
@@ -810,14 +881,46 @@ async function openHoloFrame(item) {
   prepareHologramFrame(`/holo/${encodeURIComponent(holoId)}`);
 }
 
-async function showHoloHistory(head) {
+async function openCurrentHolo(head) {
+  const data = await holoHistory(head.subject_rappid);
+  const ascending = data.frames.slice().reverse();
+  const persistedIndex = ascending.findIndex(
+    item => item.holo_id === head.player_active_holo_id,
+  );
+  const startIndex = persistedIndex >= 0 ? persistedIndex : 0;
+  const start = ascending[startIndex];
+  if (!start) throw new Error('Current Holo history is unavailable.');
+  activeHologram = {
+    id: start.holo_id,
+    mode: 'holo/1',
+    subject_rappid: head.subject_rappid,
+    holo_seq: start.holo_seq,
+    live: true,
+    target_holo_id: head.holo_id,
+    historyData: data,
+    pendingUpdates: ascending.slice(startIndex + 1),
+    updateInFlight: null,
+  };
+  activeHologramContext = null;
+  $('hologram-viewer-kind').textContent = 'CURRENT AI HOLO · H/1';
+  $('hologram-viewer-title').textContent = holoSubjectName(head.subject_rappid);
+  $('hologram-mode-note').textContent =
+    'Exact AI-authored output. The Zoo validates and plays it without choosing a form.';
+  $('hologram-binding-status').textContent =
+    start.holo_id === head.holo_id ? holoPresence(head).label : 'catching up flipbook';
+  document.querySelectorAll('.legacy-hologram-control').forEach(node => {
+    node.hidden = true;
+  });
+  await showHoloHistory(head, data);
+  prepareHologramFrame(`/holo/${encodeURIComponent(start.holo_id)}`);
+}
+
+async function showHoloHistory(head, loadedData = null) {
   const root = $('holo-flipbook');
   root.hidden = false;
   root.innerHTML = '<span class="muted small">Loading immutable flipbook…</span>';
   try {
-    const data = await api(
-      `/api/holo/history?subject_rappid=${encodeURIComponent(head.subject_rappid)}&limit=64`,
-    );
+    const data = loadedData || await holoHistory(head.subject_rappid);
     root.innerHTML = `
       <div class="holo-flipbook-head">
         <strong>Flipbook</strong>
@@ -849,7 +952,10 @@ window.addEventListener('message', async event => {
   if (event.source !== $('hologram-frame').contentWindow) return;
   const message = event.data || {};
   const messageId = message.holo_id || message.hologram_id;
-  if (messageId !== activeHologram?.id) return;
+  if (
+    activeHologram?.mode !== 'holo/1'
+    && messageId !== activeHologram?.id
+  ) return;
   if (message.schema === 'rapp-holo-ready/1') {
     $('hologram-binding-status').textContent = 'Holo/1 ready';
     return;
@@ -858,21 +964,35 @@ window.addEventListener('message', async event => {
     $('hologram-binding-status').textContent = message.authoritative
       ? 'current AI holo'
       : 'historical holo';
-    if (message.authoritative) {
+    if (activeHologram?.live) {
       try {
         await api('/api/holo/activate', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({
-            player_id: `zoo-${simpleHash(activeHologram.subject_rappid).toString(16)}`,
+            player_id: holoPlayerId(activeHologram.subject_rappid),
             previous_active_holo_id: message.previous_active_holo_id ?? null,
             departure_logical_ms: message.departure_logical_ms ?? null,
             departure_manifest_hash: message.departure_manifest_hash ?? null,
             new_holo_id: message.holo_id,
           }),
         });
-        await loadHolograms();
+        activeHologram.id = message.holo_id;
+        activeHologram.holo_seq = activeHologram.historyData?.frames.find(
+          item => item.holo_id === message.holo_id,
+        )?.holo_seq ?? activeHologram.holo_seq;
+        activeHologram.updateInFlight = null;
+        if (activeHologram.pendingUpdates.length) {
+          $('hologram-binding-status').textContent = 'catching up flipbook';
+          sendNextHoloUpdate();
+        } else {
+          $('hologram-binding-status').textContent = message.authoritative
+            ? 'current AI holo'
+            : 'player caught up';
+          await loadHolograms();
+        }
       } catch (error) {
+        activeHologram.updateInFlight = null;
         $('hologram-binding-status').textContent = 'active locally · record failed';
         toast(error.message, 'err');
       }
@@ -885,7 +1005,8 @@ window.addEventListener('message', async event => {
     return;
   }
   if (message.schema === 'rapp-zoo-hologram-ready/1.0') {
-    sendHologramContext(activeHologramContext);
+    if (activeHologram?.mode === 'holo/1') sendNextHoloUpdate();
+    else sendHologramContext(activeHologramContext);
   } else if (message.schema === 'rapp-zoo-hologram-bound/1.0') {
     $('hologram-binding-status').textContent =
       message.live ? 'data slosh' : 'bottle memory';

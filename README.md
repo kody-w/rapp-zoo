@@ -187,6 +187,7 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 | `GET`  | `/api/holo/sources/<hash>`   | Read the exact bound assistant source frame |
 | `GET`  | `/api/holo/presence`         | Evaluate the rolling in-the-wild AI-presence heuristic |
 | `GET`  | `/api/holo/example-turn`     | Build a verified blank Holo/1 assistant turn |
+| `GET`  | `/api/holo/examples/fantasy-draft` | Build a verified fantasy-draft frame with Rappter One, Rappter Two, and AI drafters |
 | `POST` | `/api/holo/turn`             | Commit exact text/holo output from the original Brainstem turn |
 | `POST` | `/api/holo/commit`           | Materialize an already-built `memory.chat-turn` |
 | `POST` | `/api/holo/ingest`           | Ingest source evidence plus a verified wild body-chain segment |

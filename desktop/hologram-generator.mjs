@@ -431,7 +431,7 @@ export async function captureOriginalTurn({
 export function validateCommitRequest(value) {
   exactKeys(
     value,
-    new Set(["subject_rappid", "session_id", "text", "holo"]),
+    new Set(["subject_rappid", "session_id", "text", "holo", "evidence"]),
     "Holo turn request",
   );
   if (
@@ -454,6 +454,38 @@ export function validateCommitRequest(value) {
     throw new Error("Holo turn text exceeds its byte limit.");
   }
   if (value.holo !== null) validateHoloOutput(value.holo);
+  exactKeys(
+    value.evidence,
+    new Set(["channel_enabled", "turn_latency_ms", "deadline_ms"]),
+    "Holo turn evidence",
+  );
+  if (typeof value.evidence.channel_enabled !== "boolean") {
+    throw new Error("Holo turn evidence channel_enabled must be boolean.");
+  }
+  for (const key of ["turn_latency_ms", "deadline_ms"]) {
+    const item = value.evidence[key];
+    if (
+      item !== null
+      && (!Number.isSafeInteger(item) || item < 0)
+    ) {
+      throw new Error(`Holo turn evidence ${key} must be null or uint53.`);
+    }
+  }
+  if (
+    !value.evidence.channel_enabled
+    && (
+      value.evidence.turn_latency_ms !== null
+      || value.evidence.deadline_ms !== null
+    )
+  ) {
+    throw new Error("Disabled Holo channels cannot claim timing evidence.");
+  }
+  if (
+    (value.evidence.turn_latency_ms === null)
+    !== (value.evidence.deadline_ms === null)
+  ) {
+    throw new Error("Holo turn latency and deadline must appear together.");
+  }
   return value;
 }
 

@@ -64,6 +64,9 @@ test("live Holo activation evidence is persisted outside the sandbox", () => {
   assert.match(source, /api\('\/api\/holo\/activate'/);
   assert.match(source, /departure_logical_ms/);
   assert.match(source, /departure_manifest_hash/);
+  assert.match(source, /function queueHoloCatchup/);
+  assert.match(source, /schema: 'rapp-holo-player-update\/1'/);
+  assert.match(source, /pendingUpdates/);
 });
 
 test("desktop VC docks a Holo-specific Copilot panel without Studio deploy", () => {
@@ -74,5 +77,6 @@ test("desktop VC docks a Holo-specific Copilot panel without Studio deploy", () 
   assert.match(indexSource, /HOLO\/1 AGENT MODE/);
   assert.match(indexSource, /Explain the current Holo Wake/);
   assert.match(indexSource, /Emit the next Holo\/1 state/);
+  assert.match(indexSource, /Start the AI fantasy draft/);
   assert.doesNotMatch(indexSource, /Copilot Studio/i);
 });

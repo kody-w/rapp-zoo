@@ -228,6 +228,11 @@ test("turn commit validation preserves the exact backend request", () => {
     session_id: "session-1",
     text: "The original assistant response.",
     holo: blank,
+    evidence: {
+      channel_enabled: true,
+      turn_latency_ms: 120,
+      deadline_ms: 30000,
+    },
   };
   assert.strictEqual(validateCommitRequest(request), request);
   assert.deepEqual(request.holo, blank);
@@ -264,7 +269,7 @@ test("Electron exposes stage and commit while legacy generation cannot call a mo
   assert.match(main, /zooJson\("\/api\/holo\/turn"/);
   assert.match(
     main,
-    /subject_rappid: holoSubjectRappid,[\s\S]*session_id: turn\.session_id \|\| turn\.requestId,[\s\S]*text: turn\.response,[\s\S]*holo: turn\.holo\?\.authored \|\| null/,
+    /subject_rappid: holoSubjectRappid,[\s\S]*session_id: turn\.session_id \|\| turn\.requestId,[\s\S]*text: turn\.response,[\s\S]*holo: turn\.holo\?\.authored \|\| null,[\s\S]*evidence:/,
   );
   assert.match(main, /authoritativeHoloContext/);
   assert.match(main, /"X-RAPP-Zoo-Desktop": zoo\.desktopToken/);

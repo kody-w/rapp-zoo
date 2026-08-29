@@ -58,6 +58,7 @@
           "verified-conversation-holo-late",
           "repeated-stale-base",
           "repeated-blind-continuity",
+          "repeated-replay-inconsistency",
           "holo-disabled",
           "network-incomplete",
           "window-too-short",
@@ -85,10 +86,12 @@
         "last_source_frame_hash",
         "turns_observed",
         "holo_enabled_turns",
+        "timed_outputs",
         "on_time_holo_outputs",
         "sighted_outputs",
         "stale_outputs",
         "blind_outputs",
+        "history_resolved_outputs",
         "replay_consistent_outputs"
       ],
       "properties": {
@@ -104,6 +107,9 @@
         "holo_enabled_turns": {
           "$ref": "#/$defs/uint53"
         },
+        "timed_outputs": {
+          "$ref": "#/$defs/uint53"
+        },
         "on_time_holo_outputs": {
           "$ref": "#/$defs/uint53"
         },
@@ -114,6 +120,9 @@
           "$ref": "#/$defs/uint53"
         },
         "blind_outputs": {
+          "$ref": "#/$defs/uint53"
+        },
+        "history_resolved_outputs": {
           "$ref": "#/$defs/uint53"
         },
         "replay_consistent_outputs": {

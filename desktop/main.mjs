@@ -196,11 +196,22 @@ ipcMain.handle("brainstem:chat", async (event, promptValue, holoContextValue) =>
   const prompt = validatePrompt(promptValue);
   const context = await intelligenceContext();
   const holoContext = await authoritativeHoloContext(context, holoContextValue);
+  const turnStartedAt = performance.now();
   const turn = await captureOriginalTurn({
     chat: (input) => brainstem.chat(input),
     input: brainstemInput(prompt, context, holoContext),
     holoContext,
   });
+  const turnLatencyMs = Math.max(0, Math.round(performance.now() - turnStartedAt));
+  const configuredDeadline = Number.parseInt(
+    process.env.RAPP_ZOO_HOLO_DEADLINE_MS || "30000",
+    10,
+  );
+  const holoDeadlineMs = (
+    Number.isSafeInteger(configuredDeadline) && configuredDeadline > 0
+      ? configuredDeadline
+      : 30_000
+  );
   let materialized;
   let holoCommitError = null;
   try {
@@ -209,6 +220,11 @@ ipcMain.handle("brainstem:chat", async (event, promptValue, holoContextValue) =>
       session_id: turn.session_id || turn.requestId,
       text: turn.response,
       holo: turn.holo?.authored || null,
+      evidence: {
+        channel_enabled: holoContext.enabled,
+        turn_latency_ms: holoContext.enabled ? turnLatencyMs : null,
+        deadline_ms: holoContext.enabled ? holoDeadlineMs : null,
+      },
     });
   } catch (error) {
     materialized = error.body || { status: "refused" };

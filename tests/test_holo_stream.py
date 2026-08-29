@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import shutil
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -97,6 +98,9 @@ def build_turn(
     seq: int,
     head: dict | None,
     holo,
+    channel_enabled: bool = True,
+    turn_latency_ms: int | None = 120,
+    deadline_ms: int | None = 30_000,
 ) -> dict:
     return R.build_frame(
         "memory.chat-turn",
@@ -109,6 +113,11 @@ def build_turn(
                 "text": f"turn {seq}",
                 "voice": None,
                 "holo": holo,
+            },
+            "holo_channel": {
+                "enabled": channel_enabled,
+                "turn_latency_ms": turn_latency_ms,
+                "deadline_ms": deadline_ms,
             },
         },
         head["payload_hash"] if head else None,
@@ -125,6 +134,26 @@ def commit(client, frame):
 
 
 class TestHoloStream(unittest.TestCase):
+    def test_fantasy_draft_example_is_verified_and_seats_both_rappters(self):
+        with IsolatedHome():
+            response = zoo.create_app().test_client().get(
+                "/api/holo/examples/fantasy-draft"
+            )
+            self.assertEqual(response.status_code, 200, response.get_json())
+            frame = response.get_json()
+            self.assertEqual(R.verify_frame(frame), (True, None, "ok"))
+            self.assertEqual(frame["payload"]["schema"], "rapp-fantasy-draft/1")
+            participants = frame["payload"]["participants"]
+            self.assertEqual(
+                [participant["display_name"] for participant in participants[:2]],
+                ["Rappter One", "Rappter Two"],
+            )
+            self.assertEqual(
+                [participant["seat"] for participant in participants],
+                [1, 2, 3, 4],
+            )
+            self.assertTrue(frame["payload"]["rules"]["holo_output"])
+
     def test_original_turn_endpoint_commits_exact_ai_output(self):
         with IsolatedHome():
             client = zoo.create_app().test_client()
@@ -136,6 +165,11 @@ class TestHoloStream(unittest.TestCase):
                     "session_id": "brainstem-session",
                     "text": "The exact text output.",
                     "holo": authored,
+                    "evidence": {
+                        "channel_enabled": True,
+                        "turn_latency_ms": 120,
+                        "deadline_ms": 30_000,
+                    },
                 },
                 headers={"X-RAPP-Zoo-Desktop": TOKEN},
             )
@@ -158,6 +192,11 @@ class TestHoloStream(unittest.TestCase):
                     "session_id": "brainstem-session",
                     "text": "The next exact text output.",
                     "holo": second_authored,
+                    "evidence": {
+                        "channel_enabled": True,
+                        "turn_latency_ms": 140,
+                        "deadline_ms": 30_000,
+                    },
                 },
                 headers={"X-RAPP-Zoo-Desktop": TOKEN},
             )
@@ -474,6 +513,79 @@ class TestHoloStream(unittest.TestCase):
             self.assertEqual(head["holo_seq"], 0)
             self.assertEqual(head["holo_id"], wild_holo["frame_hash"])
 
+    def test_wild_ingest_retains_verified_source_and_intervening_body_on_refusal(self):
+        with IsolatedHome():
+            client = zoo.create_app().test_client()
+            source = build_turn(
+                stream_id=f"{SUBJECT}:wild-refusal",
+                seq=0,
+                head=None,
+                holo=blank_output(),
+            )
+            pulse = R.build_frame(
+                "body.pulse",
+                SUBJECT,
+                0,
+                "2026-08-29T15:00:01.000Z",
+                {"status": "online"},
+                None,
+            )
+            authored = source["payload"]["outputs"]["holo"]
+            record = {
+                "schema": "rapp-holo-record/1",
+                "holo_seq": 0,
+                "visual_parent": None,
+                "source": {
+                    "stream_id": source["stream_id"],
+                    "seq": source["seq"],
+                    "frame_hash": source["frame_hash"],
+                },
+                "authored_hash": R.H("rapp-holo/1:authored", authored),
+                "producer_provenance": None,
+                "authored": authored,
+            }
+            invalid_holo = R.build_frame(
+                "body.hologram",
+                SUBJECT,
+                1,
+                "2026-08-29T15:00:02.000Z",
+                record,
+                pulse["payload_hash"],
+                head=pulse,
+                kind_families={
+                    **R.CORE_KIND_FAMILIES,
+                    "body.hologram": "body",
+                },
+            )
+            invalid_holo["payload"]["authored_hash"] = "0" * 64
+            response = client.post(
+                "/api/holo/ingest",
+                json={
+                    "source_frame": source,
+                    "body_chain": [pulse, invalid_holo],
+                },
+                headers={"X-RAPP-Zoo-Desktop": TOKEN},
+            )
+            self.assertEqual(response.status_code, 422, response.get_json())
+            self.assertEqual(
+                client.get(f"/api/holo/sources/{source['frame_hash']}").status_code,
+                200,
+            )
+            connection = sqlite3.connect(zoo.holo_db_path())
+            try:
+                stored = connection.execute(
+                    "SELECT seq, kind FROM body_frames ORDER BY seq"
+                ).fetchall()
+                observation = connection.execute(
+                    "SELECT sightedness FROM holo_observations "
+                    "WHERE source_frame_hash = ?",
+                    (source["frame_hash"],),
+                ).fetchone()
+            finally:
+                connection.close()
+            self.assertEqual(stored, [(0, "body.pulse")])
+            self.assertEqual(observation, ("blind",))
+
     def test_historical_flipbook_resolves_exact_verified_ancestor_states(self):
         with IsolatedHome():
             client = zoo.create_app().test_client()
@@ -543,6 +655,16 @@ class TestHoloStream(unittest.TestCase):
             ).get_json()
             self.assertEqual(presence["classification"], "ai-present-likely")
             self.assertEqual(presence["window"]["sighted_outputs"], 8)
+            self.assertEqual(presence["window"]["timed_outputs"], 8)
+            self.assertEqual(presence["window"]["on_time_holo_outputs"], 8)
+            self.assertEqual(
+                presence["window"]["history_resolved_outputs"],
+                8,
+            )
+            self.assertEqual(
+                presence["window"]["replay_consistent_outputs"],
+                8,
+            )
 
         manual_subject = "rappid:@kody-w/manual-test:" + "b" * 64
         with IsolatedHome():
@@ -567,6 +689,60 @@ class TestHoloStream(unittest.TestCase):
                 "unassisted-human-likely",
             )
             self.assertEqual(presence["window"]["sighted_outputs"], 0)
+
+    def test_holo_wake_requires_enabled_timing_and_replay_evidence(self):
+        disabled_subject = "rappid:@kody-w/disabled-holo:" + "c" * 64
+        with IsolatedHome():
+            client = zoo.create_app().test_client()
+            stream = f"{disabled_subject}:manual"
+            source = None
+            for seq in range(8):
+                source = build_turn(
+                    stream_id=stream,
+                    seq=seq,
+                    head=source,
+                    holo=None,
+                    channel_enabled=False,
+                    turn_latency_ms=None,
+                    deadline_ms=None,
+                )
+                response = commit(client, source)
+                self.assertEqual(response.status_code, 200, response.get_json())
+                self.assertEqual(response.get_json()["status"], "unknown")
+            presence = client.get(
+                "/api/holo/presence",
+                query_string={"subject_rappid": disabled_subject},
+            ).get_json()
+            self.assertEqual(presence["classification"], "indeterminate")
+            self.assertIsNone(presence["window"])
+            self.assertEqual(presence["reason_codes"], ["holo-disabled"])
+
+        untimed_subject = "rappid:@kody-w/untimed-holo:" + "d" * 64
+        with IsolatedHome():
+            client = zoo.create_app().test_client()
+            stream = f"{untimed_subject}:untimed"
+            source = None
+            base = None
+            for seq in range(8):
+                source = build_turn(
+                    stream_id=stream,
+                    seq=seq,
+                    head=source,
+                    holo=blank_output(base),
+                    channel_enabled=True,
+                    turn_latency_ms=None,
+                    deadline_ms=None,
+                )
+                response = commit(client, source)
+                self.assertEqual(response.status_code, 201, response.get_json())
+                base = response.get_json()["holo_frame"]["frame_hash"]
+            presence = client.get(
+                "/api/holo/presence",
+                query_string={"subject_rappid": untimed_subject},
+            ).get_json()
+            self.assertEqual(presence["classification"], "indeterminate")
+            self.assertEqual(presence["window"]["timed_outputs"], 0)
+            self.assertEqual(presence["window"]["replay_consistent_outputs"], 8)
 
     def test_activation_records_player_order_without_moving_authority(self):
         with IsolatedHome():
