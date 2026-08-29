@@ -116,8 +116,7 @@ stream.
     }
   },
   "issuer_rappid": "rappid:@owner/rapterbox:64-lowercase-hex",
-  "issued_utc": "2026-08-29T18:01:00.000Z",
-  "sig": "detached-jws"
+  "issued_utc": "2026-08-29T18:01:00.000Z"
 }
 ```
 
@@ -294,11 +293,10 @@ Ownership changes append a transfer record:
   "schema": "rapp-rapter-credit-transfer/1",
   "credit_id": "rcredit:64hex",
   "previous_transfer_hash": "64hex-or-null",
-  "from_owner": "owner-identifier",
-  "to_owner": "owner-identifier",
+  "from_owner_rappid": "rappid:@owner/seller:64hex",
+  "to_owner_rappid": "rappid:@owner/buyer:64hex",
   "settlement_reference_hash": "64hex-or-null",
-  "utc": "fixed-form UTC",
-  "sig": "detached-jws"
+  "utc": "fixed-form UTC"
 }
 ```
 

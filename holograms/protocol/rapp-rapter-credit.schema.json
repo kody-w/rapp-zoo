@@ -15,8 +15,7 @@
     "birth",
     "settlement",
     "issuer_rappid",
-    "issued_utc",
-    "sig"
+    "issued_utc"
   ],
   "properties": {
     "schema": {
@@ -57,11 +56,6 @@
     },
     "issued_utc": {
       "$ref": "#/$defs/utc"
-    },
-    "sig": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 16384
     }
   },
   "allOf": [
