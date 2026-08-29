@@ -82,3 +82,15 @@ test("desktop VC docks a Holo-specific Copilot panel without Studio deploy", () 
   assert.match(indexSource, /Start the AI fantasy draft/);
   assert.doesNotMatch(indexSource, /Copilot Studio/i);
 });
+
+test("breathing UI is explicit opt-in with visible finite spend ceilings", () => {
+  assert.match(indexSource, /id="breathing-start"/);
+  assert.match(indexSource, /id="breathing-pause"/);
+  assert.match(indexSource, /Opt-in only/);
+  assert.match(indexSource, /at most 6 provider calls/);
+  assert.match(source, /desktopBridge\.startBreathing/);
+  assert.match(source, /max_ticks: 6/);
+  assert.match(source, /max_output_tokens_per_tick: 512/);
+  assert.match(source, /max_total_output_tokens: 3072/);
+  assert.match(source, /desktopBridge\.pauseBreathing/);
+});

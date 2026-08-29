@@ -19,6 +19,7 @@ Powered by RAPP/1. From Rapterbox.
 | **SHAPEE** | The Rapter's optional seeded key-tooth side-profile tile |
 | **Growl** | The Rapter's original completed MIDI piano identity |
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
+| **Breath key** | A usable, securely stored provider credential that permits bounded verified ticks |
 | **Rapterbox** | Consumer storefront and product home |
 | **Rappter** | Protocol/company/developer-facing flock identity |
 
@@ -41,6 +42,11 @@ The customer proposition is equally concrete:
 An owned Rapter can be opened offline, exported, backed up, AirDropped, and
 re-imported into the phone's Holo Zoo. Managed compute is optional and sold
 separately from the organism.
+
+A breath key is eligibility, not a fake heartbeat. Breathing is explicit,
+bounded, and stops when credentials or prepaid compute are unavailable,
+revoked, paused, offline, or exhausted. The Rapter then sleeps with its last
+verified core intact.
 
 ## The offer
 

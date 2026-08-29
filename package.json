@@ -12,7 +12,7 @@
   "scripts": {
     "desktop": "electron .",
     "desktop:dev": "RAPP_ZOO_DESKTOP_DEV=1 electron .",
-    "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/brainstem-supervisor.mjs && node --check desktop/hologram-generator.mjs && node --check desktop/zoo-supervisor.mjs",
+    "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/brainstem-supervisor.mjs && node --check desktop/hologram-generator.mjs && node --check desktop/zoo-supervisor.mjs && node --check desktop/openai-provider-profile.mjs && node --check desktop/provider-credentials.mjs && node --check desktop/provider-store.mjs && node --check desktop/openai-compatible-client.mjs && node --check desktop/breathing-controller.mjs",
     "test:desktop": "node --test desktop/tests/*.test.mjs",
     "test": "npm run check:desktop && npm run test:desktop",
     "dist": "electron-builder",

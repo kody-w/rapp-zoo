@@ -51,6 +51,39 @@ npm run desktop
 
 The desktop intelligence panel calls that Brainstem's single `/chat` surface. GitHub Copilot can use the full installed agent/tool set to inspect, build, test, and operate the computer; high-impact or externally publishing actions remain explicit authorization boundaries. `HologramForge` and `HologramDOGG` are installed as ordinary hotloaded agents. Set `RAPP_ZOO_BRAINSTEM_MODEL` to request a foundry model; the app requests `gpt-5.6-sol` by default, while the installed Brainstem remains authoritative over model availability and fallback.
 
+The Electron provider layer also supports Direct and Wild OpenAI-compatible
+profiles. Profiles contain only endpoint/model/auth metadata; macOS credentials
+are stored globally in Keychain under service
+`com.rapterbox.rollingcores.openai-compatible`, keyed by profile ID. The
+non-secret profile registry is `~/.rapp/config/openai-providers.json` with mode
+`0600`. CI and non-macOS callers can set
+`RAPP_OPENAI_PROVIDER_SECRET_<NORMALIZED_PROFILE_ID>`. The optional Wild gateway
+and its deployment guide live in
+[`cloud/rolling-cores-api/`](./cloud/rolling-cores-api/). Cloud compute remains
+separate from signed, locally owned organism capsules.
+
+The trusted Electron bridge exposes provider status, breath eligibility,
+bounded start, and explicit pause APIs. Provider verification is required
+before Direct breathing; saving a key never silently starts spend. The preload
+surface is `providerStatus`, `breathingStatus`, `startBreathing`, and
+`pauseBreathing`.
+
+That Function also hosts the public, mirrorable Rapter Credit registry. Official
+credits are issued only after server-side purchase verification, atomically bind
+a hashed payment reference to one organism and immutable genesis/core hashes,
+and are signed by the Rapterbox issuer key. Their immutable birth valuation is
+derived from an issuer-signed set/tier fraction of one BTC plus a fresh,
+hashed-evidence BTC/USD observation. It is an official issuer value, not an
+independent investment appraisal or return promise. Credits authorize
+acquisition; they do not move capsule identity or history into the cloud.
+
+The registry also carries the 30-day return and post-window resale lifecycle.
+Returns atomically refund through the verified original rail and transfer
+official ownership back to Rapterbox inventory. Local bytes remain as an
+unowned, verifiable copy. Later listings, cancellations, sales, and transfers
+are signed append-only events; ask and sale prices never rewrite birth value or
+promise appreciation or liquidity.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

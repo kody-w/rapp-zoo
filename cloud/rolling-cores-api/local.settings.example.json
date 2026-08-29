@@ -1,0 +1,32 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AZURE_OPENAI_ENDPOINT": "https://rappter.cognitiveservices.azure.com/",
+    "AZURE_OPENAI_DEPLOYMENT": "gpt-5.4",
+    "AZURE_OPENAI_API_VERSION": "2025-04-01-preview",
+    "MAX_OUTPUT_TOKENS": "256",
+    "MAX_REQUEST_BYTES": "65536",
+    "MAX_MESSAGES": "32",
+    "MAX_MESSAGE_CHARS": "12000",
+    "MAX_TOTAL_MESSAGE_CHARS": "32000",
+    "UPSTREAM_CONNECT_TIMEOUT_SECONDS": "5",
+    "UPSTREAM_TIMEOUT_SECONDS": "45",
+    "CREDIT_TABLE_ACCOUNT_URL": "https://rapprolling3d0e6986.table.core.windows.net",
+    "CREDIT_TABLE_NAME": "RapterCreditRegistry",
+    "CREDIT_KEY_VAULT_URL": "https://rappter-credit-3d0e6986.vault.azure.net",
+    "CREDIT_SIGNING_KEY_NAME": "credit-registry-signing-v1",
+    "CREDIT_ISSUER_ID": "rappterbox",
+    "CREDIT_ISSUANCE_CAP": "1000000",
+    "BTC_QUOTE_MAX_AGE_SECONDS": "120",
+    "WILD_BREATH_MIN_INTERVAL_SECONDS": "300",
+    "WILD_BREATH_MAX_TICKS_PER_LEASE": "12",
+    "WILD_BREATH_MAX_OUTPUT_TOKENS_PER_TICK": "512",
+    "WILD_BREATH_MAX_TOTAL_OUTPUT_TOKENS": "6144",
+    "WILD_BREATH_MAX_LEASE_SECONDS": "86400",
+    "BITCOIN_REFUND_FEE_SATS": "0",
+    "CREDIT_PRODUCTS_JSON": "{}",
+    "PURCHASE_VERIFIER_MODE": "disabled"
+  }
+}
