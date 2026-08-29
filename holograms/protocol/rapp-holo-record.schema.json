@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RAPP Holo/1 materialized record payload",
+  "description": "Source-bound portable Holo data for immutable signed local Rolling Core Capsules and offline import/export. Validation does not perform storefront, licensing, network, or cloud operations.",
   "type": "object",
   "additionalProperties": false,
   "required": [

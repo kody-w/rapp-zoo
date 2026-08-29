@@ -76,6 +76,56 @@ def validate(kind, value, context):
     return H.validate_bound_record(value, **options)
 
 
+def history_output(references, *, base_holo_id=None, state=None):
+    value = copy.deepcopy(CORPUS["documents"]["blank-valid-output"])
+    value["base_holo_id"] = base_holo_id
+    if state is not None:
+        value["state"] = copy.deepcopy(state)
+    if references:
+        value["performance"]["sustain"] = {
+            "duration_ms": max(1, len(references) - 1),
+            "repeat": "once",
+            "tracks": [],
+            "flipbook": [
+                {
+                    "at_ms": index,
+                    "holo_id": holo_id,
+                    "blend": "cut",
+                    "blend_ms": 0,
+                }
+                for index, holo_id in enumerate(references)
+            ],
+        }
+    return value
+
+
+def history_record(holo_id, sequence, parent, references, *, state=None):
+    authored = history_output(
+        references,
+        base_holo_id=parent,
+        state=state,
+    )
+    return {
+        "schema": "rapp-holo-record/1",
+        "holo_seq": sequence,
+        "visual_parent": parent,
+        "source": {
+            "stream_id": (
+                f"rappid:@kody-w/history:{'3' * 64}:session"
+            ),
+            "seq": sequence,
+            "frame_hash": f"{sequence + 1000:064x}",
+        },
+        "authored_hash": H.authored_hash(authored),
+        "producer_provenance": None,
+        "authored": authored,
+    }
+
+
+def history_id(index):
+    return f"{index + 100:064x}"
+
+
 class TestHoloProtocolFixtures(unittest.TestCase):
     def test_shared_corpus_accepts_and_refuses_without_repair(self):
         self.assertEqual(CORPUS["schema"], "rapp-holo-fixtures/1")
@@ -154,6 +204,21 @@ class TestHoloProtocolFixtures(unittest.TestCase):
                 ancestor_ids=context["ancestors"],
             )
 
+    def test_non_null_provenance_fails_closed(self):
+        case = next(
+            item for item in CORPUS["cases"]
+            if item["name"] == "untrusted-provenance"
+        )
+        record = apply_patches(
+            copy.deepcopy(CORPUS["documents"][case["document"]]),
+            case["patches"],
+        )
+        with self.assertRaisesRegex(
+            H.HoloProtocolError,
+            "trusted provenance verification unavailable",
+        ):
+            H.validate_record(record)
+
     def test_stable_adapters_accept_output_base_and_ancestor_id_set(self):
         value = copy.deepcopy(CORPUS["documents"]["historical-flipbook"])
         base = CORPUS["documents"]["multi-node-non-humanoid-scene"]
@@ -201,6 +266,11 @@ class TestHoloProtocolHelpers(unittest.TestCase):
             self.assertEqual(H.easing(*item["args"]), item["expected"])
         for item in CORPUS["helpers"]["local_sustain_time"]:
             self.assertEqual(H.local_sustain_time(*item["args"]), item["expected"])
+        for item in CORPUS["helpers"]["growl_events"]:
+            growl = copy.deepcopy(item["growl"])
+            self.assertEqual(H.growl_events(growl), item["expected"])
+            self.assertEqual(H.complete_growl(growl), item["expected"])
+            self.assertEqual(growl, item["growl"])
 
     def test_shared_track_and_flipbook_vectors(self):
         for item in CORPUS["helpers"]["property_tracks"]:
@@ -217,6 +287,145 @@ class TestHoloProtocolHelpers(unittest.TestCase):
                 H.select_flipbook(flipbook, item["at_ms"], 4000, "loop"),
                 item["expected"],
             )
+
+    def test_shared_shapee_outline_and_compiled_counts(self):
+        for item in CORPUS["helpers"]["shapee_outline"]:
+            geometry = copy.deepcopy(item["geometry"])
+            self.assertEqual(
+                H.shapee_outline(geometry),
+                item["expected"],
+            )
+            self.assertEqual(geometry, item["geometry"])
+            self.assertEqual(item["expected"][0], item["expected"][-1])
+        manifest = H.compile_manifest(CORPUS["documents"]["shapee-ai-tile"])
+        geometry = manifest["draws"][0]["geometry"]
+        expected = CORPUS["helpers"]["shapee_outline"][0]
+        self.assertEqual(geometry["derived"]["outline"], expected["expected"])
+        self.assertEqual(
+            geometry["derived"]["outline_vertex_count"],
+            expected["outline_vertex_count"],
+        )
+        self.assertEqual(geometry["vertex_count"], expected["vertex_count"])
+        self.assertEqual(geometry["triangle_count"], expected["triangle_count"])
+
+    def test_shared_recursive_history_resolution(self):
+        item = CORPUS["helpers"]["resolve_history"][0]
+        value = copy.deepcopy(CORPUS["documents"][item["document"]])
+        context = resolve_references(CORPUS["contexts"][item["context"]])
+        self.assertEqual(
+            H.resolve_history(value, context["ancestors"]),
+            item["expected"],
+        )
+        for case_name, message in (
+            ("recursive-history-cycle", "historical reference cycle"),
+            ("recursive-history-non-ancestor", "not a strict visual ancestor"),
+        ):
+            case = next(
+                case for case in CORPUS["cases"]
+                if case["name"] == case_name
+            )
+            context = resolve_references(CORPUS["contexts"][case["context"]])
+            with self.assertRaisesRegex(H.HoloProtocolError, message):
+                H.resolve_history(
+                    copy.deepcopy(CORPUS["documents"][case["document"]]),
+                    context["ancestors"],
+                )
+
+    def test_recursive_history_depth_and_unique_limits(self):
+        records = {}
+        for index in range(9):
+            parent = history_id(index - 1) if index else None
+            references = [parent] if parent is not None else []
+            records[history_id(index)] = history_record(
+                history_id(index),
+                index,
+                parent,
+                references,
+            )
+        root = history_output([history_id(8)], base_holo_id=history_id(8))
+        with self.assertRaisesRegex(H.HoloProtocolError, "depth exceeds eight"):
+            H.resolve_history(root, records)
+
+        records = {}
+        nested = {
+            64: list(range(48, 64)),
+            48: list(range(32, 48)),
+            32: list(range(16, 32)),
+            16: list(range(0, 16)),
+        }
+        for index in range(65):
+            parent = history_id(index - 1) if index else None
+            records[history_id(index)] = history_record(
+                history_id(index),
+                index,
+                parent,
+                [history_id(item) for item in nested.get(index, [])],
+            )
+        root = history_output([history_id(64)], base_holo_id=history_id(64))
+        with self.assertRaisesRegex(H.HoloProtocolError, "exceed 64"):
+            H.resolve_history(root, records)
+
+    def test_recursive_history_byte_limit(self):
+        points = [
+            {"position": [index % 1000, index // 1000, 0], "size": 1}
+            for index in range(5000)
+        ]
+        state = copy.deepcopy(
+            CORPUS["documents"]["blank-valid-output"]["state"]
+        )
+        state["nodes"] = [
+            {
+                "id": "mass",
+                "parent": None,
+                "type": "points",
+                "visible": True,
+                "transform": {
+                    "position": [0, 0, 0],
+                    "rotation": [0, 0, 0],
+                    "scale": [1000, 1000, 1000],
+                },
+                "geometry": {"points": points},
+                "material": {
+                    "color": "#FFFFFF",
+                    "emissive": "#000000",
+                    "emissive_strength": 0,
+                    "opacity": 1000,
+                    "presentation": "points",
+                    "blend": "normal",
+                    "side": "front",
+                    "metallic": 0,
+                    "roughness": 1000,
+                },
+            }
+        ]
+        records = {}
+        nested = {31: list(range(16, 31)), 16: list(range(0, 16))}
+        for index in range(32):
+            parent = history_id(index - 1) if index else None
+            records[history_id(index)] = history_record(
+                history_id(index),
+                index,
+                parent,
+                [history_id(item) for item in nested.get(index, [])],
+                state=state,
+            )
+        root = history_output([history_id(31)], base_holo_id=history_id(31))
+        with self.assertRaisesRegex(H.HoloProtocolError, "exceed 4 MiB"):
+            H.resolve_history(root, records)
+
+    def test_growl_aggregate_duration_limit(self):
+        value = copy.deepcopy(CORPUS["documents"]["blank-valid-output"])
+        note = {
+            "pitch": 64,
+            "delta_onset": 65_535,
+            "duration": 1,
+            "velocity": 64,
+        }
+        value["growl"]["continuation"] = [
+            copy.deepcopy(note) for _ in range(257)
+        ]
+        with self.assertRaisesRegex(H.HoloProtocolError, "song duration"):
+            H.validate_output(value)
 
     def test_strict_parser_refuses_duplicate_members_and_floats(self):
         with self.assertRaises(H.ProtocolError):

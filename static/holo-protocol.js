@@ -1,13 +1,17 @@
 (function (global) {
   "use strict";
 
+  // Data-only validation for portable, locally owned Rolling Core content.
+  // This module performs no authorship, commerce, network, or cloud work.
   const S = 1000000;
   const MAX_SAFE_INTEGER = 9007199254740991;
   const MAX_AUTHORED_BYTES = 256 * 1024;
   const MAX_REFERENCED_STATE_BYTES = 4 * 1024 * 1024;
+  const MAX_GROWL_NOTES = 2080;
+  const MAX_GROWL_TICKS = 16777215;
   const OUTPUT_KEYS = [
     "schema", "base_holo_id", "ir_version", "renderer_contract",
-    "state", "transition", "performance", "accessibility",
+    "growl", "state", "transition", "performance", "accessibility",
   ];
   const RECORD_KEYS = [
     "schema", "holo_seq", "visual_parent", "source",
@@ -27,7 +31,6 @@
   const COLOR_RE = /^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$/;
   const RAPPID_RE = /^rappid:@([a-z0-9]+(?:-[a-z0-9]+)*)\/([a-z0-9]+(?:-[a-z0-9]+)*):([0-9a-f]{64})$/;
   const MEMORY_STREAM_RE = /^(rappid:@[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*:[0-9a-f]{64}):([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-  const UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
   const UNSET = Symbol("unset");
 
   class HoloProtocolError extends Error {
@@ -79,7 +82,8 @@
 
   function stringValue(value, path, minimum = 0, maximum = null) {
     if (typeof value !== "string") fail(path, "must be a string");
-    if (value.length < minimum || (maximum !== null && value.length > maximum)) {
+    const length = Array.from(value).length;
+    if (length < minimum || (maximum !== null && length > maximum)) {
       fail(path, `length must be between ${minimum} and ${maximum}`);
     }
     return value;
@@ -105,7 +109,8 @@
   }
 
   function nodeId(value, path) {
-    if (typeof value !== "string" || value.length < 1 || value.length > 64
+    const length = typeof value === "string" ? Array.from(value).length : 0;
+    if (typeof value !== "string" || length < 1 || length > 64
         || !NODE_ID_RE.test(value)) {
       fail(path, "must be a bounded lowercase label");
     }
@@ -300,6 +305,109 @@
   function authoredHash(authored) {
     canonicalAuthoredBytes(authored);
     return domainHash("rapp-holo/1:authored", authored);
+  }
+
+  function nfcString(value, path, minimum, maximum) {
+    const result = stringValue(value, path, minimum, maximum);
+    if (result.normalize("NFC") !== result) {
+      fail(path, "must be NFC-normalized text");
+    }
+    return result;
+  }
+
+  function validateGrowlNotes(value, path, minimum, maximum) {
+    const notes = arrayValue(value, path, minimum, maximum);
+    notes.forEach((note, index) => {
+      const itemPath = `${path}[${index}]`;
+      const item = objectValue(
+        note,
+        ["pitch", "delta_onset", "duration", "velocity"],
+        itemPath,
+      );
+      integer(item.pitch, `${itemPath}.pitch`, 0, 127);
+      integer(item.delta_onset, `${itemPath}.delta_onset`, 0, 65535);
+      integer(item.duration, `${itemPath}.duration`, 1, 65535);
+      integer(item.velocity, `${itemPath}.velocity`, 1, 127);
+    });
+    return notes;
+  }
+
+  function validateGrowl(value, path) {
+    const object = objectValue(value, [
+      "schema", "representation", "seed", "model", "ticks_per_quarter",
+      "tempo_milli_bpm", "program", "title", "subject_description",
+      "prompt", "continuation", "complete", "context_policy",
+    ], path);
+    if (object.schema !== "rapp-holo-growl/1") {
+      fail(`${path}.schema`, "must be rapp-holo-growl/1");
+    }
+    if (object.representation !== "note-pitch-delta-duration-velocity/1") {
+      fail(
+        `${path}.representation`,
+        "must be note-pitch-delta-duration-velocity/1",
+      );
+    }
+    hex64(object.seed, `${path}.seed`);
+    const model = objectValue(object.model, ["id", "revision"], `${path}.model`);
+    nfcString(model.id, `${path}.model.id`, 1, 128);
+    nfcString(model.revision, `${path}.model.revision`, 1, 64);
+    integer(object.ticks_per_quarter, `${path}.ticks_per_quarter`, 24, 960);
+    integer(object.tempo_milli_bpm, `${path}.tempo_milli_bpm`, 30000, 300000);
+    integer(object.program, `${path}.program`, 0, 127);
+    nfcString(object.title, `${path}.title`, 1, 128);
+    nfcString(
+      object.subject_description,
+      `${path}.subject_description`,
+      1,
+      1024,
+    );
+    const prompt = validateGrowlNotes(object.prompt, `${path}.prompt`, 8, 32);
+    const continuation = validateGrowlNotes(
+      object.continuation,
+      `${path}.continuation`,
+      1,
+      2048,
+    );
+    if (object.complete !== true) fail(`${path}.complete`, "must be true");
+    const policy = objectValue(
+      object.context_policy,
+      ["max_notes", "retain_latest"],
+      `${path}.context_policy`,
+    );
+    if (policy.max_notes !== 512 || policy.retain_latest !== 384) {
+      fail(
+        `${path}.context_policy`,
+        "must be exactly max_notes 512 and retain_latest 384",
+      );
+    }
+    const events = [...prompt, ...continuation];
+    if (events.length > MAX_GROWL_NOTES) {
+      fail(path, `aggregate notes exceed ${MAX_GROWL_NOTES}`);
+    }
+    let onset = 0;
+    let songEnd = 0;
+    let previousPitch = null;
+    events.forEach((event, index) => {
+      onset += event.delta_onset;
+      songEnd = Math.max(songEnd, onset + event.duration);
+      if (event.delta_onset === 0 && previousPitch !== null
+          && event.pitch <= previousPitch) {
+        fail(
+          `${path}.events[${index}]`,
+          "simultaneous chord pitches must be strictly ascending",
+        );
+      }
+      previousPitch = event.pitch;
+    });
+    if (songEnd > MAX_GROWL_TICKS) {
+      fail(path, `aggregate song duration exceeds ${MAX_GROWL_TICKS} ticks`);
+    }
+    return object;
+  }
+
+  function growlEvents(growl) {
+    const item = validateGrowl(growl, "growl");
+    return clone([...item.prompt, ...item.continuation]);
   }
 
   function roundDiv(numerator, denominator) {
@@ -501,6 +609,57 @@
     }
   }
 
+  function validateShapee(value, path) {
+    const object = objectValue(
+      value,
+      ["shape", "seed", "width", "height", "depth", "teeth", "relief"],
+      path,
+    );
+    if (object.shape !== "shapee") fail(`${path}.shape`, "must be shapee");
+    hex64(object.seed, `${path}.seed`);
+    integer(object.width, `${path}.width`, 100, 2000000);
+    const height = integer(object.height, `${path}.height`, 100, 2000000);
+    integer(object.depth, `${path}.depth`, 1, 200000);
+    integer(object.teeth, `${path}.teeth`, 4, 32);
+    const relief = integer(object.relief, `${path}.relief`, 0, 500000);
+    if (relief * 2 > height) {
+      fail(`${path}.relief`, "must not exceed half the height");
+    }
+    return object;
+  }
+
+  function shapeeOutline(geometry) {
+    const item = validateShapee(geometry, "shapee");
+    const left = -Math.trunc(item.width / 2);
+    const bottom = -Math.trunc(item.height / 2);
+    const top = bottom + item.height;
+    const boundaries = [];
+    for (let index = 0; index <= item.teeth; index += 1) {
+      boundaries.push(left + roundDiv(index * item.width, item.teeth));
+    }
+    const points = [];
+    const append = (point) => {
+      const previous = points.at(-1);
+      if (!previous || previous[0] !== point[0] || previous[1] !== point[1]) {
+        points.push(point);
+      }
+    };
+    for (let index = 0; index < item.teeth; index += 1) {
+      const nibble = Number.parseInt(item.seed[item.teeth + index], 16);
+      const y = bottom - roundDiv(item.relief * nibble, 15);
+      append([boundaries[index], y]);
+      append([boundaries[index + 1], y]);
+    }
+    for (let index = item.teeth - 1; index >= 0; index -= 1) {
+      const nibble = Number.parseInt(item.seed[index], 16);
+      const y = top + roundDiv(item.relief * nibble, 15);
+      append([boundaries[index + 1], y]);
+      append([boundaries[index], y]);
+    }
+    append([...points[0]]);
+    return points;
+  }
+
   function validatePrimitive(value, path) {
     if (value === null || typeof value !== "object" || Array.isArray(value)
         || typeof value.shape !== "string") {
@@ -532,6 +691,8 @@
       const object = objectValue(value, ["shape", "width", "height"], path);
       integer(object.width, `${path}.width`, 1, 2000000);
       integer(object.height, `${path}.height`, 1, 2000000);
+    } else if (shape === "shapee") {
+      validateShapee(value, path);
     } else {
       fail(`${path}.shape`, "unsupported primitive shape");
     }
@@ -605,6 +766,18 @@
 
   function primitiveCounts(geometry) {
     const shape = geometry.shape;
+    if (shape === "shapee") {
+      const outline = shapeeOutline(geometry);
+      const outlineVertexCount = outline.length - 1;
+      const vertexCount = 2 * outlineVertexCount;
+      const triangleCount = 4 * outlineVertexCount - 4;
+      return [vertexCount, triangleCount, {
+        outline,
+        outline_vertex_count: outlineVertexCount,
+        vertex_count: vertexCount,
+        triangle_count: triangleCount,
+      }];
+    }
     if (shape === "sphere") {
       const longitude = 8 * (2 ** geometry.detail);
       const latitude = 4 * (2 ** geometry.detail);
@@ -740,8 +913,17 @@
     const type = oldNode.type;
     if (type === "group") return oldNode.id === newNode.id;
     if (type === "primitive") {
-      return oldNode.geometry.shape === newNode.geometry.shape
-        && sameKeys(oldNode.geometry, Object.keys(newNode.geometry));
+      if (oldNode.geometry.shape !== newNode.geometry.shape
+          || !sameKeys(oldNode.geometry, Object.keys(newNode.geometry))) {
+        return false;
+      }
+      if (oldNode.geometry.shape === "shapee") {
+        return oldNode.geometry.seed === newNode.geometry.seed
+          && oldNode.geometry.teeth === newNode.geometry.teeth
+          && shapeeOutline(oldNode.geometry).length
+            === shapeeOutline(newNode.geometry).length;
+      }
+      return true;
     }
     if (type === "mesh") {
       return oldNode.geometry.vertices.length === newNode.geometry.vertices.length
@@ -845,30 +1027,130 @@
     if (value === null || value === undefined) {
       fail("performance.sustain.flipbook", `ancestor ${id} is unavailable`);
     }
-    if (
-      value === null
-      || typeof value !== "object"
-      || Array.isArray(value)
-      || !(
-        sameKeys(value, ["verified_ancestor"])
-        || sameKeys(value, ["state", "verified_ancestor"])
-      )
-    ) {
-      fail(`ancestor[${id}]`, "must contain verified_ancestor and optional state");
-    }
-    const result = value;
+    const result = ancestorPayload(value, `ancestor[${id}]`);
     if (result.verified_ancestor !== true) {
       fail(`ancestor[${id}]`, "must be a verified strict visual ancestor");
-    }
-    if (Object.hasOwn(result, "state")) {
-      validateState(result.state, `ancestor[${id}].state`);
     }
     return result;
   }
 
+  function strictRecursiveAncestor(sourceId, targetId, resolver, cache) {
+    const source = cache.get(sourceId);
+    const record = source.record;
+    if (record === undefined) {
+      fail(
+        `ancestor[${sourceId}]`,
+        "recursive ancestor relationship requires a record payload",
+      );
+    }
+    let parent = record.visual_parent;
+    let sequence = record.holo_seq;
+    const visited = new Set();
+    while (parent !== null) {
+      if (visited.has(parent)) {
+        fail("performance.sustain.flipbook", "visual ancestor cycle");
+      }
+      visited.add(parent);
+      if (parent === targetId) {
+        const targetRecord = cache.get(targetId).record;
+        if (targetRecord !== undefined && targetRecord.holo_seq !== sequence - 1) {
+          fail(
+            `ancestor[${targetId}]`,
+            "holo_seq does not match the visual parent chain",
+          );
+        }
+        return;
+      }
+      let parentPayload = cache.get(parent);
+      if (parentPayload === undefined) {
+        parentPayload = resolverValue(parent, resolver);
+        cache.set(parent, parentPayload);
+        if (cache.size > 64) {
+          fail("performance.sustain.flipbook", "unique resolved frames exceed 64");
+        }
+      }
+      const parentRecord = parentPayload.record;
+      if (parentRecord === undefined) {
+        fail(`ancestor[${parent}]`, "visual parent chain requires record payloads");
+      }
+      if (parentRecord.holo_seq !== sequence - 1) {
+        fail(
+          `ancestor[${parent}]`,
+          "holo_seq does not match the visual parent chain",
+        );
+      }
+      sequence = parentRecord.holo_seq;
+      parent = parentRecord.visual_parent;
+    }
+    fail(
+      `ancestor[${targetId}]`,
+      `is not a strict visual ancestor of ${sourceId}`,
+    );
+  }
+
+  function resolveHistoryEntries(entries, resolver) {
+    const cache = new Map();
+    const active = new Set();
+    const resolved = new Set();
+    const ordered = [];
+    let totalBytes = 0;
+
+    function visit(id, depth, sourceId) {
+      if (depth > 8) {
+        fail("performance.sustain.flipbook", "reference depth exceeds eight");
+      }
+      if (active.has(id)) {
+        fail("performance.sustain.flipbook", "historical reference cycle");
+      }
+      let payload = cache.get(id);
+      if (payload === undefined) {
+        payload = resolverValue(id, resolver);
+        cache.set(id, payload);
+        if (cache.size > 64) {
+          fail("performance.sustain.flipbook", "unique resolved frames exceed 64");
+        }
+      }
+      if (sourceId !== null) {
+        strictRecursiveAncestor(sourceId, id, resolver, cache);
+      }
+      if (resolved.has(id)) return;
+      resolved.add(id);
+      if (resolved.size > 64) {
+        fail("performance.sustain.flipbook", "unique resolved frames exceed 64");
+      }
+      const stateBytes = Object.hasOwn(payload, "state")
+        ? utf8(canonical(payload.state)).length
+        : MAX_AUTHORED_BYTES;
+      totalBytes += stateBytes;
+      if (totalBytes > MAX_REFERENCED_STATE_BYTES) {
+        fail("performance.sustain.flipbook", "referenced state bytes exceed 4 MiB");
+      }
+      ordered.push({
+        holo_id: id,
+        depth,
+        state: Object.hasOwn(payload, "state") ? clone(payload.state) : null,
+      });
+      if (!Object.hasOwn(payload, "authored")) return;
+      active.add(id);
+      try {
+        for (const nested of payload.authored.performance.sustain.flipbook) {
+          if (nested.holo_id !== "self") {
+            visit(nested.holo_id, depth + 1, id);
+          }
+        }
+      } finally {
+        active.delete(id);
+      }
+    }
+
+    for (const entry of entries) {
+      if (entry.holo_id !== "self") visit(entry.holo_id, 1, null);
+    }
+    return ordered;
+  }
+
   function validateFlipbook(entries, durationMs, repeat, resolver, requireResolver = true) {
     let previousTime = null;
-    const referenced = new Map();
     entries.forEach((entry, index) => {
       const path = `performance.sustain.flipbook[${index}]`;
       const item = objectValue(entry, ["at_ms", "holo_id", "blend", "blend_ms"], path);
@@ -889,16 +1171,6 @@
         }
       }
       previousTime = atMs;
-      if (item.holo_id !== "self" && !referenced.has(item.holo_id)
-          && resolver !== null && resolver !== undefined) {
-        const resolved = resolverValue(item.holo_id, resolver);
-        referenced.set(
-          item.holo_id,
-          Object.hasOwn(resolved, "state")
-            ? utf8(canonical(resolved.state)).length
-            : 0,
-        );
-      }
     });
     if (entries.length > 0 && repeat === "loop") {
       const first = entries[0];
@@ -911,9 +1183,8 @@
     if (requireResolver && historical.size > 0 && (resolver === null || resolver === undefined)) {
       fail("performance.sustain.flipbook", `ancestor ${[...historical].sort()[0]} cannot be resolved`);
     }
-    const totalBytes = [...referenced.values()].reduce((total, value) => total + value, 0);
-    if (totalBytes > MAX_REFERENCED_STATE_BYTES) {
-      fail("performance.sustain.flipbook", "referenced state bytes exceed 4 MiB");
+    if (historical.size > 0 && resolver !== null && resolver !== undefined) {
+      resolveHistoryEntries(entries, resolver);
     }
   }
 
@@ -1114,6 +1385,7 @@
     if (object.renderer_contract !== "rapp-holo-renderer/1") {
       fail("authored.renderer_contract", "unsupported renderer contract");
     }
+    validateGrowl(object.growl, "growl");
     const stateInfo = validateState(object.state);
     let baseNodes = null;
     if (options.baseState !== undefined && options.baseState !== null) {
@@ -1160,17 +1432,43 @@
     if (
       sameKeys(value, ["verified_ancestor"])
       || sameKeys(value, ["state", "verified_ancestor"])
+      || sameKeys(value, ["state", "authored", "verified_ancestor"])
+      || sameKeys(value, ["state", "authored", "record", "verified_ancestor"])
     ) {
+      if (Object.hasOwn(value, "state")) validateState(value.state, `${path}.state`);
+      if (Object.hasOwn(value, "authored")) {
+        validateOutputManifest(value.authored, { requireAncestorResolution: false });
+        if (canonical(value.authored.state) !== canonical(value.state)) {
+          fail(path, "authored state does not match ancestor state");
+        }
+      }
+      if (Object.hasOwn(value, "record")) {
+        validateRecordManifest(value.record, { requireAncestorResolution: false });
+        if (canonical(value.record.authored) !== canonical(value.authored)) {
+          fail(path, "record authored output does not match ancestor output");
+        }
+      }
       return value;
     }
     if (sameKeys(value, OUTPUT_KEYS)) {
-      return { state: value.state, verified_ancestor: true };
+      validateOutputManifest(value, { requireAncestorResolution: false });
+      return {
+        state: value.state,
+        authored: value,
+        verified_ancestor: true,
+      };
     }
     if (sameKeys(value, RECORD_KEYS)) {
-      const authored = objectValue(value.authored, OUTPUT_KEYS, `${path}.authored`);
-      return { state: authored.state, verified_ancestor: true };
+      validateRecordManifest(value, { requireAncestorResolution: false });
+      return {
+        state: value.authored.state,
+        authored: value.authored,
+        record: value,
+        verified_ancestor: true,
+      };
     }
     if (sameKeys(value, ["camera", "environment", "nodes"])) {
+      validateState(value, path);
       return { state: value, verified_ancestor: true };
     }
     fail(path, "must identify a verified ancestor");
@@ -1186,12 +1484,7 @@
     }
     if (!Array.isArray(ancestorIds) && typeof ancestorIds === "object"
         && !(Symbol.iterator in ancestorIds)) {
-      const resolved = Object.create(null);
-      for (const [id, value] of Object.entries(ancestorIds)) {
-        hex64(id, "ancestorIds key");
-        resolved[id] = ancestorPayload(value, `ancestorIds[${id}]`);
-      }
-      return resolved;
+      return ancestorIds;
     }
     if (typeof ancestorIds[Symbol.iterator] !== "function") {
       fail("ancestorIds", "must be an iterable of holo IDs or a mapping");
@@ -1222,27 +1515,37 @@
     return value;
   }
 
+  function resolveHistory(value, ancestorIds) {
+    validateOutputManifest(value, { requireAncestorResolution: false });
+    const resolver = ancestorResolver(ancestorIds);
+    const entries = value.performance.sustain.flipbook;
+    const historical = entries.filter((entry) => entry.holo_id !== "self");
+    if (historical.length > 0 && (resolver === null || resolver === undefined)) {
+      fail(
+        "performance.sustain.flipbook",
+        `ancestor ${historical[0].holo_id} cannot be resolved`,
+      );
+    }
+    return historical.length === 0 ? [] : resolveHistoryEntries(entries, resolver);
+  }
+
   function rappidValid(value) {
     if (typeof value !== "string") return false;
     const match = RAPPID_RE.exec(value);
-    return Boolean(match && match[1].length <= 39 && match[2].length <= 100);
+    return Boolean(
+      match
+      && Array.from(match[1]).length <= 39
+      && Array.from(match[2]).length <= 100
+    );
   }
 
   function memoryStream(value, path) {
     if (typeof value !== "string") fail(path, "must be a memory stream ID");
     const match = MEMORY_STREAM_RE.exec(value);
-    if (!match || !rappidValid(match[1]) || match[2].length > 64) {
+    if (!match || !rappidValid(match[1]) || Array.from(match[2]).length > 64) {
       fail(path, "must be a valid RAPPID memory stream");
     }
     return [match[1], match[2]];
-  }
-
-  function validUtc(value) {
-    if (typeof value !== "string" || !UTC_RE.test(value)
-        || value.startsWith("0000-") || value.slice(17, 19) === "60") return false;
-    const parsed = Date.parse(value);
-    if (!Number.isFinite(parsed)) return false;
-    return new Date(parsed).toISOString() === value;
   }
 
   function validateSource(value, path) {
@@ -1251,92 +1554,6 @@
     integer(object.seq, `${path}.seq`, 0, MAX_SAFE_INTEGER);
     hex64(object.frame_hash, `${path}.frame_hash`);
     return object;
-  }
-
-  function base64urlDecode(value) {
-    if (typeof value !== "string" || value.includes("=") || !/^[A-Za-z0-9_-]*$/.test(value)) {
-      throw new HoloProtocolError("invalid unpadded base64url");
-    }
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let bits = 0;
-    let bitCount = 0;
-    const bytes = [];
-    for (const character of value) {
-      bits = bits * 64 + alphabet.indexOf(character);
-      bitCount += 6;
-      while (bitCount >= 8) {
-        bitCount -= 8;
-        bytes.push(Math.trunc(bits / (2 ** bitCount)) & 255);
-        bits %= 2 ** bitCount;
-      }
-    }
-    if (bitCount > 0 && bits !== 0) throw new HoloProtocolError("invalid base64url padding bits");
-    return bytes;
-  }
-
-  function parseAsciiJson(bytes) {
-    if (bytes.some((byte) => byte > 127)) throw new HoloProtocolError("JWS header must be ASCII JSON");
-    return parseJson(String.fromCharCode(...bytes));
-  }
-
-  function parseDetachedJws(value) {
-    const parts = typeof value === "string" ? value.split(".") : [];
-    if (parts.length !== 3 || parts[1] !== "") {
-      throw new HoloProtocolError("JWS must use detached compact serialization");
-    }
-    const headerBytes = base64urlDecode(parts[0]);
-    const header = parseAsciiJson(headerBytes);
-    objectValue(header, ["alg", "b64", "crit", "kid"], "JWS header");
-    if (header.alg !== "EdDSA" && header.alg !== "ES256") {
-      throw new HoloProtocolError("JWS alg must be EdDSA or ES256");
-    }
-    if (header.b64 !== false || canonical(header.crit) !== '["b64"]') {
-      throw new HoloProtocolError("JWS must use b64=false with crit=['b64']");
-    }
-    if (!rappidValid(header.kid)) throw new HoloProtocolError("JWS kid must be a valid RAPPID");
-    if (utf8(canonical(header)).join(",") !== headerBytes.join(",")) {
-      throw new HoloProtocolError("JWS protected header is not canonical");
-    }
-    base64urlDecode(parts[2]);
-    return header;
-  }
-
-  function validateProvenance(value, record, subjectRappid, path) {
-    const object = objectValue(value, ["statement", "sig"], path);
-    const statement = objectValue(object.statement, [
-      "schema", "subject_rappid", "producer_rappid", "source_stream_id",
-      "source_seq", "source_frame_hash", "authored_hash", "issued_utc",
-    ], `${path}.statement`);
-    if (statement.schema !== "rapp-holo-provenance/1") {
-      fail(`${path}.statement.schema`, "must be rapp-holo-provenance/1");
-    }
-    if (!rappidValid(statement.subject_rappid)) fail(`${path}.statement.subject_rappid`, "invalid subject RAPPID");
-    if (!rappidValid(statement.producer_rappid)) fail(`${path}.statement.producer_rappid`, "invalid producer RAPPID");
-    memoryStream(statement.source_stream_id, `${path}.statement.source_stream_id`);
-    integer(statement.source_seq, `${path}.statement.source_seq`, 0, MAX_SAFE_INTEGER);
-    hex64(statement.source_frame_hash, `${path}.statement.source_frame_hash`);
-    hex64(statement.authored_hash, `${path}.statement.authored_hash`);
-    if (!validUtc(statement.issued_utc)) fail(`${path}.statement.issued_utc`, "invalid fixed-form UTC");
-    const signature = stringValue(object.sig, `${path}.sig`, 1, 16384);
-    let header;
-    try {
-      header = parseDetachedJws(signature);
-    } catch (error) {
-      fail(`${path}.sig`, `invalid detached JWS: ${error.message}`);
-    }
-    if (header.kid !== statement.producer_rappid) fail(`${path}.sig`, "JWS kid must equal producer_rappid");
-    const expected = {
-      subject_rappid: subjectRappid,
-      source_stream_id: record.source.stream_id,
-      source_seq: record.source.seq,
-      source_frame_hash: record.source.frame_hash,
-      authored_hash: record.authored_hash,
-    };
-    Object.entries(expected).forEach(([key, expectedValue]) => {
-      if (statement[key] !== expectedValue) {
-        fail(`${path}.statement.${key}`, "does not match the materialized record");
-      }
-    });
   }
 
   function validateRecordManifest(record, options = {}) {
@@ -1385,11 +1602,9 @@
       fail("record.visual_parent", "is stale relative to the authoritative holo head");
     }
     if (object.producer_provenance !== null) {
-      validateProvenance(
-        object.producer_provenance,
-        object,
-        subjectRappid ?? sourceSubject,
+      fail(
         "record.producer_provenance",
+        "trusted provenance verification unavailable",
       );
     }
     return validateOutputManifest(object.authored, {
@@ -1550,19 +1765,27 @@
     canonicalAuthoredBytes,
     compileManifest,
     compileSceneManifest,
+    completeGrowl: growlEvents,
     domainHash,
     easing,
     evaluatePropertyTrack,
+    growlEvents,
     localSustainTime,
     parseJson,
+    resolveHistory,
     roundDiv,
     selectFlipbook,
+    shapeeOutline,
     validateOutput,
     validateBoundRecord,
     validateRecord,
     authored_hash: authoredHash,
+    complete_growl: growlEvents,
     compile_manifest: compileManifest,
     validate_output: validateOutput,
     validate_record: validateRecord,
+    resolve_history: resolveHistory,
+    growl_events: growlEvents,
+    shapee_outline: shapeeOutline,
   });
 }(typeof window === "undefined" ? globalThis : window));

@@ -94,6 +94,53 @@ function validate(kind, value, context) {
 }
 
 
+function historyOutput(references, { baseHoloId = null, state = null } = {}) {
+  const value = clone(corpus.documents["blank-valid-output"]);
+  value.base_holo_id = baseHoloId;
+  if (state !== null) value.state = clone(state);
+  if (references.length > 0) {
+    value.performance.sustain = {
+      duration_ms: Math.max(1, references.length - 1),
+      repeat: "once",
+      tracks: [],
+      flipbook: references.map((holoId, index) => ({
+        at_ms: index,
+        holo_id: holoId,
+        blend: "cut",
+        blend_ms: 0,
+      })),
+    };
+  }
+  return value;
+}
+
+
+function historyRecord(sequence, parent, references, state = null) {
+  const authored = historyOutput(references, {
+    baseHoloId: parent,
+    state,
+  });
+  return {
+    schema: "rapp-holo-record/1",
+    holo_seq: sequence,
+    visual_parent: parent,
+    source: {
+      stream_id: `rappid:@kody-w/history:${"3".repeat(64)}:session`,
+      seq: sequence,
+      frame_hash: (sequence + 1000).toString(16).padStart(64, "0"),
+    },
+    authored_hash: H.authoredHash(authored),
+    producer_provenance: null,
+    authored,
+  };
+}
+
+
+function historyId(index) {
+  return (index + 100).toString(16).padStart(64, "0");
+}
+
+
 test("classic script exposes one frozen dependency-free protocol global", () => {
   assert.ok(H);
   assert.equal(Object.isFrozen(H), true);
@@ -101,10 +148,18 @@ test("classic script exposes one frozen dependency-free protocol global", () => 
   assert.equal(typeof H.compileManifest, "function");
   assert.equal(typeof H.validateRecord, "function");
   assert.equal(typeof H.validateBoundRecord, "function");
+  assert.equal(typeof H.shapeeOutline, "function");
+  assert.equal(typeof H.growlEvents, "function");
+  assert.equal(H.completeGrowl, H.growlEvents);
+  assert.equal(typeof H.resolveHistory, "function");
   assert.equal(H.validate_output, H.validateOutput);
   assert.equal(H.validate_record, H.validateRecord);
   assert.equal(H.compile_manifest, H.compileManifest);
   assert.equal(H.authored_hash, H.authoredHash);
+  assert.equal(H.shapee_outline, H.shapeeOutline);
+  assert.equal(H.growl_events, H.growlEvents);
+  assert.equal(H.complete_growl, H.growlEvents);
+  assert.equal(H.resolve_history, H.resolveHistory);
   assert.doesNotMatch(source, /\beval\s*\(|\bfetch\s*\(|XMLHttpRequest|import\s*\(/);
   assert.doesNotMatch(source, /https?:\/\//);
 });
@@ -185,6 +240,11 @@ test("shared deterministic helper vectors match Python", () => {
   for (const item of corpus.helpers.local_sustain_time) {
     assert.equal(H.localSustainTime(...item.args), item.expected);
   }
+  for (const item of corpus.helpers.growl_events) {
+    const growl = clone(item.growl);
+    assert.deepEqual(clone(H.growlEvents(growl)), item.expected);
+    assert.deepEqual(growl, item.growl);
+  }
   for (const item of corpus.helpers.property_tracks) {
     assert.deepEqual(
       clone(H.evaluatePropertyTrack(resolveReferences(item.track), item.at_ms)),
@@ -227,6 +287,19 @@ test("unverified ancestor and invalid round divisor are refused", () => {
 });
 
 
+test("non-null producer provenance fails closed", () => {
+  const fixture = corpus.cases.find((item) => item.name === "untrusted-provenance");
+  const record = applyPatches(
+    clone(corpus.documents[fixture.document]),
+    fixture.patches,
+  );
+  assert.throws(
+    () => H.validateRecord(record),
+    /trusted provenance verification unavailable/,
+  );
+});
+
+
 test("stable adapters accept an output base and ancestor ID set", () => {
   const value = clone(corpus.documents["historical-flipbook"]);
   const base = corpus.documents["multi-node-non-humanoid-scene"];
@@ -263,4 +336,148 @@ test("stable record adapter preserves the exact payload", () => {
     }),
     /body subject/,
   );
+});
+
+
+test("shared SHAPEE outline and compiled counts match Python", () => {
+  for (const item of corpus.helpers.shapee_outline) {
+    const geometry = clone(item.geometry);
+    assert.deepEqual(clone(H.shapeeOutline(geometry)), item.expected);
+    assert.deepEqual(geometry, item.geometry);
+    assert.deepEqual(item.expected[0], item.expected.at(-1));
+  }
+  const manifest = H.compileManifest(corpus.documents["shapee-ai-tile"]);
+  const geometry = manifest.draws[0].geometry;
+  const expected = corpus.helpers.shapee_outline[0];
+  assert.deepEqual(clone(geometry.derived.outline), expected.expected);
+  assert.equal(
+    geometry.derived.outline_vertex_count,
+    expected.outline_vertex_count,
+  );
+  assert.equal(geometry.vertex_count, expected.vertex_count);
+  assert.equal(geometry.triangle_count, expected.triangle_count);
+});
+
+
+test("shared recursive history resolution matches Python", () => {
+  const item = corpus.helpers.resolve_history[0];
+  const value = clone(corpus.documents[item.document]);
+  const context = resolveReferences(corpus.contexts[item.context]);
+  assert.deepEqual(
+    clone(H.resolveHistory(value, context.ancestors)),
+    item.expected,
+  );
+  for (const [caseName, message] of [
+    ["recursive-history-cycle", /historical reference cycle/],
+    ["recursive-history-non-ancestor", /not a strict visual ancestor/],
+  ]) {
+    const fixture = corpus.cases.find((entry) => entry.name === caseName);
+    const rejectedContext = resolveReferences(corpus.contexts[fixture.context]);
+    assert.throws(
+      () => H.resolveHistory(
+        clone(corpus.documents[fixture.document]),
+        rejectedContext.ancestors,
+      ),
+      message,
+    );
+  }
+});
+
+
+test("recursive history depth and unique limits are enforced", () => {
+  let records = {};
+  for (let index = 0; index < 9; index += 1) {
+    const parent = index === 0 ? null : historyId(index - 1);
+    records[historyId(index)] = historyRecord(
+      index,
+      parent,
+      parent === null ? [] : [parent],
+    );
+  }
+  let root = historyOutput([historyId(8)], { baseHoloId: historyId(8) });
+  assert.throws(() => H.resolveHistory(root, records), /depth exceeds eight/);
+
+  records = {};
+  const nested = new Map([
+    [64, Array.from({ length: 16 }, (_, index) => index + 48)],
+    [48, Array.from({ length: 16 }, (_, index) => index + 32)],
+    [32, Array.from({ length: 16 }, (_, index) => index + 16)],
+    [16, Array.from({ length: 16 }, (_, index) => index)],
+  ]);
+  for (let index = 0; index < 65; index += 1) {
+    const parent = index === 0 ? null : historyId(index - 1);
+    records[historyId(index)] = historyRecord(
+      index,
+      parent,
+      (nested.get(index) ?? []).map(historyId),
+    );
+  }
+  root = historyOutput([historyId(64)], { baseHoloId: historyId(64) });
+  assert.throws(() => H.resolveHistory(root, records), /exceed 64/);
+});
+
+
+test("recursive history aggregate state byte limit is enforced", () => {
+  const points = Array.from({ length: 5000 }, (_, index) => ({
+    position: [index % 1000, Math.trunc(index / 1000), 0],
+    size: 1,
+  }));
+  const state = clone(corpus.documents["blank-valid-output"].state);
+  state.nodes = [{
+    id: "mass",
+    parent: null,
+    type: "points",
+    visible: true,
+    transform: {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1000, 1000, 1000],
+    },
+    geometry: { points },
+    material: {
+      color: "#FFFFFF",
+      emissive: "#000000",
+      emissive_strength: 0,
+      opacity: 1000,
+      presentation: "points",
+      blend: "normal",
+      side: "front",
+      metallic: 0,
+      roughness: 1000,
+    },
+  }];
+  const records = {};
+  const nested = new Map([
+    [31, Array.from({ length: 15 }, (_, index) => index + 16)],
+    [16, Array.from({ length: 16 }, (_, index) => index)],
+  ]);
+  for (let index = 0; index < 32; index += 1) {
+    const parent = index === 0 ? null : historyId(index - 1);
+    records[historyId(index)] = historyRecord(
+      index,
+      parent,
+      (nested.get(index) ?? []).map(historyId),
+      state,
+    );
+  }
+  const root = historyOutput([historyId(31)], {
+    baseHoloId: historyId(31),
+  });
+  assert.throws(() => H.resolveHistory(root, records), /exceed 4 MiB/);
+});
+
+
+test("growl aggregate duration is bounded", () => {
+  const value = clone(corpus.documents["blank-valid-output"]);
+  const note = {
+    pitch: 64,
+    delta_onset: 65535,
+    duration: 1,
+    velocity: 64,
+  };
+  value.growl.continuation = Array.from(
+    { length: 257 },
+    () => clone(note),
+  );
+  assert.throws(() => H.validateOutput(value), /song duration/);
 });

@@ -53,6 +53,125 @@
       "accessibility": {
         "description": "No visual state.",
         "reduced_motion": "hold"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "abstract-custom-mesh": {
@@ -192,6 +311,125 @@
       "accessibility": {
         "description": "An asymmetric translucent four-sided fold floats in dark blue fog.",
         "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "multi-node-non-humanoid-scene": {
@@ -470,6 +708,125 @@
       "accessibility": {
         "description": "A ring, broken signal path, and sparse points occupy a layered abstract field.",
         "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "transition-successor": {
@@ -812,6 +1169,125 @@
       "accessibility": {
         "description": "The abstract field widens, bends its signal path, and introduces a violet echo.",
         "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "historical-flipbook": {
@@ -1224,6 +1700,125 @@
       "accessibility": {
         "description": "The current field rotates, then recalls two prior abstract states in a loop.",
         "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "budget-safe-sphere": {
@@ -1322,6 +1917,125 @@
       "accessibility": {
         "description": "One maximally detailed protocol sphere.",
         "reduced_motion": "hold"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "valid-genesis-record": {
@@ -1333,7 +2047,7 @@
         "seq": 7,
         "frame_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
       },
-      "authored_hash": "6f68bf745de9e3e999e22883ac0594cf6db61df6f5d65b2d50137b1baa3f9ed2",
+      "authored_hash": "91891386f129184c40b3e7e77ed7f664efc972f578fb79a8456080430f4a2039",
       "producer_provenance": null,
       "authored": {
         "schema": "rapp-holo-output/1",
@@ -1387,6 +2101,125 @@
         "accessibility": {
           "description": "No visual state.",
           "reduced_motion": "hold"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
         }
       }
     },
@@ -1399,20 +2232,8 @@
         "seq": 8,
         "frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
       },
-      "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
-      "producer_provenance": {
-        "statement": {
-          "schema": "rapp-holo-provenance/1",
-          "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-          "producer_rappid": "rappid:@kody-w/holo-producer:1111111111111111111111111111111111111111111111111111111111111111",
-          "source_stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
-          "source_seq": 8,
-          "source_frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-          "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
-          "issued_utc": "2026-08-29T15:45:00.000Z"
-        },
-        "sig": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6InJhcHBpZDpAa29keS13L2hvbG8tcHJvZHVjZXI6MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9..Zml4dHVyZQ"
-      },
+      "authored_hash": "6c03cff6d6dd573daa42b1d701ca27bd5dc52e2859d20fe45ecaa05e0bb22c10",
+      "producer_provenance": null,
       "authored": {
         "schema": "rapp-holo-output/1",
         "base_holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -1753,6 +2574,125 @@
         "accessibility": {
           "description": "The abstract field widens, bends its signal path, and introduces a violet echo.",
           "reduced_motion": "crossfade"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
         }
       }
     },
@@ -1929,6 +2869,125 @@
       "accessibility": {
         "description": "A capsule and torus sit beneath one authored spot light.",
         "reduced_motion": "hold"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
       }
     },
     "depth-eight-hierarchy": {
@@ -2209,6 +3268,2237 @@
       "accessibility": {
         "description": "Nine authored groups form a maximum-depth hierarchy.",
         "reduced_motion": "hold"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
+      }
+    },
+    "shapee-ai-tile": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "identity-tile",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                12000,
+                -18000,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "shapee",
+              "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+              "width": 2400,
+              "height": 1800,
+              "depth": 180,
+              "teeth": 16,
+              "relief": 420
+            },
+            "material": {
+              "color": "#41D7A7EE",
+              "emissive": "#123A30",
+              "emissive_strength": 2200,
+              "opacity": 940,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "double",
+              "metallic": 180,
+              "roughness": 620
+            }
+          },
+          {
+            "id": "shapee-light",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                1800,
+                2400
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "directional",
+              "color": "#D8FFF4",
+              "intensity": 4200,
+              "range": null,
+              "angle_mdeg": null,
+              "direction": [
+                0,
+                -800,
+                -600
+              ]
+            },
+            "material": null
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "The public Rolling Cores brand sigil SHAPEE anchors a complete scene while individual Rapters remain free to author distinct identity seeds.",
+        "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
+      }
+    },
+    "emoji-max-description": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": null,
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#00000000",
+          "fog": null
+        },
+        "nodes": []
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 0,
+          "repeat": "hold",
+          "tracks": [],
+          "flipbook": []
+        }
+      },
+      "accessibility": {
+        "description": "🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭",
+        "reduced_motion": "hold"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
+      }
+    },
+    "recursive-record-a": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 0,
+      "visual_parent": null,
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 20,
+        "frame_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "authored_hash": "91891386f129184c40b3e7e77ed7f664efc972f578fb79a8456080430f4a2039",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": null,
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#00000000",
+            "fog": null
+          },
+          "nodes": []
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 0,
+            "repeat": "hold",
+            "tracks": [],
+            "flipbook": []
+          }
+        },
+        "accessibility": {
+          "description": "No visual state.",
+          "reduced_motion": "hold"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        }
+      }
+    },
+    "recursive-record-b": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 1,
+      "visual_parent": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 21,
+        "frame_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "authored_hash": "fd16f9cce134173ba3504a60a652460b97e26c872ea04540b6c6b1b31eb0eb66",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#02040AFF",
+            "fog": {
+              "color": "#081020",
+              "near": 2000,
+              "far": 120000
+            }
+          },
+          "nodes": [
+            {
+              "id": "field",
+              "parent": null,
+              "type": "group",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": null,
+              "material": null
+            },
+            {
+              "id": "orbit",
+              "parent": "field",
+              "type": "primitive",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  70000,
+                  0,
+                  12000
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "shape": "ring",
+                "major_radius": 1800,
+                "minor_radius": 180,
+                "detail": 24
+              },
+              "material": {
+                "color": "#FFB020",
+                "emissive": "#301000",
+                "emissive_strength": 2500,
+                "opacity": 1000,
+                "presentation": "wire",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "signal",
+              "parent": "field",
+              "type": "polyline",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  [
+                    -2200,
+                    -800,
+                    0
+                  ],
+                  [
+                    -700,
+                    700,
+                    500
+                  ],
+                  [
+                    900,
+                    -300,
+                    -200
+                  ],
+                  [
+                    2200,
+                    900,
+                    300
+                  ]
+                ],
+                "closed": false,
+                "width": 90
+              },
+              "material": {
+                "color": "#6CE5FFCC",
+                "emissive": "#103060",
+                "emissive_strength": 3200,
+                "opacity": 850,
+                "presentation": "line",
+                "blend": "additive",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "dust",
+              "parent": null,
+              "type": "points",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  {
+                    "position": [
+                      -1200,
+                      1200,
+                      -600
+                    ],
+                    "size": 140
+                  },
+                  {
+                    "position": [
+                      400,
+                      1500,
+                      200
+                    ],
+                    "size": 90
+                  },
+                  {
+                    "position": [
+                      1500,
+                      -1100,
+                      500
+                    ],
+                    "size": 180
+                  }
+                ]
+              },
+              "material": {
+                "color": "#E8F8FFFF",
+                "emissive": "#305080",
+                "emissive_strength": 2200,
+                "opacity": 1000,
+                "presentation": "points",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "ambient",
+              "parent": null,
+              "type": "light",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "kind": "ambient",
+                "color": "#A0B8FF",
+                "intensity": 2400,
+                "range": null,
+                "angle_mdeg": null,
+                "direction": null
+              },
+              "material": null
+            }
+          ]
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 1000,
+            "repeat": "loop",
+            "tracks": [],
+            "flipbook": [
+              {
+                "at_ms": 0,
+                "holo_id": "self",
+                "blend": "cut",
+                "blend_ms": 0
+              },
+              {
+                "at_ms": 500,
+                "holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "blend": "cut",
+                "blend_ms": 0
+              }
+            ]
+          }
+        },
+        "accessibility": {
+          "description": "A ring, broken signal path, and sparse points occupy a layered abstract field.",
+          "reduced_motion": "crossfade"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        }
+      }
+    },
+    "recursive-record-a-cycle": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 0,
+      "visual_parent": null,
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 20,
+        "frame_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "authored_hash": "b22c1c6dec28ebb566d5629043678908bdccae6d34cb7345ca36ed531eee45cd",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": null,
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#00000000",
+            "fog": null
+          },
+          "nodes": []
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 1000,
+            "repeat": "loop",
+            "tracks": [],
+            "flipbook": [
+              {
+                "at_ms": 0,
+                "holo_id": "self",
+                "blend": "cut",
+                "blend_ms": 0
+              },
+              {
+                "at_ms": 500,
+                "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "blend": "cut",
+                "blend_ms": 0
+              }
+            ]
+          }
+        },
+        "accessibility": {
+          "description": "No visual state.",
+          "reduced_motion": "hold"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        }
+      }
+    },
+    "recursive-history-output": {
+      "schema": "rapp-holo-output/1",
+      "base_holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ir_version": "rapp-holo-ir/1",
+      "renderer_contract": "rapp-holo-renderer/1",
+      "state": {
+        "camera": {
+          "projection": "perspective",
+          "position": [
+            0,
+            1000,
+            6000
+          ],
+          "target": [
+            0,
+            0,
+            0
+          ],
+          "up": [
+            0,
+            1000,
+            0
+          ],
+          "near": 10,
+          "far": 200000,
+          "fov_mdeg": 55000,
+          "ortho_height": null
+        },
+        "environment": {
+          "clear_color": "#02040AFF",
+          "fog": {
+            "color": "#081020",
+            "near": 2000,
+            "far": 120000
+          }
+        },
+        "nodes": [
+          {
+            "id": "identity-tile",
+            "parent": null,
+            "type": "primitive",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                12000,
+                -18000,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "shape": "shapee",
+              "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+              "width": 2400,
+              "height": 1800,
+              "depth": 180,
+              "teeth": 16,
+              "relief": 420
+            },
+            "material": {
+              "color": "#41D7A7EE",
+              "emissive": "#123A30",
+              "emissive_strength": 2200,
+              "opacity": 940,
+              "presentation": "solid",
+              "blend": "normal",
+              "side": "double",
+              "metallic": 180,
+              "roughness": 620
+            }
+          },
+          {
+            "id": "shapee-light",
+            "parent": null,
+            "type": "light",
+            "visible": true,
+            "transform": {
+              "position": [
+                0,
+                1800,
+                2400
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1000,
+                1000,
+                1000
+              ]
+            },
+            "geometry": {
+              "kind": "directional",
+              "color": "#D8FFF4",
+              "intensity": 4200,
+              "range": null,
+              "angle_mdeg": null,
+              "direction": [
+                0,
+                -800,
+                -600
+              ]
+            },
+            "material": null
+          }
+        ]
+      },
+      "transition": {
+        "duration_ms": 0,
+        "easing": "linear",
+        "default": "cut",
+        "nodes": []
+      },
+      "performance": {
+        "clock": "rapp-holo-logical-ms/1",
+        "sustain": {
+          "duration_ms": 1000,
+          "repeat": "loop",
+          "tracks": [],
+          "flipbook": [
+            {
+              "at_ms": 0,
+              "holo_id": "self",
+              "blend": "cut",
+              "blend_ms": 0
+            },
+            {
+              "at_ms": 500,
+              "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "blend": "cut",
+              "blend_ms": 0
+            }
+          ]
+        }
+      },
+      "accessibility": {
+        "description": "The public Rolling Cores brand sigil SHAPEE anchors a complete scene while individual Rapters remain free to author distinct identity seeds.",
+        "reduced_motion": "crossfade"
+      },
+      "growl": {
+        "schema": "rapp-holo-growl/1",
+        "representation": "note-pitch-delta-duration-velocity/1",
+        "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+        "model": {
+          "id": "local-piano-continuation",
+          "revision": "r1"
+        },
+        "ticks_per_quarter": 96,
+        "tempo_milli_bpm": 120000,
+        "program": 0,
+        "title": "Seeded Glass Study",
+        "subject_description": "An original angular piano phrase paired with this visual state.",
+        "prompt": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          }
+        ],
+        "continuation": [
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
+          }
+        ],
+        "complete": true,
+        "context_policy": {
+          "max_notes": 512,
+          "retain_latest": 384
+        }
+      }
+    },
+    "recursive-record-b-non-ancestor": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 1,
+      "visual_parent": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 21,
+        "frame_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "authored_hash": "629a39a9bcf3e0015e04ac5cbc5150a029a58d873712b47245cb9f2147177ef1",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#02040AFF",
+            "fog": {
+              "color": "#081020",
+              "near": 2000,
+              "far": 120000
+            }
+          },
+          "nodes": [
+            {
+              "id": "field",
+              "parent": null,
+              "type": "group",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": null,
+              "material": null
+            },
+            {
+              "id": "orbit",
+              "parent": "field",
+              "type": "primitive",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  70000,
+                  0,
+                  12000
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "shape": "ring",
+                "major_radius": 1800,
+                "minor_radius": 180,
+                "detail": 24
+              },
+              "material": {
+                "color": "#FFB020",
+                "emissive": "#301000",
+                "emissive_strength": 2500,
+                "opacity": 1000,
+                "presentation": "wire",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "signal",
+              "parent": "field",
+              "type": "polyline",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  [
+                    -2200,
+                    -800,
+                    0
+                  ],
+                  [
+                    -700,
+                    700,
+                    500
+                  ],
+                  [
+                    900,
+                    -300,
+                    -200
+                  ],
+                  [
+                    2200,
+                    900,
+                    300
+                  ]
+                ],
+                "closed": false,
+                "width": 90
+              },
+              "material": {
+                "color": "#6CE5FFCC",
+                "emissive": "#103060",
+                "emissive_strength": 3200,
+                "opacity": 850,
+                "presentation": "line",
+                "blend": "additive",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "dust",
+              "parent": null,
+              "type": "points",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "points": [
+                  {
+                    "position": [
+                      -1200,
+                      1200,
+                      -600
+                    ],
+                    "size": 140
+                  },
+                  {
+                    "position": [
+                      400,
+                      1500,
+                      200
+                    ],
+                    "size": 90
+                  },
+                  {
+                    "position": [
+                      1500,
+                      -1100,
+                      500
+                    ],
+                    "size": 180
+                  }
+                ]
+              },
+              "material": {
+                "color": "#E8F8FFFF",
+                "emissive": "#305080",
+                "emissive_strength": 2200,
+                "opacity": 1000,
+                "presentation": "points",
+                "blend": "normal",
+                "side": "front",
+                "metallic": 0,
+                "roughness": 1000
+              }
+            },
+            {
+              "id": "ambient",
+              "parent": null,
+              "type": "light",
+              "visible": true,
+              "transform": {
+                "position": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  1000,
+                  1000,
+                  1000
+                ]
+              },
+              "geometry": {
+                "kind": "ambient",
+                "color": "#A0B8FF",
+                "intensity": 2400,
+                "range": null,
+                "angle_mdeg": null,
+                "direction": null
+              },
+              "material": null
+            }
+          ]
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 1000,
+            "repeat": "loop",
+            "tracks": [],
+            "flipbook": [
+              {
+                "at_ms": 0,
+                "holo_id": "self",
+                "blend": "cut",
+                "blend_ms": 0
+              },
+              {
+                "at_ms": 500,
+                "holo_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "blend": "cut",
+                "blend_ms": 0
+              }
+            ]
+          }
+        },
+        "accessibility": {
+          "description": "A ring, broken signal path, and sparse points occupy a layered abstract field.",
+          "reduced_motion": "crossfade"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        }
+      }
+    },
+    "recursive-record-c": {
+      "schema": "rapp-holo-record/1",
+      "holo_seq": 0,
+      "visual_parent": null,
+      "source": {
+        "stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+        "seq": 20,
+        "frame_hash": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "authored_hash": "91891386f129184c40b3e7e77ed7f664efc972f578fb79a8456080430f4a2039",
+      "producer_provenance": null,
+      "authored": {
+        "schema": "rapp-holo-output/1",
+        "base_holo_id": null,
+        "ir_version": "rapp-holo-ir/1",
+        "renderer_contract": "rapp-holo-renderer/1",
+        "state": {
+          "camera": {
+            "projection": "perspective",
+            "position": [
+              0,
+              1000,
+              6000
+            ],
+            "target": [
+              0,
+              0,
+              0
+            ],
+            "up": [
+              0,
+              1000,
+              0
+            ],
+            "near": 10,
+            "far": 200000,
+            "fov_mdeg": 55000,
+            "ortho_height": null
+          },
+          "environment": {
+            "clear_color": "#00000000",
+            "fog": null
+          },
+          "nodes": []
+        },
+        "transition": {
+          "duration_ms": 0,
+          "easing": "linear",
+          "default": "cut",
+          "nodes": []
+        },
+        "performance": {
+          "clock": "rapp-holo-logical-ms/1",
+          "sustain": {
+            "duration_ms": 0,
+            "repeat": "hold",
+            "tracks": [],
+            "flipbook": []
+          }
+        },
+        "accessibility": {
+          "description": "No visual state.",
+          "reduced_motion": "hold"
+        },
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        }
       }
     }
   },
@@ -2299,6 +5589,46 @@
         "path": [
           "state"
         ]
+      }
+    },
+    "recursive-history": {
+      "ancestors": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "document": "recursive-record-a",
+          "path": []
+        },
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+          "document": "recursive-record-b",
+          "path": []
+        }
+      }
+    },
+    "recursive-history-cycle": {
+      "ancestors": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "document": "recursive-record-a-cycle",
+          "path": []
+        },
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+          "document": "recursive-record-b",
+          "path": []
+        }
+      }
+    },
+    "recursive-history-non-ancestor": {
+      "ancestors": {
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "document": "recursive-record-a",
+          "path": []
+        },
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+          "document": "recursive-record-b-non-ancestor",
+          "path": []
+        },
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc": {
+          "document": "recursive-record-c",
+          "path": []
+        }
       }
     }
   },
@@ -2950,11 +6280,21 @@
         {
           "op": "replace",
           "path": [
-            "producer_provenance",
-            "statement",
-            "authored_hash"
+            "producer_provenance"
           ],
-          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          "value": {
+            "statement": {
+              "schema": "rapp-holo-provenance/1",
+              "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "producer_rappid": "rappid:@kody-w/holo-producer:1111111111111111111111111111111111111111111111111111111111111111",
+              "source_stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+              "source_seq": 8,
+              "source_frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "authored_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "issued_utc": "2026-08-29T15:45:00.000Z"
+            },
+            "sig": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6InJhcHBpZDpAa29keS13L2hvbG8tcHJvZHVjZXI6MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9..Zml4dHVyZQ"
+          }
         }
       ]
     },
@@ -2990,13 +6330,426 @@
       "baseline_context": "successor-record",
       "patches": [
         {
+          "op": "replace",
+          "path": [
+            "producer_provenance"
+          ],
+          "value": {
+            "statement": {
+              "schema": "rapp-holo-provenance/1",
+              "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "producer_rappid": "rappid:@kody-w/holo-producer:1111111111111111111111111111111111111111111111111111111111111111",
+              "source_stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+              "source_seq": 8,
+              "source_frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
+              "issued_utc": "2026-08-29T15:45:00.000Z",
+              "model_output_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            "sig": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6InJhcHBpZDpAa29keS13L2hvbG8tcHJvZHVjZXI6MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9..Zml4dHVyZQ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shapee-ai-tile",
+      "kind": "output",
+      "accept": true,
+      "document": "shapee-ai-tile",
+      "context": "none",
+      "manifest_hash": "ba5336ac5e6890b15d94b3e8bc10e50bce867bb7dcdecc88c59f7747e64523ac"
+    },
+    {
+      "name": "emoji-max-description",
+      "kind": "output",
+      "accept": true,
+      "document": "emoji-max-description",
+      "context": "none",
+      "manifest_hash": "47e11c559017f67efba06816d379d33596e41010deee7944ae1267d1831b19e8"
+    },
+    {
+      "name": "emoji-description-overflow",
+      "kind": "output",
+      "accept": false,
+      "document": "emoji-max-description",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "accessibility",
+            "description"
+          ],
+          "value": "🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭🧭"
+        }
+      ]
+    },
+    {
+      "name": "shapee-bad-seed",
+      "kind": "output",
+      "accept": false,
+      "document": "shapee-ai-tile",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "seed"
+          ],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      ]
+    },
+    {
+      "name": "shapee-relief-overflow",
+      "kind": "output",
+      "accept": false,
+      "document": "shapee-ai-tile",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "relief"
+          ],
+          "value": 901
+        }
+      ]
+    },
+    {
+      "name": "shapee-unknown-key",
+      "kind": "output",
+      "accept": false,
+      "document": "shapee-ai-tile",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
           "op": "add",
           "path": [
-            "producer_provenance",
-            "statement",
-            "model_output_hash"
+            "state",
+            "nodes",
+            0,
+            "geometry",
+            "mood"
           ],
-          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          "value": "invented"
+        }
+      ]
+    },
+    {
+      "name": "untrusted-provenance",
+      "kind": "record",
+      "accept": false,
+      "document": "valid-successor-record",
+      "context": "successor-record",
+      "baseline_context": "successor-record",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "producer_provenance"
+          ],
+          "value": {
+            "statement": {
+              "schema": "rapp-holo-provenance/1",
+              "subject_rappid": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "producer_rappid": "rappid:@kody-w/holo-producer:1111111111111111111111111111111111111111111111111111111111111111",
+              "source_stream_id": "rappid:@kody-w/holo-fixture:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:session",
+              "source_seq": 8,
+              "source_frame_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "authored_hash": "3da8554b73bf89a52e56dc67a284ae19303d29c11875959c8d7fe4fe74c26e02",
+              "issued_utc": "2026-08-29T15:45:00.000Z"
+            },
+            "sig": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6InJhcHBpZDpAa29keS13L2hvbG8tcHJvZHVjZXI6MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9..Zml4dHVyZQ"
+          }
+        }
+      ]
+    },
+    {
+      "name": "missing-growl",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "remove",
+          "path": [
+            "growl"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "growl-unknown-key",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "add",
+          "path": [
+            "growl",
+            "swing"
+          ],
+          "value": 500
+        }
+      ]
+    },
+    {
+      "name": "recursive-history-output",
+      "kind": "output",
+      "accept": true,
+      "document": "recursive-history-output",
+      "context": "recursive-history",
+      "manifest_hash": "ba5336ac5e6890b15d94b3e8bc10e50bce867bb7dcdecc88c59f7747e64523ac"
+    },
+    {
+      "name": "recursive-history-cycle",
+      "kind": "output",
+      "accept": false,
+      "document": "recursive-history-output",
+      "context": "recursive-history-cycle",
+      "baseline_context": "recursive-history",
+      "patches": []
+    },
+    {
+      "name": "recursive-history-non-ancestor",
+      "kind": "output",
+      "accept": false,
+      "document": "recursive-history-output",
+      "context": "recursive-history-non-ancestor",
+      "baseline_context": "recursive-history",
+      "patches": []
+    },
+    {
+      "name": "nonexistent-parent",
+      "kind": "output",
+      "accept": false,
+      "document": "multi-node-non-humanoid-scene",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "state",
+            "nodes",
+            1,
+            "parent"
+          ],
+          "value": "missing-parent"
+        }
+      ]
+    },
+    {
+      "name": "growl-prompt-too-short",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "prompt"
+          ],
+          "value": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "growl-chord-order",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "prompt",
+            1,
+            "pitch"
+          ],
+          "value": 40
+        }
+      ]
+    },
+    {
+      "name": "growl-zero-velocity",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "prompt",
+            0,
+            "velocity"
+          ],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "growl-negative-delta",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "continuation",
+            0,
+            "delta_onset"
+          ],
+          "value": -1
+        }
+      ]
+    },
+    {
+      "name": "growl-zero-duration",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "continuation",
+            0,
+            "duration"
+          ],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "growl-incomplete",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "complete"
+          ],
+          "value": false
+        }
+      ]
+    },
+    {
+      "name": "growl-context-policy",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "context_policy",
+            "retain_latest"
+          ],
+          "value": 383
+        }
+      ]
+    },
+    {
+      "name": "growl-nonnfc-title",
+      "kind": "output",
+      "accept": false,
+      "document": "blank-valid-output",
+      "context": "none",
+      "baseline_context": "none",
+      "patches": [
+        {
+          "op": "replace",
+          "path": [
+            "growl",
+            "title"
+          ],
+          "value": "é"
         }
       ]
     }
@@ -3183,6 +6936,799 @@
           {
             "holo_id": "self",
             "weight": 500000
+          }
+        ]
+      }
+    ],
+    "shapee_outline": [
+      {
+        "geometry": {
+          "shape": "shapee",
+          "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+          "width": 2400,
+          "height": 1800,
+          "depth": 180,
+          "teeth": 16,
+          "relief": 420
+        },
+        "expected": [
+          [
+            -1200,
+            -1180
+          ],
+          [
+            -1050,
+            -1180
+          ],
+          [
+            -1050,
+            -1236
+          ],
+          [
+            -900,
+            -1236
+          ],
+          [
+            -900,
+            -1012
+          ],
+          [
+            -750,
+            -1012
+          ],
+          [
+            -750,
+            -1236
+          ],
+          [
+            -600,
+            -1236
+          ],
+          [
+            -600,
+            -956
+          ],
+          [
+            -450,
+            -956
+          ],
+          [
+            -450,
+            -1208
+          ],
+          [
+            -300,
+            -1208
+          ],
+          [
+            -300,
+            -956
+          ],
+          [
+            -150,
+            -956
+          ],
+          [
+            -150,
+            -1124
+          ],
+          [
+            0,
+            -1124
+          ],
+          [
+            0,
+            -1068
+          ],
+          [
+            150,
+            -1068
+          ],
+          [
+            150,
+            -1292
+          ],
+          [
+            300,
+            -1292
+          ],
+          [
+            300,
+            -1320
+          ],
+          [
+            450,
+            -1320
+          ],
+          [
+            450,
+            -1208
+          ],
+          [
+            600,
+            -1208
+          ],
+          [
+            600,
+            -1012
+          ],
+          [
+            750,
+            -1012
+          ],
+          [
+            750,
+            -1068
+          ],
+          [
+            900,
+            -1068
+          ],
+          [
+            900,
+            -1180
+          ],
+          [
+            1050,
+            -1180
+          ],
+          [
+            1050,
+            -1152
+          ],
+          [
+            1200,
+            -1152
+          ],
+          [
+            1200,
+            1012
+          ],
+          [
+            1050,
+            1012
+          ],
+          [
+            1050,
+            1152
+          ],
+          [
+            900,
+            1152
+          ],
+          [
+            900,
+            1292
+          ],
+          [
+            750,
+            1292
+          ],
+          [
+            750,
+            928
+          ],
+          [
+            600,
+            928
+          ],
+          [
+            600,
+            1096
+          ],
+          [
+            450,
+            1096
+          ],
+          [
+            450,
+            1012
+          ],
+          [
+            300,
+            1012
+          ],
+          [
+            300,
+            1236
+          ],
+          [
+            150,
+            1236
+          ],
+          [
+            150,
+            928
+          ],
+          [
+            0,
+            928
+          ],
+          [
+            0,
+            1292
+          ],
+          [
+            -150,
+            1292
+          ],
+          [
+            -150,
+            1012
+          ],
+          [
+            -300,
+            1012
+          ],
+          [
+            -300,
+            984
+          ],
+          [
+            -450,
+            984
+          ],
+          [
+            -450,
+            1208
+          ],
+          [
+            -600,
+            1208
+          ],
+          [
+            -600,
+            1264
+          ],
+          [
+            -750,
+            1264
+          ],
+          [
+            -750,
+            1040
+          ],
+          [
+            -900,
+            1040
+          ],
+          [
+            -900,
+            900
+          ],
+          [
+            -1050,
+            900
+          ],
+          [
+            -1200,
+            900
+          ],
+          [
+            -1200,
+            -1180
+          ]
+        ],
+        "outline_vertex_count": 63,
+        "vertex_count": 126,
+        "triangle_count": 248
+      }
+    ],
+    "resolve_history": [
+      {
+        "document": "recursive-history-output",
+        "context": "recursive-history",
+        "expected": [
+          {
+            "holo_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "depth": 1,
+            "state": {
+              "camera": {
+                "projection": "perspective",
+                "position": [
+                  0,
+                  1000,
+                  6000
+                ],
+                "target": [
+                  0,
+                  0,
+                  0
+                ],
+                "up": [
+                  0,
+                  1000,
+                  0
+                ],
+                "near": 10,
+                "far": 200000,
+                "fov_mdeg": 55000,
+                "ortho_height": null
+              },
+              "environment": {
+                "clear_color": "#02040AFF",
+                "fog": {
+                  "color": "#081020",
+                  "near": 2000,
+                  "far": 120000
+                }
+              },
+              "nodes": [
+                {
+                  "id": "field",
+                  "parent": null,
+                  "type": "group",
+                  "visible": true,
+                  "transform": {
+                    "position": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "rotation": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "scale": [
+                      1000,
+                      1000,
+                      1000
+                    ]
+                  },
+                  "geometry": null,
+                  "material": null
+                },
+                {
+                  "id": "orbit",
+                  "parent": "field",
+                  "type": "primitive",
+                  "visible": true,
+                  "transform": {
+                    "position": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "rotation": [
+                      70000,
+                      0,
+                      12000
+                    ],
+                    "scale": [
+                      1000,
+                      1000,
+                      1000
+                    ]
+                  },
+                  "geometry": {
+                    "shape": "ring",
+                    "major_radius": 1800,
+                    "minor_radius": 180,
+                    "detail": 24
+                  },
+                  "material": {
+                    "color": "#FFB020",
+                    "emissive": "#301000",
+                    "emissive_strength": 2500,
+                    "opacity": 1000,
+                    "presentation": "wire",
+                    "blend": "normal",
+                    "side": "front",
+                    "metallic": 0,
+                    "roughness": 1000
+                  }
+                },
+                {
+                  "id": "signal",
+                  "parent": "field",
+                  "type": "polyline",
+                  "visible": true,
+                  "transform": {
+                    "position": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "rotation": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "scale": [
+                      1000,
+                      1000,
+                      1000
+                    ]
+                  },
+                  "geometry": {
+                    "points": [
+                      [
+                        -2200,
+                        -800,
+                        0
+                      ],
+                      [
+                        -700,
+                        700,
+                        500
+                      ],
+                      [
+                        900,
+                        -300,
+                        -200
+                      ],
+                      [
+                        2200,
+                        900,
+                        300
+                      ]
+                    ],
+                    "closed": false,
+                    "width": 90
+                  },
+                  "material": {
+                    "color": "#6CE5FFCC",
+                    "emissive": "#103060",
+                    "emissive_strength": 3200,
+                    "opacity": 850,
+                    "presentation": "line",
+                    "blend": "additive",
+                    "side": "front",
+                    "metallic": 0,
+                    "roughness": 1000
+                  }
+                },
+                {
+                  "id": "dust",
+                  "parent": null,
+                  "type": "points",
+                  "visible": true,
+                  "transform": {
+                    "position": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "rotation": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "scale": [
+                      1000,
+                      1000,
+                      1000
+                    ]
+                  },
+                  "geometry": {
+                    "points": [
+                      {
+                        "position": [
+                          -1200,
+                          1200,
+                          -600
+                        ],
+                        "size": 140
+                      },
+                      {
+                        "position": [
+                          400,
+                          1500,
+                          200
+                        ],
+                        "size": 90
+                      },
+                      {
+                        "position": [
+                          1500,
+                          -1100,
+                          500
+                        ],
+                        "size": 180
+                      }
+                    ]
+                  },
+                  "material": {
+                    "color": "#E8F8FFFF",
+                    "emissive": "#305080",
+                    "emissive_strength": 2200,
+                    "opacity": 1000,
+                    "presentation": "points",
+                    "blend": "normal",
+                    "side": "front",
+                    "metallic": 0,
+                    "roughness": 1000
+                  }
+                },
+                {
+                  "id": "ambient",
+                  "parent": null,
+                  "type": "light",
+                  "visible": true,
+                  "transform": {
+                    "position": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "rotation": [
+                      0,
+                      0,
+                      0
+                    ],
+                    "scale": [
+                      1000,
+                      1000,
+                      1000
+                    ]
+                  },
+                  "geometry": {
+                    "kind": "ambient",
+                    "color": "#A0B8FF",
+                    "intensity": 2400,
+                    "range": null,
+                    "angle_mdeg": null,
+                    "direction": null
+                  },
+                  "material": null
+                }
+              ]
+            }
+          },
+          {
+            "holo_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "depth": 2,
+            "state": {
+              "camera": {
+                "projection": "perspective",
+                "position": [
+                  0,
+                  1000,
+                  6000
+                ],
+                "target": [
+                  0,
+                  0,
+                  0
+                ],
+                "up": [
+                  0,
+                  1000,
+                  0
+                ],
+                "near": 10,
+                "far": 200000,
+                "fov_mdeg": 55000,
+                "ortho_height": null
+              },
+              "environment": {
+                "clear_color": "#00000000",
+                "fog": null
+              },
+              "nodes": []
+            }
+          }
+        ]
+      }
+    ],
+    "growl_events": [
+      {
+        "growl": {
+          "schema": "rapp-holo-growl/1",
+          "representation": "note-pitch-delta-duration-velocity/1",
+          "seed": "89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567",
+          "model": {
+            "id": "local-piano-continuation",
+            "revision": "r1"
+          },
+          "ticks_per_quarter": 96,
+          "tempo_milli_bpm": 120000,
+          "program": 0,
+          "title": "Seeded Glass Study",
+          "subject_description": "An original angular piano phrase paired with this visual state.",
+          "prompt": [
+            {
+              "pitch": 41,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 72
+            },
+            {
+              "pitch": 48,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 68
+            },
+            {
+              "pitch": 55,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 74
+            },
+            {
+              "pitch": 46,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 70
+            },
+            {
+              "pitch": 53,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 66
+            },
+            {
+              "pitch": 59,
+              "delta_onset": 0,
+              "duration": 36,
+              "velocity": 73
+            },
+            {
+              "pitch": 44,
+              "delta_onset": 48,
+              "duration": 24,
+              "velocity": 64
+            },
+            {
+              "pitch": 57,
+              "delta_onset": 24,
+              "duration": 72,
+              "velocity": 78
+            }
+          ],
+          "continuation": [
+            {
+              "pitch": 45,
+              "delta_onset": 24,
+              "duration": 48,
+              "velocity": 76
+            },
+            {
+              "pitch": 52,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 70
+            },
+            {
+              "pitch": 60,
+              "delta_onset": 0,
+              "duration": 48,
+              "velocity": 79
+            },
+            {
+              "pitch": 43,
+              "delta_onset": 48,
+              "duration": 60,
+              "velocity": 67
+            },
+            {
+              "pitch": 50,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 65
+            },
+            {
+              "pitch": 58,
+              "delta_onset": 0,
+              "duration": 60,
+              "velocity": 75
+            },
+            {
+              "pitch": 47,
+              "delta_onset": 24,
+              "duration": 36,
+              "velocity": 71
+            },
+            {
+              "pitch": 62,
+              "delta_onset": 24,
+              "duration": 84,
+              "velocity": 82
+            }
+          ],
+          "complete": true,
+          "context_policy": {
+            "max_notes": 512,
+            "retain_latest": 384
+          }
+        },
+        "expected": [
+          {
+            "pitch": 41,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 72
+          },
+          {
+            "pitch": 48,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 68
+          },
+          {
+            "pitch": 55,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 74
+          },
+          {
+            "pitch": 46,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 70
+          },
+          {
+            "pitch": 53,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 66
+          },
+          {
+            "pitch": 59,
+            "delta_onset": 0,
+            "duration": 36,
+            "velocity": 73
+          },
+          {
+            "pitch": 44,
+            "delta_onset": 48,
+            "duration": 24,
+            "velocity": 64
+          },
+          {
+            "pitch": 57,
+            "delta_onset": 24,
+            "duration": 72,
+            "velocity": 78
+          },
+          {
+            "pitch": 45,
+            "delta_onset": 24,
+            "duration": 48,
+            "velocity": 76
+          },
+          {
+            "pitch": 52,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 70
+          },
+          {
+            "pitch": 60,
+            "delta_onset": 0,
+            "duration": 48,
+            "velocity": 79
+          },
+          {
+            "pitch": 43,
+            "delta_onset": 48,
+            "duration": 60,
+            "velocity": 67
+          },
+          {
+            "pitch": 50,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 65
+          },
+          {
+            "pitch": 58,
+            "delta_onset": 0,
+            "duration": 60,
+            "velocity": 75
+          },
+          {
+            "pitch": 47,
+            "delta_onset": 24,
+            "duration": 36,
+            "velocity": 71
+          },
+          {
+            "pitch": 62,
+            "delta_onset": 24,
+            "duration": 84,
+            "velocity": 82
           }
         ]
       }

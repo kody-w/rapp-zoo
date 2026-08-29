@@ -1,10 +1,16 @@
-"""Dependency-free validation and deterministic helpers for RAPP Holo/1."""
+"""Dependency-free validation for portable RAPP Holo/1 Rolling Core content.
+
+This module validates and compiles AI-authored data for local ownership,
+offline use, and import/export. It performs no visual or musical authorship,
+commerce, network access, or cloud execution.
+"""
 
 from __future__ import annotations
 
 import copy
 import math
 import re
+import unicodedata
 from typing import Callable, Mapping, Optional
 
 try:
@@ -12,20 +18,16 @@ try:
         H,
         ProtocolError,
         canonical,
-        parse_detached_jws,
         rappid_valid,
         strict_json_loads,
-        utc_valid,
     )
 except ImportError:
     from rapp_protocol import (  # type: ignore
         H,
         ProtocolError,
         canonical,
-        parse_detached_jws,
         rappid_valid,
         strict_json_loads,
-        utc_valid,
     )
 
 
@@ -33,12 +35,15 @@ S = 1_000_000
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 MAX_AUTHORED_BYTES = 256 * 1024
 MAX_REFERENCED_STATE_BYTES = 4 * 1024 * 1024
+MAX_GROWL_NOTES = 2080
+MAX_GROWL_TICKS = 16_777_215
 
 OUTPUT_KEYS = {
     "schema",
     "base_holo_id",
     "ir_version",
     "renderer_contract",
+    "growl",
     "state",
     "transition",
     "performance",
@@ -367,6 +372,141 @@ def domain_hash(space: str, value) -> str:
         raise HoloProtocolError(str(exc)) from exc
 
 
+def _nfc_string(
+    value,
+    path: str,
+    minimum: int,
+    maximum: int,
+) -> str:
+    result = _string(value, path, minimum, maximum)
+    if unicodedata.normalize("NFC", result) != result:
+        _fail(path, "must be NFC-normalized text")
+    return result
+
+
+def _validate_growl_notes(
+    value,
+    path: str,
+    minimum: int,
+    maximum: int,
+) -> list[dict]:
+    notes = _array(value, path, minimum, maximum)
+    for index, note in enumerate(notes):
+        item_path = f"{path}[{index}]"
+        item = _object(
+            note,
+            {"pitch", "delta_onset", "duration", "velocity"},
+            item_path,
+        )
+        _integer(item["pitch"], f"{item_path}.pitch", 0, 127)
+        _integer(item["delta_onset"], f"{item_path}.delta_onset", 0, 65_535)
+        _integer(item["duration"], f"{item_path}.duration", 1, 65_535)
+        _integer(item["velocity"], f"{item_path}.velocity", 1, 127)
+    return notes
+
+
+def _validate_growl(value, path: str) -> dict:
+    obj = _object(
+        value,
+        {
+            "schema",
+            "representation",
+            "seed",
+            "model",
+            "ticks_per_quarter",
+            "tempo_milli_bpm",
+            "program",
+            "title",
+            "subject_description",
+            "prompt",
+            "continuation",
+            "complete",
+            "context_policy",
+        },
+        path,
+    )
+    if obj["schema"] != "rapp-holo-growl/1":
+        _fail(f"{path}.schema", "must be rapp-holo-growl/1")
+    if obj["representation"] != "note-pitch-delta-duration-velocity/1":
+        _fail(
+            f"{path}.representation",
+            "must be note-pitch-delta-duration-velocity/1",
+        )
+    _hex64(obj["seed"], f"{path}.seed")
+    model = _object(obj["model"], {"id", "revision"}, f"{path}.model")
+    _nfc_string(model["id"], f"{path}.model.id", 1, 128)
+    _nfc_string(model["revision"], f"{path}.model.revision", 1, 64)
+    _integer(
+        obj["ticks_per_quarter"],
+        f"{path}.ticks_per_quarter",
+        24,
+        960,
+    )
+    _integer(
+        obj["tempo_milli_bpm"],
+        f"{path}.tempo_milli_bpm",
+        30_000,
+        300_000,
+    )
+    _integer(obj["program"], f"{path}.program", 0, 127)
+    _nfc_string(obj["title"], f"{path}.title", 1, 128)
+    _nfc_string(
+        obj["subject_description"],
+        f"{path}.subject_description",
+        1,
+        1024,
+    )
+    prompt = _validate_growl_notes(obj["prompt"], f"{path}.prompt", 8, 32)
+    continuation = _validate_growl_notes(
+        obj["continuation"],
+        f"{path}.continuation",
+        1,
+        2048,
+    )
+    if obj["complete"] is not True:
+        _fail(f"{path}.complete", "must be true")
+    policy = _object(
+        obj["context_policy"],
+        {"max_notes", "retain_latest"},
+        f"{path}.context_policy",
+    )
+    if policy["max_notes"] != 512 or policy["retain_latest"] != 384:
+        _fail(
+            f"{path}.context_policy",
+            "must be exactly max_notes 512 and retain_latest 384",
+        )
+    events = [*prompt, *continuation]
+    if len(events) > MAX_GROWL_NOTES:
+        _fail(path, f"aggregate notes exceed {MAX_GROWL_NOTES}")
+    onset = 0
+    song_end = 0
+    previous_pitch = None
+    for index, event in enumerate(events):
+        onset += event["delta_onset"]
+        song_end = max(song_end, onset + event["duration"])
+        if event["delta_onset"] == 0 and previous_pitch is not None:
+            if event["pitch"] <= previous_pitch:
+                _fail(
+                    f"{path}.events[{index}]",
+                    "simultaneous chord pitches must be strictly ascending",
+                )
+        previous_pitch = event["pitch"]
+    if song_end > MAX_GROWL_TICKS:
+        _fail(path, f"aggregate song duration exceeds {MAX_GROWL_TICKS} ticks")
+    return obj
+
+
+def growl_events(growl: dict) -> list[dict]:
+    """Return the immutable authored prompt followed by its continuation."""
+    item = _validate_growl(growl, "growl")
+    return copy.deepcopy([*item["prompt"], *item["continuation"]])
+
+
+def complete_growl(growl: dict) -> list[dict]:
+    """Compatibility alias returning the already-authored complete sequence."""
+    return growl_events(growl)
+
+
 def _validate_transform(value, path: str) -> None:
     obj = _object(value, {"position", "rotation", "scale"}, path)
     _vec(obj["position"], f"{path}.position", -1_000_000, 1_000_000)
@@ -459,6 +599,67 @@ def _validate_material(value, node_type: str, path: str) -> None:
         _fail(path, "non-solid material requires metallic 0 and roughness 1000")
 
 
+def _validate_shapee(value, path: str) -> dict:
+    obj = _object(
+        value,
+        {"shape", "seed", "width", "height", "depth", "teeth", "relief"},
+        path,
+    )
+    if obj["shape"] != "shapee":
+        _fail(f"{path}.shape", "must be shapee")
+    _hex64(obj["seed"], f"{path}.seed")
+    _integer(obj["width"], f"{path}.width", 100, 2_000_000)
+    height = _integer(obj["height"], f"{path}.height", 100, 2_000_000)
+    _integer(obj["depth"], f"{path}.depth", 1, 200_000)
+    _integer(obj["teeth"], f"{path}.teeth", 4, 32)
+    relief = _integer(obj["relief"], f"{path}.relief", 0, 500_000)
+    if relief * 2 > height:
+        _fail(f"{path}.relief", "must not exceed half the height")
+    return obj
+
+
+def shapee_outline(geometry: dict) -> list[list[int]]:
+    """Return SHAPEE's closed CCW XY outline.
+
+    The tile is centered using integer lower-left coordinates. ``teeth`` equal
+    width intervals use ``round_div(i * width, teeth)`` boundaries. Seed
+    nibbles ``0..teeth-1`` lift the top outward and the following nibbles lower
+    the bottom outward by ``round_div(relief * nibble, 15)``. Boundaries are
+    joined only with horizontal and vertical segments.
+    """
+    item = _validate_shapee(geometry, "shapee")
+    width = item["width"]
+    height = item["height"]
+    teeth = item["teeth"]
+    relief = item["relief"]
+    seed = item["seed"]
+    left = -(width // 2)
+    bottom = -(height // 2)
+    top = bottom + height
+    boundaries = [
+        left + round_div(index * width, teeth)
+        for index in range(teeth + 1)
+    ]
+    points: list[list[int]] = []
+
+    def append(point: list[int]) -> None:
+        if not points or points[-1] != point:
+            points.append(point)
+
+    for index in range(teeth):
+        offset = round_div(relief * int(seed[teeth + index], 16), 15)
+        y = bottom - offset
+        append([boundaries[index], y])
+        append([boundaries[index + 1], y])
+    for index in range(teeth - 1, -1, -1):
+        offset = round_div(relief * int(seed[index], 16), 15)
+        y = top + offset
+        append([boundaries[index + 1], y])
+        append([boundaries[index], y])
+    append(points[0].copy())
+    return points
+
+
 def _validate_primitive(value, path: str) -> None:
     if type(value) is not dict or type(value.get("shape")) is not str:
         _fail(path, "primitive geometry must declare a shape")
@@ -488,6 +689,8 @@ def _validate_primitive(value, path: str) -> None:
         obj = _object(value, {"shape", "width", "height"}, path)
         _integer(obj["width"], f"{path}.width", 1, 2_000_000)
         _integer(obj["height"], f"{path}.height", 1, 2_000_000)
+    elif shape == "shapee":
+        _validate_shapee(value, path)
     else:
         _fail(f"{path}.shape", "unsupported primitive shape")
 
@@ -566,7 +769,18 @@ def _validate_light(value, path: str) -> None:
 
 def _primitive_counts(geometry: dict) -> tuple[int, int, dict]:
     shape = geometry["shape"]
-    derived: dict[str, int] = {}
+    derived: dict = {}
+    if shape == "shapee":
+        outline = shapee_outline(geometry)
+        outline_vertices = len(outline) - 1
+        vertices = 2 * outline_vertices
+        triangles = 4 * outline_vertices - 4
+        return vertices, triangles, {
+            "outline": outline,
+            "outline_vertex_count": outline_vertices,
+            "vertex_count": vertices,
+            "triangle_count": triangles,
+        }
     if shape == "sphere":
         longitude = 8 * (2 ** geometry["detail"])
         latitude = 4 * (2 ** geometry["detail"])
@@ -724,10 +938,19 @@ def _compatible_topology(old: dict, new: dict) -> bool:
     if kind == "group":
         return old["id"] == new["id"]
     if kind == "primitive":
-        return (
-            old["geometry"]["shape"] == new["geometry"]["shape"]
-            and set(old["geometry"]) == set(new["geometry"])
-        )
+        if (
+            old["geometry"]["shape"] != new["geometry"]["shape"]
+            or set(old["geometry"]) != set(new["geometry"])
+        ):
+            return False
+        if old["geometry"]["shape"] == "shapee":
+            return (
+                old["geometry"]["seed"] == new["geometry"]["seed"]
+                and old["geometry"]["teeth"] == new["geometry"]["teeth"]
+                and len(shapee_outline(old["geometry"]))
+                == len(shapee_outline(new["geometry"]))
+            )
+        return True
     if kind == "mesh":
         return (
             len(old["geometry"]["vertices"]) == len(new["geometry"]["vertices"])
@@ -843,20 +1066,135 @@ def _resolver_value(
         raise HoloProtocolError(f"ancestor resolver failed for {holo_id}: {exc}") from exc
     if value is None:
         _fail("performance.sustain.flipbook", f"ancestor {holo_id} is unavailable")
-    if type(value) is not dict or set(value) not in (
-        {"verified_ancestor"},
-        {"state", "verified_ancestor"},
-    ):
-        _fail(
-            f"ancestor[{holo_id}]",
-            "must contain verified_ancestor and optional state",
-        )
-    result = value
+    result = _ancestor_payload(value, f"ancestor[{holo_id}]")
     if result["verified_ancestor"] is not True:
         _fail(f"ancestor[{holo_id}]", "must be a verified strict visual ancestor")
-    if "state" in result:
-        _validate_state(result["state"], f"ancestor[{holo_id}].state")
     return result
+
+
+def _strict_recursive_ancestor(
+    source_id: str,
+    target_id: str,
+    resolver,
+    cache: dict[str, dict],
+) -> None:
+    source = cache[source_id]
+    record = source.get("record")
+    if record is None:
+        _fail(
+            f"ancestor[{source_id}]",
+            "recursive ancestor relationship requires a record payload",
+        )
+    parent = record["visual_parent"]
+    sequence = record["holo_seq"]
+    visited = set()
+    while parent is not None:
+        if parent in visited:
+            _fail("performance.sustain.flipbook", "visual ancestor cycle")
+        visited.add(parent)
+        if parent == target_id:
+            target_record = cache[target_id].get("record")
+            if target_record is not None and target_record["holo_seq"] != sequence - 1:
+                _fail(
+                    f"ancestor[{target_id}]",
+                    "holo_seq does not match the visual parent chain",
+                )
+            return
+        parent_payload = cache.get(parent)
+        if parent_payload is None:
+            parent_payload = _resolver_value(parent, resolver)
+            cache[parent] = parent_payload
+            if len(cache) > 64:
+                _fail(
+                    "performance.sustain.flipbook",
+                    "unique resolved frames exceed 64",
+                )
+        parent_record = parent_payload.get("record")
+        if parent_record is None:
+            _fail(
+                f"ancestor[{parent}]",
+                "visual parent chain requires record payloads",
+            )
+        if parent_record["holo_seq"] != sequence - 1:
+            _fail(
+                f"ancestor[{parent}]",
+                "holo_seq does not match the visual parent chain",
+            )
+        sequence = parent_record["holo_seq"]
+        parent = parent_record["visual_parent"]
+    _fail(
+        f"ancestor[{target_id}]",
+        f"is not a strict visual ancestor of {source_id}",
+    )
+
+
+def _resolve_history_entries(entries: list, resolver) -> list[dict]:
+    cache: dict[str, dict] = {}
+    active = set()
+    resolved = set()
+    ordered = []
+    total_bytes = 0
+
+    def visit(holo_id: str, depth: int, source_id: Optional[str]) -> None:
+        nonlocal total_bytes
+        if depth > 8:
+            _fail("performance.sustain.flipbook", "reference depth exceeds eight")
+        if holo_id in active:
+            _fail("performance.sustain.flipbook", "historical reference cycle")
+        payload = cache.get(holo_id)
+        if payload is None:
+            payload = _resolver_value(holo_id, resolver)
+            cache[holo_id] = payload
+            if len(cache) > 64:
+                _fail(
+                    "performance.sustain.flipbook",
+                    "unique resolved frames exceed 64",
+                )
+        if source_id is not None:
+            _strict_recursive_ancestor(source_id, holo_id, resolver, cache)
+        if holo_id in resolved:
+            return
+        resolved.add(holo_id)
+        if len(resolved) > 64:
+            _fail(
+                "performance.sustain.flipbook",
+                "unique resolved frames exceed 64",
+            )
+        if "state" in payload:
+            try:
+                state_bytes = len(canonical(payload["state"]).encode("utf-8"))
+            except ProtocolError as exc:
+                raise HoloProtocolError(str(exc)) from exc
+        else:
+            state_bytes = MAX_AUTHORED_BYTES
+        total_bytes += state_bytes
+        if total_bytes > MAX_REFERENCED_STATE_BYTES:
+            _fail(
+                "performance.sustain.flipbook",
+                "referenced state bytes exceed 4 MiB",
+            )
+        ordered.append(
+            {
+                "holo_id": holo_id,
+                "depth": depth,
+                "state": copy.deepcopy(payload.get("state")),
+            }
+        )
+        authored = payload.get("authored")
+        if authored is None:
+            return
+        active.add(holo_id)
+        try:
+            for nested in authored["performance"]["sustain"]["flipbook"]:
+                if nested["holo_id"] != "self":
+                    visit(nested["holo_id"], depth + 1, holo_id)
+        finally:
+            active.remove(holo_id)
+
+    for entry in entries:
+        if entry["holo_id"] != "self":
+            visit(entry["holo_id"], 1, None)
+    return ordered
 
 
 def _validate_flipbook(
@@ -867,7 +1205,6 @@ def _validate_flipbook(
     require_resolver: bool = True,
 ) -> None:
     previous_time = None
-    referenced: dict[str, int] = {}
     for index, entry in enumerate(entries):
         path = f"performance.sustain.flipbook[{index}]"
         item = _object(entry, {"at_ms", "holo_id", "blend", "blend_ms"}, path)
@@ -892,15 +1229,6 @@ def _validate_flipbook(
             elif at_ms - blend_ms < previous_time:
                 _fail(path, "crossfade window overlaps the prior entry")
         previous_time = at_ms
-        if holo_id != "self" and holo_id not in referenced and resolver is not None:
-            resolved = _resolver_value(holo_id, resolver)
-            size = 0
-            if "state" in resolved:
-                try:
-                    size = len(canonical(resolved["state"]).encode("utf-8"))
-                except ProtocolError as exc:
-                    raise HoloProtocolError(str(exc)) from exc
-            referenced[holo_id] = size
     if entries and repeat == "loop":
         first = entries[0]
         if (
@@ -918,8 +1246,8 @@ def _validate_flipbook(
     if require_resolver and historical_ids and resolver is None:
         missing = sorted(historical_ids)[0]
         _fail("performance.sustain.flipbook", f"ancestor {missing} cannot be resolved")
-    if sum(referenced.values()) > MAX_REFERENCED_STATE_BYTES:
-        _fail("performance.sustain.flipbook", "referenced state bytes exceed 4 MiB")
+    if resolver is not None and historical_ids:
+        _resolve_history_entries(entries, resolver)
 
 
 def _validate_performance(
@@ -1004,6 +1332,7 @@ def _validate_output_manifest(
         _fail("authored.ir_version", "unsupported IR version")
     if obj["renderer_contract"] != "rapp-holo-renderer/1":
         _fail("authored.renderer_contract", "unsupported renderer contract")
+    _validate_growl(obj["growl"], "growl")
     state_info = _validate_state(obj["state"])
     base_nodes = None
     if base_state is not None:
@@ -1050,14 +1379,48 @@ def _ancestor_payload(value, path: str) -> dict:
     if type(value) is not dict:
         _fail(path, "must identify a verified ancestor")
     keys = set(value)
-    if keys in ({"verified_ancestor"}, {"state", "verified_ancestor"}):
-        return value
+    normalized_keys = {
+        frozenset({"verified_ancestor"}),
+        frozenset({"state", "verified_ancestor"}),
+        frozenset({"state", "authored", "verified_ancestor"}),
+        frozenset({"state", "authored", "record", "verified_ancestor"}),
+    }
+    if frozenset(keys) in normalized_keys:
+        result = value
+        if "state" in result:
+            _validate_state(result["state"], f"{path}.state")
+        if "authored" in result:
+            _validate_output_manifest(
+                result["authored"],
+                require_ancestor_resolution=False,
+            )
+            if canonical(result["authored"]["state"]) != canonical(result["state"]):
+                _fail(path, "authored state does not match ancestor state")
+        if "record" in result:
+            _validate_record_manifest(
+                result["record"],
+                require_ancestor_resolution=False,
+            )
+            if canonical(result["record"]["authored"]) != canonical(result["authored"]):
+                _fail(path, "record authored output does not match ancestor output")
+        return result
     if keys == OUTPUT_KEYS:
-        return {"state": value["state"], "verified_ancestor": True}
+        _validate_output_manifest(value, require_ancestor_resolution=False)
+        return {
+            "state": value["state"],
+            "authored": value,
+            "verified_ancestor": True,
+        }
     if keys == RECORD_KEYS:
-        authored = _object(value["authored"], OUTPUT_KEYS, f"{path}.authored")
-        return {"state": authored["state"], "verified_ancestor": True}
+        _validate_record_manifest(value, require_ancestor_resolution=False)
+        return {
+            "state": value["authored"]["state"],
+            "authored": value["authored"],
+            "record": value,
+            "verified_ancestor": True,
+        }
     if keys == {"camera", "environment", "nodes"}:
+        _validate_state(value, path)
         return {"state": value, "verified_ancestor": True}
     _fail(path, "must identify a verified ancestor")
 
@@ -1066,14 +1429,7 @@ def _ancestor_resolver(ancestor_ids):
     if ancestor_ids is None or callable(ancestor_ids):
         return ancestor_ids
     if isinstance(ancestor_ids, Mapping):
-        resolved = {}
-        for holo_id, value in ancestor_ids.items():
-            _hex64(holo_id, "ancestor_ids key")
-            resolved[holo_id] = _ancestor_payload(
-                value,
-                f"ancestor_ids[{holo_id}]",
-            )
-        return resolved
+        return ancestor_ids
     if isinstance(ancestor_ids, (str, bytes)):
         _fail("ancestor_ids", "must be an iterable of holo IDs or a mapping")
     try:
@@ -1110,6 +1466,20 @@ def validate_output(
     """Validate one authored output and return that exact object unchanged."""
     compile_manifest(value, base=base, ancestor_ids=ancestor_ids)
     return value
+
+
+def resolve_history(value: dict, ancestor_ids) -> list[dict]:
+    """Return recursive historical dependencies in deterministic DFS order."""
+    _validate_output_manifest(value, require_ancestor_resolution=False)
+    resolver = _ancestor_resolver(ancestor_ids)
+    entries = value["performance"]["sustain"]["flipbook"]
+    historical = [entry for entry in entries if entry["holo_id"] != "self"]
+    if historical and resolver is None:
+        _fail(
+            "performance.sustain.flipbook",
+            f"ancestor {historical[0]['holo_id']} cannot be resolved",
+        )
+    return [] if not historical else _resolve_history_entries(entries, resolver)
 
 
 def _normalize_vector(value: list[int]) -> list[int]:
@@ -1269,53 +1639,6 @@ def _validate_source(value, path: str) -> dict:
     return obj
 
 
-def _validate_provenance(value, record: dict, subject_rappid: str, path: str) -> None:
-    obj = _object(value, {"statement", "sig"}, path)
-    statement = _object(
-        obj["statement"],
-        {
-            "schema",
-            "subject_rappid",
-            "producer_rappid",
-            "source_stream_id",
-            "source_seq",
-            "source_frame_hash",
-            "authored_hash",
-            "issued_utc",
-        },
-        f"{path}.statement",
-    )
-    if statement["schema"] != "rapp-holo-provenance/1":
-        _fail(f"{path}.statement.schema", "must be rapp-holo-provenance/1")
-    if not rappid_valid(statement["subject_rappid"]):
-        _fail(f"{path}.statement.subject_rappid", "invalid subject RAPPID")
-    if not rappid_valid(statement["producer_rappid"]):
-        _fail(f"{path}.statement.producer_rappid", "invalid producer RAPPID")
-    _memory_stream(statement["source_stream_id"], f"{path}.statement.source_stream_id")
-    _integer(statement["source_seq"], f"{path}.statement.source_seq", 0, MAX_SAFE_INTEGER)
-    _hex64(statement["source_frame_hash"], f"{path}.statement.source_frame_hash")
-    _hex64(statement["authored_hash"], f"{path}.statement.authored_hash")
-    if not utc_valid(statement["issued_utc"]):
-        _fail(f"{path}.statement.issued_utc", "invalid fixed-form UTC")
-    sig = _string(obj["sig"], f"{path}.sig", 1, 16_384)
-    try:
-        header, _, _ = parse_detached_jws(sig)
-    except ProtocolError as exc:
-        _fail(f"{path}.sig", f"invalid detached JWS: {exc}")
-    if header["kid"] != statement["producer_rappid"]:
-        _fail(f"{path}.sig", "JWS kid must equal producer_rappid")
-    expected = {
-        "subject_rappid": subject_rappid,
-        "source_stream_id": record["source"]["stream_id"],
-        "source_seq": record["source"]["seq"],
-        "source_frame_hash": record["source"]["frame_hash"],
-        "authored_hash": record["authored_hash"],
-    }
-    for key, expected_value in expected.items():
-        if statement[key] != expected_value:
-            _fail(f"{path}.statement.{key}", "does not match the materialized record")
-
-
 _UNSET = object()
 
 
@@ -1373,11 +1696,9 @@ def _validate_record_manifest(
     if expected_visual_parent is not _UNSET and visual_parent != expected_visual_parent:
         _fail("record.visual_parent", "is stale relative to the authoritative holo head")
     if obj["producer_provenance"] is not None:
-        _validate_provenance(
-            obj["producer_provenance"],
-            obj,
-            subject_rappid or source_subject,
+        _fail(
             "record.producer_provenance",
+            "trusted provenance verification unavailable",
         )
     return _validate_output_manifest(
         obj["authored"],
@@ -1430,13 +1751,17 @@ __all__ = [
     "canonical_authored_bytes",
     "compile_manifest",
     "compile_scene_manifest",
+    "complete_growl",
     "domain_hash",
     "easing",
     "evaluate_property_track",
+    "growl_events",
     "local_sustain_time",
     "parse_json",
+    "resolve_history",
     "round_div",
     "select_flipbook",
+    "shapee_outline",
     "validate_output",
     "validate_bound_record",
     "validate_record",

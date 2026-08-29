@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RAPP Holo/1 authored output",
+  "description": "Portable AI-authored visual and piano-continuation data suitable for immutable signed local Rolling Core Capsules, offline use, and import/export. Storefront purchase flow and optional cloud compute are outside this payload.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -8,6 +9,7 @@
     "base_holo_id",
     "ir_version",
     "renderer_contract",
+    "growl",
     "state",
     "transition",
     "performance",
@@ -32,6 +34,9 @@
     },
     "renderer_contract": {
       "const": "rapp-holo-renderer/1"
+    },
+    "growl": {
+      "$ref": "#/$defs/growl"
     },
     "state": {
       "$ref": "#/$defs/state"
@@ -328,6 +333,149 @@
         }
       }
     },
+    "growlNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pitch",
+        "delta_onset",
+        "duration",
+        "velocity"
+      ],
+      "properties": {
+        "pitch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "delta_onset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        }
+      }
+    },
+    "growl": {
+      "description": "Required immutable AI/model-authored piano prompt and completed continuation using NOTE(pitch,delta_onset,duration,velocity). Sustain is baked into duration; simultaneous delta_onset-zero chord notes are strictly pitch-sorted. The validator never generates notes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "representation",
+        "seed",
+        "model",
+        "ticks_per_quarter",
+        "tempo_milli_bpm",
+        "program",
+        "title",
+        "subject_description",
+        "prompt",
+        "continuation",
+        "complete",
+        "context_policy"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rapp-holo-growl/1"
+        },
+        "representation": {
+          "const": "note-pitch-delta-duration-velocity/1"
+        },
+        "seed": {
+          "$ref": "#/$defs/hex64"
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "revision"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        },
+        "ticks_per_quarter": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 960
+        },
+        "tempo_milli_bpm": {
+          "type": "integer",
+          "minimum": 30000,
+          "maximum": 300000
+        },
+        "program": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "subject_description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "prompt": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/growlNote"
+          }
+        },
+        "continuation": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/growlNote"
+          }
+        },
+        "complete": {
+          "const": true
+        },
+        "context_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_notes",
+            "retain_latest"
+          ],
+          "properties": {
+            "max_notes": {
+              "const": 512
+            },
+            "retain_latest": {
+              "const": 384
+            }
+          }
+        }
+      }
+    },
     "primitiveSphereLike": {
       "type": "object",
       "additionalProperties": false,
@@ -471,6 +619,53 @@
         }
       }
     },
+    "primitiveShapee": {
+      "description": "An optional AI-authored compact identity tile that may seed or anchor expanded outlines, silhouettes, multi-node forms, auras, habitats, and full-frame scenes; it is never a fixed avatar or composition boundary. The protocol defines no default seed, so public brand fixtures do not constrain seeds authored by individual Rapters. The first teeth seed nibbles define top relief and the next teeth nibbles define bottom relief over equal round_div width intervals; the closed outline uses only horizontal and vertical segments.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "seed",
+        "width",
+        "height",
+        "depth",
+        "teeth",
+        "relief"
+      ],
+      "properties": {
+        "shape": {
+          "const": "shapee"
+        },
+        "seed": {
+          "$ref": "#/$defs/hex64"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 2000000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 2000000
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200000
+        },
+        "teeth": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 32
+        },
+        "relief": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500000
+        }
+      }
+    },
     "primitiveGeometry": {
       "oneOf": [
         {
@@ -487,6 +682,9 @@
         },
         {
           "$ref": "#/$defs/primitivePlane"
+        },
+        {
+          "$ref": "#/$defs/primitiveShapee"
         }
       ]
     },
