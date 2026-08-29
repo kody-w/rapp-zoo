@@ -125,16 +125,8 @@ export class BrainstemSupervisor extends EventEmitter {
 
   installFoundryAgents() {
     mkdirSync(this.brainstemAgents, { recursive: true });
-    for (const filename of [
-      "hologram_dogg_agent.py",
-      "hologram_forge_agent.py",
-    ]) {
-      const source = path.join(this.appRoot, "agents", filename);
-      const destination = path.join(
-        this.brainstemAgents,
-        `rapp_zoo_${filename}`,
-      );
-      if (!existsSync(source)) throw new Error(`Missing foundry agent: ${filename}`);
+    const installFile = (source, destination, label) => {
+      if (!existsSync(source)) throw new Error(`Missing ${label}: ${source}`);
       if (existsSync(destination) && sha256(source) !== sha256(destination)) {
         const backup = `${destination}.backup-${Date.now()}`;
         renameSync(destination, backup);
@@ -142,6 +134,28 @@ export class BrainstemSupervisor extends EventEmitter {
       if (!existsSync(destination) || sha256(source) !== sha256(destination)) {
         copyFileSync(source, destination);
       }
+    };
+    for (const filename of [
+      "hologram_dogg_agent.py",
+      "hologram_forge_agent.py",
+    ]) {
+      installFile(
+        path.join(this.appRoot, "agents", filename),
+        path.join(this.brainstemAgents, `rapp_zoo_${filename}`),
+        `foundry agent ${filename}`,
+      );
+    }
+    const protocolDir = path.join(
+      this.brainstemAgents,
+      "rapp_zoo_holo_protocol",
+    );
+    mkdirSync(protocolDir, { recursive: true });
+    for (const filename of ["holo_protocol.py", "rapp_protocol.py"]) {
+      installFile(
+        path.join(this.appRoot, "utils", filename),
+        path.join(protocolDir, filename),
+        `shared Holo protocol module ${filename}`,
+      );
     }
   }
 

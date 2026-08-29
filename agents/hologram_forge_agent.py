@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
+import importlib.util
 import json
-import os
 from pathlib import Path
-import re
+import sys
+import types
 
 try:
     from agents.basic_agent import BasicAgent
@@ -39,12 +39,14 @@ except Exception:
 __manifest__ = {
     "schema": "rapp-agent/1.0",
     "name": "@kody-w/hologram_forge",
-    "version": "2.0.0",
+    "version": "2.2.0",
     "display_name": "HologramOutput",
     "description": (
-        "Validates the exact rapp-holo-output/1 object authored during the "
-        "current AI response and returns it unchanged with its canonical hash. "
-        "It never designs, defaults, repairs, adapts, or polishes a hologram."
+        "Validates one exact Rolling Core rapp-holo-output/1 growth frame "
+        "authored during the current AI response, including its already-"
+        "authored growl prompt and continuation, and returns it unchanged with "
+        "its canonical hash. It never generates, defaults, repairs, adapts, "
+        "or polishes."
     ),
     "author": "Kody Wildfeuer",
     "tags": ["hologram", "holo-1", "output", "validation"],
@@ -55,215 +57,53 @@ __manifest__ = {
 }
 
 
-MAX_CANONICAL_BYTES = 256 * 1024
-FORBIDDEN_CONTENT = (
-    re.compile(r"<\s*/?\s*[a-z][^>]*>", re.IGNORECASE),
-    re.compile(r"\bjavascript\s*:", re.IGNORECASE),
-    re.compile(r"\bdata\s*:\s*text/html", re.IGNORECASE),
-    re.compile(r"\b(?:https?|file)\s*://", re.IGNORECASE),
-    re.compile(r"\beval\s*\(", re.IGNORECASE),
-    re.compile(r"\bnew\s+Function\s*\(", re.IGNORECASE),
-    re.compile(r"\brequire\s*\(", re.IGNORECASE),
-    re.compile(r"\bimport\s*\(", re.IGNORECASE),
-)
-_SCHEMA = None
-
-
-def _schema_paths():
-    explicit = os.environ.get("RAPP_HOLO_OUTPUT_SCHEMA")
-    if explicit:
-        yield Path(explicit)
-    soul = os.environ.get("SOUL_PATH")
-    if soul:
-        yield Path(soul).resolve().parent / "protocol" / "rapp-holo-output.schema.json"
-    yield (
-        Path(__file__).resolve().parents[1]
-        / "holograms"
-        / "protocol"
-        / "rapp-holo-output.schema.json"
+def _load_shared_holo_protocol():
+    agent_path = Path(__file__).resolve()
+    if agent_path.name.startswith("rapp_zoo_"):
+        candidates = (agent_path.parent / "rapp_zoo_holo_protocol",)
+    else:
+        candidates = (agent_path.parents[1] / "utils",)
+    module_root = next(
+        (
+            candidate
+            for candidate in candidates
+            if (candidate / "holo_protocol.py").is_file()
+            and (candidate / "rapp_protocol.py").is_file()
+        ),
+        None,
     )
-
-
-def _load_schema():
-    global _SCHEMA
-    if _SCHEMA is not None:
-        return _SCHEMA
-    for candidate in _schema_paths():
-        if candidate.is_file():
-            with candidate.open("r", encoding="utf-8") as handle:
-                _SCHEMA = json.load(handle)
-            return _SCHEMA
-    raise ValueError("the pinned rapp-holo-output/1 schema is unavailable")
-
-
-def _resolve_ref(reference, root):
-    if not reference.startswith("#/"):
-        raise ValueError(f"unsupported Holo schema reference: {reference}")
-    value = root
-    for part in reference[2:].split("/"):
-        value = value[part.replace("~1", "/").replace("~0", "~")]
-    return value
-
-
-def _type_matches(value, expected):
-    if expected == "null":
-        return value is None
-    if expected == "object":
-        return isinstance(value, dict)
-    if expected == "array":
-        return isinstance(value, list)
-    if expected == "integer":
-        return isinstance(value, int) and not isinstance(value, bool)
-    if expected == "string":
-        return isinstance(value, str)
-    if expected == "boolean":
-        return isinstance(value, bool)
-    return False
-
-
-def _assert_schema(value, schema, root, path="Holo output"):
-    if "$ref" in schema:
-        _assert_schema(value, _resolve_ref(schema["$ref"], root), root, path)
-        return
-    if "oneOf" in schema:
-        matches = 0
-        for choice in schema["oneOf"]:
-            try:
-                _assert_schema(value, choice, root, path)
-                matches += 1
-            except (TypeError, ValueError, KeyError):
-                pass
-        if matches != 1:
-            raise ValueError(f"{path} must match exactly one allowed Holo shape")
-    expected_type = schema.get("type")
-    if expected_type and not _type_matches(value, expected_type):
-        raise ValueError(f"{path} must be {expected_type}")
-    if "const" in schema and value != schema["const"]:
-        raise ValueError(f"{path} must equal {schema['const']!r}")
-    if "enum" in schema and value not in schema["enum"]:
-        raise ValueError(f"{path} has an unsupported value")
-    if isinstance(value, str):
-        if "minLength" in schema and len(value) < schema["minLength"]:
-            raise ValueError(f"{path} is shorter than the Holo limit")
-        if "maxLength" in schema and len(value) > schema["maxLength"]:
-            raise ValueError(f"{path} exceeds the Holo limit")
-        if "pattern" in schema and not re.search(schema["pattern"], value):
-            raise ValueError(f"{path} has an invalid format")
-    if isinstance(value, int) and not isinstance(value, bool):
-        if "minimum" in schema and value < schema["minimum"]:
-            raise ValueError(f"{path} is below the Holo limit")
-        if "maximum" in schema and value > schema["maximum"]:
-            raise ValueError(f"{path} exceeds the Holo limit")
-    if isinstance(value, list):
-        if "minItems" in schema and len(value) < schema["minItems"]:
-            raise ValueError(f"{path} has too few items")
-        if "maxItems" in schema and len(value) > schema["maxItems"]:
-            raise ValueError(f"{path} has too many items")
-        if "items" in schema:
-            for index, item in enumerate(value):
-                _assert_schema(item, schema["items"], root, f"{path}[{index}]")
-    if isinstance(value, dict):
-        for required in schema.get("required", []):
-            if required not in value:
-                raise ValueError(f"{path}.{required} is required")
-        properties = schema.get("properties", {})
-        if schema.get("additionalProperties") is False:
-            for key in value:
-                if key not in properties:
-                    raise ValueError(f"{path}.{key} is not part of Holo/1")
-        for key, property_schema in properties.items():
-            if key in value:
-                _assert_schema(value[key], property_schema, root, f"{path}.{key}")
-    for member in schema.get("allOf", []):
-        _assert_schema(value, member, root, path)
-    if "if" in schema:
-        try:
-            _assert_schema(value, schema["if"], root, path)
-            condition_matches = True
-        except (TypeError, ValueError, KeyError):
-            condition_matches = False
-        if condition_matches and "then" in schema:
-            _assert_schema(value, schema["then"], root, path)
-        if not condition_matches and "else" in schema:
-            _assert_schema(value, schema["else"], root, path)
-
-
-def _assert_json_value(value, depth=1):
-    if depth > 64:
-        raise ValueError("Holo output exceeds the JSON depth limit")
-    if value is None or isinstance(value, bool):
-        return
-    if isinstance(value, int):
-        if abs(value) > 2**53 - 1:
-            raise ValueError("Holo output integer is outside the interoperable range")
-        return
-    if isinstance(value, float):
-        raise ValueError("Holo output numbers must be interoperable integers")
-    if isinstance(value, str):
-        if any(0xD800 <= ord(char) <= 0xDFFF for char in value):
-            raise ValueError("Holo output contains an unpaired UTF-16 surrogate")
-        return
-    if isinstance(value, list):
-        for item in value:
-            _assert_json_value(item, depth + 1)
-        return
-    if isinstance(value, dict):
-        if not all(isinstance(key, str) for key in value):
-            raise ValueError("Holo output object keys must be strings")
-        for key, item in value.items():
-            _assert_json_value(key, depth + 1)
-            _assert_json_value(item, depth + 1)
-        return
-    raise ValueError(f"Holo output contains non-JSON data: {type(value).__name__}")
-
-
-def _assert_data_only(value, path="Holo output"):
-    if isinstance(value, str):
-        if any(pattern.search(value) for pattern in FORBIDDEN_CONTENT):
-            raise ValueError(
-                f"{path} contains executable or remote content"
-            )
-        return
-    if isinstance(value, list):
-        for index, item in enumerate(value):
-            _assert_data_only(item, f"{path}[{index}]")
-        return
-    if isinstance(value, dict):
-        for key, item in value.items():
-            _assert_data_only(item, f"{path}.{key}")
-
-
-def _canonical(value, depth=1):
-    if depth > 64:
-        raise ValueError("Holo output exceeds the JSON depth limit")
-    if value is None or isinstance(value, bool) or isinstance(value, int):
-        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-    if isinstance(value, list):
-        return "[" + ",".join(_canonical(item, depth + 1) for item in value) + "]"
-    keys = sorted(value, key=lambda key: key.encode("utf-16-be"))
-    return (
-        "{"
-        + ",".join(
-            json.dumps(key, ensure_ascii=False, separators=(",", ":"))
-            + ":"
-            + _canonical(value[key], depth + 1)
-            for key in keys
+    if module_root is None:
+        checked = ", ".join(str(candidate) for candidate in candidates)
+        raise ImportError(
+            "shared Holo/1 validator is unavailable; checked " + checked
         )
-        + "}"
-    )
+
+    package_name = "_rapp_zoo_holo_protocol"
+    package = types.ModuleType(package_name)
+    package.__path__ = [str(module_root)]
+    package.__package__ = package_name
+    sys.modules[package_name] = package
+
+    for name in ("rapp_protocol", "holo_protocol"):
+        full_name = f"{package_name}.{name}"
+        spec = importlib.util.spec_from_file_location(
+            full_name,
+            module_root / f"{name}.py",
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load shared Holo/1 module {full_name}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[full_name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[f"{package_name}.holo_protocol"]
 
 
-def _validate_holo_output(value):
-    _assert_json_value(value)
-    schema = _load_schema()
-    _assert_schema(value, schema, schema)
-    _assert_data_only(value)
-    canonical = _canonical(value)
-    if len(canonical.encode("utf-8")) > MAX_CANONICAL_BYTES:
-        raise ValueError("Holo output exceeds the canonical byte limit")
-    return value, canonical
+HOLO_PROTOCOL = _load_shared_holo_protocol()
+for required_api in ("validate_output", "authored_hash", "growl_events"):
+    if not callable(getattr(HOLO_PROTOCOL, required_api, None)):
+        raise ImportError(
+            f"shared Holo/1 validator is missing required API {required_api}"
+        )
 
 
 class HologramForgeAgent(BasicAgent):
@@ -284,6 +124,20 @@ class HologramForgeAgent(BasicAgent):
                             "during this original response."
                         ),
                     },
+                    "base_holo_output": {
+                        "type": ["object", "null"],
+                        "description": (
+                            "The verified current base Holo output supplied to "
+                            "the original turn, or null at genesis."
+                        ),
+                    },
+                    "ancestor_holo_outputs": {
+                        "type": "object",
+                        "description": (
+                            "Verified retained ancestor holo IDs mapped to their "
+                            "exact outputs, as supplied to the original turn."
+                        ),
+                    },
                 },
                 "required": ["authored_holo_output"],
             },
@@ -292,29 +146,36 @@ class HologramForgeAgent(BasicAgent):
 
     def perform(self, **kwargs):
         try:
-            if set(kwargs) != {"authored_holo_output"}:
+            allowed = {
+                "authored_holo_output",
+                "base_holo_output",
+                "ancestor_holo_outputs",
+            }
+            if "authored_holo_output" not in kwargs or not set(kwargs) <= allowed:
                 if {"frame_json", "design_json"} & set(kwargs):
                     raise ValueError(
                         "legacy post-hoc frame/design generation is refused"
                     )
                 raise ValueError(
-                    "exactly authored_holo_output is required"
+                    "authored_holo_output and only Holo validation context are required"
                 )
             authored = kwargs["authored_holo_output"]
-            accepted, canonical = _validate_holo_output(authored)
-            authored_hash = hashlib.sha256(
-                b"rapp-holo/1:authored\n" + canonical.encode("utf-8")
-            ).hexdigest()
+            accepted = HOLO_PROTOCOL.validate_output(
+                authored,
+                base=kwargs.get("base_holo_output"),
+                ancestor_ids=kwargs.get("ancestor_holo_outputs"),
+            )
+            HOLO_PROTOCOL.growl_events(accepted["growl"])
             return json.dumps(
                 {
                     "status": "ok",
                     "authored": accepted,
-                    "authored_hash": authored_hash,
+                    "authored_hash": HOLO_PROTOCOL.authored_hash(authored),
                 },
                 ensure_ascii=False,
                 separators=(",", ":"),
             )
-        except (TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        except (TypeError, ValueError, KeyError) as exc:
             return json.dumps(
                 {
                     "status": "refused",

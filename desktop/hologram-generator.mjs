@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
 
 const HOLO_OUTPUT_SCHEMA = JSON.parse(readFileSync(
   new URL(
@@ -8,21 +8,29 @@ const HOLO_OUTPUT_SCHEMA = JSON.parse(readFileSync(
   ),
   "utf8",
 ));
+const protocolSource = readFileSync(
+  new URL("../static/holo-protocol.js", import.meta.url),
+  "utf8",
+);
+const protocolContext = {};
+vm.createContext(protocolContext);
+vm.runInContext(protocolSource, protocolContext, {
+  filename: "static/holo-protocol.js",
+});
+const HoloProtocol = protocolContext.RappHoloProtocol;
+if (
+  !HoloProtocol
+  || typeof HoloProtocol.validateOutput !== "function"
+  || typeof HoloProtocol.authoredHash !== "function"
+  || typeof HoloProtocol.growlEvents !== "function"
+) {
+  throw new Error("The shared Holo/1 validator did not expose its stable API.");
+}
 
 const HEX64 = /^[0-9a-f]{64}$/;
 const MAX_CONTEXT_BYTES = 512 * 1024;
 const MAX_HOLO_BYTES = 256 * 1024;
 const OUTPUT_SCHEMA_MARKER = /"schema"\s*:\s*"rapp-holo-output\/1"/g;
-const FORBIDDEN_CONTENT = [
-  /<\s*\/?\s*[a-z][^>]*>/i,
-  /\bjavascript\s*:/i,
-  /\bdata\s*:\s*text\/html/i,
-  /\b(?:https?|file)\s*:\/\//i,
-  /\beval\s*\(/i,
-  /\bnew\s+Function\s*\(/i,
-  /\brequire\s*\(/i,
-  /\bimport\s*\(/i,
-];
 
 function exactKeys(value, expected, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -38,214 +46,18 @@ function exactKeys(value, expected, label) {
   }
 }
 
-function resolveReference(reference) {
-  if (!reference.startsWith("#/")) {
-    throw new Error(`Unsupported Holo schema reference: ${reference}`);
-  }
-  return reference
-    .slice(2)
-    .split("/")
-    .reduce(
-      (value, key) => value[key.replaceAll("~1", "/").replaceAll("~0", "~")],
-      HOLO_OUTPUT_SCHEMA,
-    );
-}
-
-function typeMatches(value, type) {
-  if (type === "null") return value === null;
-  if (type === "array") return Array.isArray(value);
-  if (type === "object") {
-    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-  }
-  if (type === "integer") {
-    return Number.isSafeInteger(value) && !Object.is(value, -0);
-  }
-  return typeof value === type;
-}
-
-function assertSchema(value, schema, path = "Holo output") {
-  if (schema.$ref) {
-    assertSchema(value, resolveReference(schema.$ref), path);
-    return;
-  }
-  if (schema.oneOf) {
-    let matches = 0;
-    for (const choice of schema.oneOf) {
-      try {
-        assertSchema(value, choice, path);
-        matches += 1;
-      } catch {
-        // A oneOf branch that refuses is not a match.
-      }
-    }
-    if (matches !== 1) {
-      throw new Error(`${path} must match exactly one allowed Holo shape.`);
-    }
-  }
-  if (schema.type && !typeMatches(value, schema.type)) {
-    throw new Error(`${path} must be ${schema.type}.`);
-  }
-  if (Object.hasOwn(schema, "const") && value !== schema.const) {
-    throw new Error(`${path} must equal ${JSON.stringify(schema.const)}.`);
-  }
-  if (schema.enum && !schema.enum.includes(value)) {
-    throw new Error(`${path} has an unsupported value.`);
-  }
-  if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) {
-      throw new Error(`${path} is shorter than the Holo limit.`);
-    }
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
-      throw new Error(`${path} exceeds the Holo limit.`);
-    }
-    if (schema.pattern && !new RegExp(schema.pattern, "u").test(value)) {
-      throw new Error(`${path} has an invalid format.`);
-    }
-  }
-  if (typeof value === "number") {
-    if (schema.minimum !== undefined && value < schema.minimum) {
-      throw new Error(`${path} is below the Holo limit.`);
-    }
-    if (schema.maximum !== undefined && value > schema.maximum) {
-      throw new Error(`${path} exceeds the Holo limit.`);
-    }
-  }
-  if (Array.isArray(value)) {
-    if (schema.minItems !== undefined && value.length < schema.minItems) {
-      throw new Error(`${path} has too few items.`);
-    }
-    if (schema.maxItems !== undefined && value.length > schema.maxItems) {
-      throw new Error(`${path} has too many items.`);
-    }
-    if (schema.items) {
-      value.forEach((item, index) => {
-        assertSchema(item, schema.items, `${path}[${index}]`);
-      });
-    }
-  }
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    for (const required of schema.required || []) {
-      if (!Object.hasOwn(value, required)) {
-        throw new Error(`${path}.${required} is required.`);
-      }
-    }
-    if (schema.additionalProperties === false) {
-      const allowed = new Set(Object.keys(schema.properties || {}));
-      for (const key of Object.keys(value)) {
-        if (!allowed.has(key)) {
-          throw new Error(`${path}.${key} is not part of Holo/1.`);
-        }
-      }
-    }
-    for (const [key, propertySchema] of Object.entries(schema.properties || {})) {
-      if (Object.hasOwn(value, key)) {
-        assertSchema(value[key], propertySchema, `${path}.${key}`);
-      }
-    }
-  }
-  for (const item of schema.allOf || []) {
-    assertSchema(value, item, path);
-  }
-  if (schema.if) {
-    let conditionMatches = true;
-    try {
-      assertSchema(value, schema.if, path);
-    } catch {
-      conditionMatches = false;
-    }
-    if (conditionMatches && schema.then) assertSchema(value, schema.then, path);
-    if (!conditionMatches && schema.else) assertSchema(value, schema.else, path);
-  }
-}
-
-function assertDataOnly(value, path = "Holo output") {
-  if (typeof value === "string") {
-    if (FORBIDDEN_CONTENT.some((pattern) => pattern.test(value))) {
-      throw new Error(`${path} contains executable or remote content.`);
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => assertDataOnly(item, `${path}[${index}]`));
-    return;
-  }
-  if (value && typeof value === "object") {
-    for (const [key, item] of Object.entries(value)) {
-      assertDataOnly(item, `${path}.${key}`);
-    }
-  }
-}
-
-function assertJsonValue(value, depth = 1) {
-  if (depth > 64) throw new Error("Holo output exceeds the JSON depth limit.");
-  if (value === null || typeof value === "boolean") return;
-  if (typeof value === "number") {
-    if (!Number.isSafeInteger(value) || Object.is(value, -0)) {
-      throw new Error("Holo output numbers must be interoperable integers.");
-    }
-    return;
-  }
-  if (typeof value === "string") {
-    for (let index = 0; index < value.length; index += 1) {
-      const code = value.charCodeAt(index);
-      if (code >= 0xd800 && code <= 0xdbff) {
-        const next = value.charCodeAt(index + 1);
-        if (next < 0xdc00 || next > 0xdfff) {
-          throw new Error("Holo output contains an unpaired UTF-16 surrogate.");
-        }
-        index += 1;
-      } else if (code >= 0xdc00 && code <= 0xdfff) {
-        throw new Error("Holo output contains an unpaired UTF-16 surrogate.");
-      }
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => assertJsonValue(item, depth + 1));
-    return;
-  }
-  if (value && typeof value === "object") {
-    Object.entries(value).forEach(([key, item]) => {
-      assertJsonValue(key, depth + 1);
-      assertJsonValue(item, depth + 1);
-    });
-    return;
-  }
-  throw new Error(`Holo output contains non-JSON data: ${typeof value}.`);
-}
-
 export function canonicalJson(value) {
-  assertJsonValue(value);
-  function encode(item) {
-    if (item === null || typeof item === "boolean" || typeof item === "number") {
-      return JSON.stringify(item);
-    }
-    if (typeof item === "string") return JSON.stringify(item);
-    if (Array.isArray(item)) return `[${item.map(encode).join(",")}]`;
-    return `{${Object.keys(item).sort().map(
-      (key) => `${JSON.stringify(key)}:${encode(item[key])}`,
-    ).join(",")}}`;
-  }
-  const canonical = encode(value);
-  if (Buffer.byteLength(canonical) > MAX_HOLO_BYTES) {
-    throw new Error("Holo output exceeds the canonical byte limit.");
-  }
-  return canonical;
+  return HoloProtocol.canonical(value);
 }
 
 export function canonicalHoloHash(value) {
-  return createHash("sha256")
-    .update("rapp-holo/1:authored\n", "ascii")
-    .update(canonicalJson(value), "utf8")
-    .digest("hex");
+  return HoloProtocol.authoredHash(value);
 }
 
-export function validateHoloOutput(value) {
-  assertJsonValue(value);
-  assertSchema(value, HOLO_OUTPUT_SCHEMA);
-  assertDataOnly(value);
-  canonicalJson(value);
-  return value;
+export function validateHoloOutput(value, options = {}) {
+  const accepted = HoloProtocol.validateOutput(value, options);
+  HoloProtocol.growlEvents(accepted.growl);
+  return accepted;
 }
 
 function validateBaseHoloId(value, label = "base_holo_id") {
@@ -286,6 +98,34 @@ export function validateHoloTurnContext(value) {
   return value;
 }
 
+export function holoValidationOptions(contextValue) {
+  const context = validateHoloTurnContext(contextValue);
+  const ancestors = Object.create(null);
+  let base = null;
+  for (const entry of context.history) {
+    const id = entry.holo_id || entry.frame_hash || entry.id;
+    if (typeof id !== "string" || !HEX64.test(id)) continue;
+    const authored = (
+      entry.schema === "rapp-holo-output/1"
+        ? entry
+        : entry.authored || entry.payload?.authored
+    );
+    ancestors[id] = authored?.schema === "rapp-holo-output/1"
+      ? authored
+      : true;
+    if (
+      id === context.base_holo_id
+      && authored?.schema === "rapp-holo-output/1"
+    ) {
+      base = authored;
+    }
+  }
+  return {
+    base,
+    ancestorIds: ancestors,
+  };
+}
+
 export function originalTurnHoloContract(contextValue) {
   const context = validateHoloTurnContext(contextValue);
   if (!context.enabled) {
@@ -298,9 +138,18 @@ export function originalTurnHoloContract(contextValue) {
     "HOLO_OUTPUT_CHANNEL=enabled",
     "Hologram is a first-class output beside text and voice.",
     "During this original response, author exactly one complete rapp-holo-output/1 object.",
-    "If the expression should visually hold, emit a new complete hold state against the current base.",
-    "Call HologramForge once with that exact authored_holo_output.",
-    "HologramForge validates only. It cannot design, adapt, repair, clamp, default, or polish.",
+    "That object must contain one AI-authored rapp-holo-growl/1 and one complete visual state.",
+    "The growl uses one-note events {pitch,delta_onset,duration,velocity}: you, or a configured local completion model participating in this same turn, must author an 8-32 note prompt and a completed original piano continuation before commit.",
+    "The completion context is at most 512 notes; when longer context exists, retain the latest 384 notes.",
+    "The growl must be an original piece about this organism. Do not imitate or reproduce copyrighted Pokémon music.",
+    "SHAPEE is the smallest identity tile, not a required final form.",
+    "You may autocomplete and grow the Holo through silhouette, motion, aura, habitat, and the entire full frame.",
+    "The result does not have to remain a tile and is not required to take humanoid form.",
+    "Treat this exact output as one immutable frame in the locally owned Rolling Core's continuing growth.",
+    "RAPP/1 carries the frame; Rapterbox storefront and optional cloud compute do not author or alter it.",
+    "Call HologramForge once with that exact authored_holo_output and, when applicable, base_holo_output and ancestor_holo_outputs copied from the supplied history.",
+    "HologramForge and the shared Holo validator only accept or refuse the already-authored prompt, continuation, and visual state.",
+    "Do not request a separate MIDI-generation pass or a second creative model call.",
     "After acceptance, include that exact object once between RAPP_HOLO_OUTPUT_BEGIN and RAPP_HOLO_OUTPUT_END.",
     "Never request a later creative pass.",
     "Choose any visual form representable by the declared IR. The application supplies no visual form.",
@@ -310,9 +159,9 @@ export function originalTurnHoloContract(contextValue) {
   ].join("\n");
 }
 
-export function stageHoloOutput(authored, currentBaseHoloId) {
+export function stageHoloOutput(authored, currentBaseHoloId, options = {}) {
   validateBaseHoloId(currentBaseHoloId, "current base_holo_id");
-  validateHoloOutput(authored);
+  validateHoloOutput(authored, options);
   if (authored.base_holo_id !== currentBaseHoloId) {
     throw new Error("Holo output was authored against a stale base_holo_id.");
   }
@@ -386,8 +235,19 @@ export function extractHoloOutput(responseValue, contextValue) {
   if (!context.enabled && candidates.length) {
     throw new Error("Holo output was emitted while the channel was disabled.");
   }
-  if (!candidates.length) return null;
-  return stageHoloOutput(candidates[0], context.base_holo_id);
+  if (!candidates.length) {
+    if (context.enabled) {
+      throw new Error(
+        "An enabled Holo turn must contain exactly one Holo/1 output.",
+      );
+    }
+    return null;
+  }
+  return stageHoloOutput(
+    candidates[0],
+    context.base_holo_id,
+    holoValidationOptions(context),
+  );
 }
 
 export function stripMarkedHoloOutput(responseValue) {
@@ -428,7 +288,7 @@ export async function captureOriginalTurn({
   };
 }
 
-export function validateCommitRequest(value) {
+export function validateCommitRequest(value, options = {}) {
   exactKeys(
     value,
     new Set(["subject_rappid", "session_id", "text", "holo", "evidence"]),
@@ -453,38 +313,45 @@ export function validateCommitRequest(value) {
   ) {
     throw new Error("Holo turn text exceeds its byte limit.");
   }
-  if (value.holo !== null) validateHoloOutput(value.holo);
+  if (value.holo !== null) validateHoloOutput(value.holo, options);
   exactKeys(
     value.evidence,
-    new Set(["channel_enabled", "turn_latency_ms", "deadline_ms"]),
+    new Set([
+      "channel_enabled",
+      "turn_latency_ms",
+      "deadline_ms",
+      "wake_lease_ms",
+    ]),
     "Holo turn evidence",
   );
   if (typeof value.evidence.channel_enabled !== "boolean") {
     throw new Error("Holo turn evidence channel_enabled must be boolean.");
   }
-  for (const key of ["turn_latency_ms", "deadline_ms"]) {
+  for (const key of ["turn_latency_ms", "deadline_ms", "wake_lease_ms"]) {
     const item = value.evidence[key];
     if (
       item !== null
-      && (!Number.isSafeInteger(item) || item < 0)
+      && (
+        !Number.isSafeInteger(item)
+        || item < 0
+        || (key !== "turn_latency_ms" && item === 0)
+      )
     ) {
-      throw new Error(`Holo turn evidence ${key} must be null or uint53.`);
+      throw new Error(
+        `Holo turn evidence ${key} must be null or a valid duration.`,
+      );
     }
   }
-  if (
-    !value.evidence.channel_enabled
-    && (
-      value.evidence.turn_latency_ms !== null
-      || value.evidence.deadline_ms !== null
-    )
-  ) {
-    throw new Error("Disabled Holo channels cannot claim timing evidence.");
+  const timing = [
+    value.evidence.turn_latency_ms,
+    value.evidence.deadline_ms,
+    value.evidence.wake_lease_ms,
+  ];
+  if (!value.evidence.channel_enabled && timing.some((item) => item !== null)) {
+    throw new Error("Disabled Holo channels cannot claim liveness evidence.");
   }
-  if (
-    (value.evidence.turn_latency_ms === null)
-    !== (value.evidence.deadline_ms === null)
-  ) {
-    throw new Error("Holo turn latency and deadline must appear together.");
+  if (value.evidence.channel_enabled && timing.some((item) => item === null)) {
+    throw new Error("Enabled Holo channels require complete liveness evidence.");
   }
   return value;
 }

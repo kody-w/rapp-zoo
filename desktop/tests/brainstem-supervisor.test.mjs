@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
@@ -12,6 +16,9 @@ import {
   FOUNDRY_URL,
   readHealth,
 } from "../brainstem-supervisor.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, "../..");
 
 test("health reader accepts only a live Brainstem", async () => {
   const good = await readHealth(async () => ({
@@ -92,7 +99,6 @@ test("missing Brainstem fails without executing a remote installer", async () =>
     /RAPP Brainstem is not installed/,
   );
 
-  const here = path.dirname(fileURLToPath(import.meta.url));
   const source = readFileSync(
     path.resolve(here, "../brainstem-supervisor.mjs"),
     "utf8",
@@ -105,7 +111,7 @@ test("spawn errors become a failed foundry state", async () => {
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   child.kill = () => true;
-  const userData = mkdtempSync(path.join(tmpdir(), "rapp-zoo-foundry-"));
+  const userData = mkdtempSync(path.join(root, ".rapp-zoo-foundry-test-"));
   const supervisor = new BrainstemSupervisor({
     appRoot: "/tmp/rapp-zoo",
     userData,
@@ -124,5 +130,41 @@ test("spawn errors become a failed foundry state", async () => {
     assert.equal(supervisor.owned, false);
   } finally {
     rmSync(userData, { recursive: true, force: true });
+  }
+});
+
+test("foundry installs the shared Python validator in its app-owned package", () => {
+  const scratch = mkdtempSync(path.join(root, ".rapp-zoo-install-test-"));
+  const brainstemSrc = path.join(scratch, "brainstem");
+  const supervisor = new BrainstemSupervisor({
+    appRoot: root,
+    userData: path.join(scratch, "user"),
+    brainstemSrc,
+  });
+  try {
+    supervisor.installFoundryAgents();
+    const protocolDir = path.join(
+      brainstemSrc,
+      "agents",
+      "rapp_zoo_holo_protocol",
+    );
+    assert.equal(
+      readFileSync(path.join(protocolDir, "holo_protocol.py"), "utf8"),
+      readFileSync(path.join(root, "utils", "holo_protocol.py"), "utf8"),
+    );
+    assert.equal(
+      readFileSync(path.join(protocolDir, "rapp_protocol.py"), "utf8"),
+      readFileSync(path.join(root, "utils", "rapp_protocol.py"), "utf8"),
+    );
+    assert.equal(
+      existsSync(path.join(
+        brainstemSrc,
+        "agents",
+        "rapp_zoo_hologram_forge_agent.py",
+      )),
+      true,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });
