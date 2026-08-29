@@ -585,6 +585,12 @@ dialog .checkbox {
   animation: hologram-pulse 2.8s ease-in-out infinite;
 }
 .holo-zoo-section { margin-top: 24px; }
+.holo-rolling-core {
+  margin: 6px 0 10px;
+  color: #8ee8ff;
+  font: 700 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+}
 .holo-zoo-section > h3 {
   margin: 0 0 10px;
   font-size: 16px;

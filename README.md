@@ -57,6 +57,13 @@ Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers
 
 ## Holograms and RAR DOGGs
 
+> **The beginning of the Rolling Core for AGI.** Each verified turn can
+> autocomplete the organism's next visual, musical, kinetic, and environmental
+> self without erasing any prior version.
+
+The Holo organism is that Rolling Core: its newest verified frame is its current
+embodied self, and its immutable recursive history is the body it grew through.
+
 The hologram contract is specified in
 [`HOLOGRAM_PROTOCOL.md`](./HOLOGRAM_PROTOCOL.md): hologram is a first-class,
 AI-authored output channel whose immutable `body.hologram` frames form a
@@ -75,6 +82,10 @@ Holo/1 is broader than RAPP Factory. Factory is one possible client; other use
 cases reuse the same source binding, immutable visual lineage, safe IR, player,
 and Holo Wake while changing only their frame payload and AI-authored scene
 data.
+
+“Rolling Core” names the architecture, not a claim that AGI is solved: a
+continuously advancing, recursively self-referential, multimodal identity whose
+state changes are content-addressed, replayable, bounded, and inspectable.
 
 The Holo Zoo has two deliberately separated areas:
 

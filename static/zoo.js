@@ -721,7 +721,7 @@ function holoHeadHTML(head) {
         </div>
         <div class="rappid">${escapeHtml(head.subject_rappid)}</div>
         <div class="meta">
-          <span class="pill live">current AI holo</span>
+          <span class="pill live">current rolling core</span>
           ${playerState}
           <span class="pill">body ${head.body_seq}</span>
           <span class="pill">immutable</span>
@@ -902,7 +902,7 @@ async function openCurrentHolo(head) {
     updateInFlight: null,
   };
   activeHologramContext = null;
-  $('hologram-viewer-kind').textContent = 'CURRENT AI HOLO · H/1';
+  $('hologram-viewer-kind').textContent = 'CURRENT ROLLING CORE · H/1';
   $('hologram-viewer-title').textContent = holoSubjectName(head.subject_rappid);
   $('hologram-mode-note').textContent =
     'Exact AI-authored output. The Zoo validates and plays it without choosing a form.';

@@ -24,6 +24,25 @@ body plan, emotion classifier, or visual template.
 The AI authors the hologram. The protocol carries it. The renderer verifies and
 plays it.
 
+## The Rolling Core
+
+The Holo organism is the **Rolling Core**. It continually autocompletes its next
+visual, sonic, kinetic, and environmental self from the current verified frame
+while retaining every prior self as immutable, recursively addressable history.
+
+The core rolls forward:
+
+```text
+verified experience -> authored mutation -> immutable multimodal self
+                    -> new head -> next verified experience
+```
+
+The newest accepted Holo frame is literally the organism's current embodied
+core; the prior frames are the body it grew through. This is an architectural
+direction toward AGI, not a declaration that AGI has been achieved. Its value
+is that continuity, embodiment, mutation, memory, and replay become concrete
+protocol objects rather than unverifiable impressions.
+
 Holo/1 is infrastructure, not a RAPP Factory feature. RAPP Factory can be one
 authoring and inspection client, but the same output channel works for any
 organism, assistant, game, simulation, meeting, workflow, device, or future
