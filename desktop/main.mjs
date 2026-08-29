@@ -30,6 +30,11 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = app.isPackaged
   ? path.join(process.resourcesPath, "app.asar.unpacked")
   : path.resolve(dirname, "..");
+const holoSubjectRappid = (
+  process.env.RAPP_ZOO_HOLO_SUBJECT_RAPPID
+  || "rappid:@kody-w/hologram-generator:"
+    + "21f419123bcb166e6fc46a43f53e63e5c8136005e7efcfb689bb80dbcc0453c2"
+);
 
 app.setName("RAPP Zoo");
 if (!app.isPackaged || process.env.RAPP_ZOO_DESKTOP_DEV === "1") {
@@ -81,6 +86,18 @@ async function intelligenceContext() {
   return validateContext(await zooJson("/api/intelligence-context"));
 }
 
+async function commitHoloTurn(value) {
+  const request = validateCommitRequest(value);
+  return zooJson("/api/holo/turn", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "X-RAPP-Zoo-Desktop": zoo.desktopToken,
+    },
+    body: JSON.stringify(request),
+  });
+}
+
 function brainstemInput(prompt, context, holoContext) {
   return [
     "Operate as the RAPP Zoo's local Brainstem.",
@@ -123,11 +140,21 @@ ipcMain.handle("brainstem:chat", async (event, promptValue, holoContextValue) =>
   const prompt = validatePrompt(promptValue);
   const context = await intelligenceContext();
   const holoContext = validateHoloTurnContext(holoContextValue);
-  return captureOriginalTurn({
+  const turn = await captureOriginalTurn({
     chat: (input) => brainstem.chat(input),
     input: brainstemInput(prompt, context, holoContext),
     holoContext,
   });
+  const materialized = await commitHoloTurn({
+    subject_rappid: holoSubjectRappid,
+    session_id: turn.session_id,
+    text: turn.response,
+    holo: turn.holo?.authored || null,
+  });
+  return {
+    ...materialized,
+    ...turn,
+  };
 });
 ipcMain.handle("brainstem:cancel", (event, requestId) => {
   trusted(event);
@@ -149,15 +176,7 @@ ipcMain.handle("hologram:stage", (event, requestValue) => {
 });
 ipcMain.handle("hologram:commit", async (event, requestValue) => {
   trusted(event);
-  const request = validateCommitRequest(requestValue);
-  return zooJson("/api/holograms/commit", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "X-RAPP-Zoo-Desktop": zoo.desktopToken,
-    },
-    body: JSON.stringify(request),
-  });
+  return commitHoloTurn(requestValue);
 });
 ipcMain.handle("hologram:generate", (event, requestValue) => {
   trusted(event);

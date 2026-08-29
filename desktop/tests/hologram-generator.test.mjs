@@ -182,20 +182,23 @@ test("original-turn capture makes exactly one Brainstem chat call", async () => 
   assert.equal(result.session_id, "session-1");
 });
 
-test("commit validation preserves source binding and detects stage mutation", () => {
+test("turn commit validation preserves the exact backend request", () => {
   const request = {
-    source_turn: {
-      stream_id: `rappid:@kody-w/test:${"c".repeat(64)}:session`,
-      seq: 7,
-      frame_hash: "d".repeat(64),
-    },
-    stage: stageHoloOutput(blank, null),
+    subject_rappid: `rappid:@kody-w/hologram-generator:${"c".repeat(64)}`,
+    session_id: "session-1",
+    text: "The original assistant response.",
+    holo: blank,
   };
   assert.strictEqual(validateCommitRequest(request), request);
-  const tampered = clone(request);
-  tampered.stage.authored_hash = "e".repeat(64);
-  assert.throws(() => validateCommitRequest(tampered), /does not match/);
-  assert.equal(canonicalHoloHash(blank), request.stage.authored_hash);
+  assert.deepEqual(request.holo, blank);
+  assert.throws(
+    () => validateCommitRequest({ ...request, unexpected: true }),
+    /unknown or missing members/,
+  );
+  const malformed = clone(request);
+  delete malformed.holo.accessibility;
+  assert.throws(() => validateCommitRequest(malformed), /accessibility is required/);
+  assert.equal(canonicalHoloHash(blank), stageHoloOutput(blank, null).authored_hash);
 });
 
 test("legacy post-hoc generation exports are compatibility refusals", () => {
@@ -218,8 +221,17 @@ test("Electron exposes stage and commit while legacy generation cannot call a mo
   assert.match(main, /ipcMain\.handle\("hologram:stage"/);
   assert.match(main, /ipcMain\.handle\("hologram:commit"/);
   assert.match(main, /ipcMain\.handle\("hologram:generate"[\s\S]*validateGenerationRequest/);
+  assert.match(main, /zooJson\("\/api\/holo\/turn"/);
+  assert.match(
+    main,
+    /subject_rappid: holoSubjectRappid,[\s\S]*session_id: turn\.session_id,[\s\S]*text: turn\.response,[\s\S]*holo: turn\.holo\?\.authored \|\| null/,
+  );
+  assert.match(main, /"X-RAPP-Zoo-Desktop": zoo\.desktopToken/);
   assert.equal(main.match(/brainstem\.chat\(/g)?.length, 1);
-  assert.doesNotMatch(main, /generationPrompt|parseBrainstemDesign|holograms\/match|randomize/);
+  assert.doesNotMatch(
+    main,
+    /generationPrompt|parseBrainstemDesign|holograms\/match|holograms\/commit|randomize/,
+  );
   assert.match(preload, /stageHologramOutput: invoke\("hologram:stage"\)/);
   assert.match(preload, /commitHologramOutput: invoke\("hologram:commit"\)/);
   assert.match(preload, /generateHologram: invoke\("hologram:generate"\)/);

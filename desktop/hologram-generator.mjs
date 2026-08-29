@@ -408,40 +408,32 @@ export async function captureOriginalTurn({
   };
 }
 
-function validateStageRecord(value) {
+export function validateCommitRequest(value) {
   exactKeys(
     value,
-    new Set(["schema", "authored", "base_holo_id", "authored_hash"]),
-    "Holo stage",
-  );
-  if (value.schema !== "rapp-holo-stage/1") {
-    throw new Error("Holo stage schema is invalid.");
-  }
-  const expected = stageHoloOutput(value.authored, value.base_holo_id);
-  if (value.authored_hash !== expected.authored_hash) {
-    throw new Error("Holo stage authored_hash does not match its exact authored object.");
-  }
-  return value;
-}
-
-export function validateCommitRequest(value) {
-  exactKeys(value, new Set(["source_turn", "stage"]), "Holo commit request");
-  exactKeys(
-    value.source_turn,
-    new Set(["stream_id", "seq", "frame_hash"]),
-    "Holo source turn",
+    new Set(["subject_rappid", "session_id", "text", "holo"]),
+    "Holo turn request",
   );
   if (
-    typeof value.source_turn.stream_id !== "string"
-    || !value.source_turn.stream_id
-    || value.source_turn.stream_id.length > 512
-    || !Number.isSafeInteger(value.source_turn.seq)
-    || value.source_turn.seq < 0
-    || !HEX64.test(value.source_turn.frame_hash)
+    typeof value.subject_rappid !== "string"
+    || !/^rappid:@[^/:]+\/[^/:]+:[0-9a-f]{64}$/.test(value.subject_rappid)
   ) {
-    throw new Error("Holo source turn binding is invalid.");
+    throw new Error("Holo turn subject_rappid is invalid.");
   }
-  validateStageRecord(value.stage);
+  if (
+    typeof value.session_id !== "string"
+    || !value.session_id
+    || value.session_id.length > 256
+  ) {
+    throw new Error("Holo turn session_id must be bounded text.");
+  }
+  if (
+    typeof value.text !== "string"
+    || Buffer.byteLength(value.text) > MAX_HOLO_BYTES
+  ) {
+    throw new Error("Holo turn text exceeds its byte limit.");
+  }
+  if (value.holo !== null) validateHoloOutput(value.holo);
   return value;
 }
 
