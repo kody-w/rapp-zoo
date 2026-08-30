@@ -387,3 +387,6 @@ owner-only account, payment, signing, TestFlight, and store preparation steps.
 See [`ENTITLEMENT_ARCHITECTURE.md`](./ENTITLEMENT_ARCHITECTURE.md) for the
 typed Free Companion, premium rental, permanent ownership, and Sovereign
 application boundary intentionally deferred from this immediate handoff.
+See [`GENESIS_FAMILY_ARCHITECTURE.md`](./GENESIS_FAMILY_ARCHITECTURE.md) for
+the typed 151-family catalog and signed generation/mutation eligibility
+boundary, also intentionally deferred from the immediate UI handoff.
