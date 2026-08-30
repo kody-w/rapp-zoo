@@ -127,7 +127,7 @@ for function_name in wild_breathing_status wild_breathing_start wild_breathing_p
     --name "$FUNCTION_APP" \
     --function-name "$function_name" \
     --key-name private-breath-test \
-    --key-value "$WILD_TEST_KEY" \
+    --key-value="$WILD_TEST_KEY" \
     --output none
 done
 WILD_STATUS="$(
@@ -221,7 +221,7 @@ for function_name in credit_return resale_listing; do
     --name "$FUNCTION_APP" \
     --function-name "$function_name" \
     --key-name private-lifecycle-test \
-    --key-value "$LIFECYCLE_TEST_KEY" \
+    --key-value="$LIFECYCLE_TEST_KEY" \
     --output none
 done
 RETURN_NO_OWNER_STATUS="$(
@@ -256,6 +256,57 @@ done
 if [[ "$RETURN_NO_OWNER_STATUS" != "403" || "$LISTING_NO_OWNER_STATUS" != "403" ]]; then
   printf 'Scoped owner authorization boundary failed (%s/%s).\n' \
     "$RETURN_NO_OWNER_STATUS" "$LISTING_NO_OWNER_STATUS" >&2
+  exit 1
+fi
+
+ARTIFACT_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/artifact-status.json" \
+    --write-out '%{http_code}' \
+    "$ENDPOINT/v1/artifacts/status" || true
+)"
+UNAUTH_ARTIFACT_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/unauthenticated-artifact-release.json" \
+    --write-out '%{http_code}' \
+    --request POST \
+    --header 'content-type: application/json' \
+    --data '{}' \
+    "$ENDPOINT/v1/artifacts/release-key" || true
+)"
+if [[ "$ARTIFACT_STATUS" != "200" || "$UNAUTH_ARTIFACT_STATUS" != "401" ]]; then
+  printf 'Artifact delivery boundary failed (%s/%s).\n' \
+    "$ARTIFACT_STATUS" "$UNAUTH_ARTIFACT_STATUS" >&2
+  exit 1
+fi
+ARTIFACT_TEST_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+az functionapp function keys set \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$FUNCTION_APP" \
+  --function-name artifact_release_key \
+  --key-name private-artifact-test \
+  --key-value="$ARTIFACT_TEST_KEY" \
+  --output none
+ARTIFACT_NO_TOKEN_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/artifact-no-token.json" \
+    --write-out '%{http_code}' \
+    --request POST \
+    --header 'content-type: application/json' \
+    --header "x-functions-key: $ARTIFACT_TEST_KEY" \
+    --data '{}' \
+    "$ENDPOINT/v1/artifacts/release-key" || true
+)"
+unset ARTIFACT_TEST_KEY
+az functionapp function keys delete \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$FUNCTION_APP" \
+  --function-name artifact_release_key \
+  --key-name private-artifact-test \
+  --output none
+if [[ "$ARTIFACT_NO_TOKEN_STATUS" != "403" ]]; then
+  printf 'Artifact release without scoped token was not refused (HTTP %s).\n' \
+    "$ARTIFACT_NO_TOKEN_STATUS" >&2
   exit 1
 fi
 
@@ -313,14 +364,14 @@ az functionapp function keys set \
   --name "$FUNCTION_APP" \
   --function-name openai_models \
   --key-name private-test \
-  --key-value "$MODEL_KEY_VALUE" \
+  --key-value="$MODEL_KEY_VALUE" \
   --output none
 az functionapp function keys set \
   --resource-group "$RESOURCE_GROUP" \
   --name "$FUNCTION_APP" \
   --function-name openai_chat \
   --key-name private-test \
-  --key-value "$MODEL_KEY_VALUE" \
+  --key-value="$MODEL_KEY_VALUE" \
   --output none
 unset MODEL_KEY_VALUE
 FUNCTION_KEY="$(
@@ -431,6 +482,9 @@ UNAUTH_RETURN_STATUS="$UNAUTH_RETURN_STATUS" \
 UNAUTH_LISTING_STATUS="$UNAUTH_LISTING_STATUS" \
 RETURN_NO_OWNER_STATUS="$RETURN_NO_OWNER_STATUS" \
 LISTING_NO_OWNER_STATUS="$LISTING_NO_OWNER_STATUS" \
+ARTIFACT_STATUS="$ARTIFACT_STATUS" \
+UNAUTH_ARTIFACT_STATUS="$UNAUTH_ARTIFACT_STATUS" \
+ARTIFACT_NO_TOKEN_STATUS="$ARTIFACT_NO_TOKEN_STATUS" \
 UNTRUSTED_PAYMENT_STATUS="$UNTRUSTED_PAYMENT_STATUS" \
 COMPLETION_STATUS="$COMPLETION_STATUS" \
 python3 <<'PY'
@@ -449,8 +503,13 @@ schedules = json.loads((app_dir / ".deploy" / "valuation-schedules.json").read_t
 wild_breathing = json.loads((app_dir / ".deploy" / "wild-breathing-status.json").read_text())
 wild_pause = json.loads((app_dir / ".deploy" / "wild-breathing-pause.json").read_text())
 lifecycle = json.loads((app_dir / ".deploy" / "lifecycle-status.json").read_text())
+artifact = json.loads((app_dir / ".deploy" / "artifact-status.json").read_text())
 if issuer.get("signing_ready") is not True:
     raise SystemExit("Key Vault signing self-test was not ready.")
+if artifact.get("entitlement_verifier_configured") is not False:
+    raise SystemExit("Artifact entitlement verifier did not fail closed.")
+if artifact.get("commit_pin_required") is not True:
+    raise SystemExit("Artifact policy did not require commit-pinned raw URLs.")
 choice = completion["choices"][0]
 message = choice.get("message", {})
 content = message.get("content")
@@ -483,6 +542,8 @@ evidence = f"""# Deployment evidence
 - Return/resale lifecycle: HTTP {os.environ["LIFECYCLE_STATUS"]}, 30-day window, immutable birth valuation
 - Unauthenticated return/listing: HTTP {os.environ["UNAUTH_RETURN_STATUS"]}/{os.environ["UNAUTH_LISTING_STATUS"]} (refused)
 - Return/listing without scoped owner token: HTTP {os.environ["RETURN_NO_OWNER_STATUS"]}/{os.environ["LISTING_NO_OWNER_STATUS"]} (refused)
+- Artifact delivery policy: HTTP {os.environ["ARTIFACT_STATUS"]}, commit pin required, entitlement adapter disabled
+- Artifact release without Function/scoped token: HTTP {os.environ["UNAUTH_ARTIFACT_STATUS"]}/{os.environ["ARTIFACT_NO_TOKEN_STATUS"]} (refused)
 - Client-declared payment success: HTTP {os.environ["UNTRUSTED_PAYMENT_STATUS"]} (rejected)
 - Completion shape: `{completion.get("object")}`
 - Completion model: `{completion.get("model", "gpt-5.4")}`
@@ -510,4 +571,6 @@ printf 'Lifecycle status/return/listing: HTTP %s/%s/%s\n' \
   "$LIFECYCLE_STATUS" "$UNAUTH_RETURN_STATUS" "$UNAUTH_LISTING_STATUS"
 printf 'Lifecycle missing-owner return/listing: HTTP %s/%s\n' \
   "$RETURN_NO_OWNER_STATUS" "$LISTING_NO_OWNER_STATUS"
+printf 'Artifact status/unauth/no-token: HTTP %s/%s/%s\n' \
+  "$ARTIFACT_STATUS" "$UNAUTH_ARTIFACT_STATUS" "$ARTIFACT_NO_TOKEN_STATUS"
 printf 'Keychain: %s / %s\n' "$SERVICE" "$PROFILE_ID"

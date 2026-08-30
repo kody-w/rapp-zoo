@@ -9,6 +9,7 @@ FUNCTION_APP="${ROLLING_CORES_FUNCTION_APP:-rappter-rolling-cores-3d0e6986}"
 STORAGE_ACCOUNT="${ROLLING_CORES_STORAGE_ACCOUNT:-rapprolling3d0e6986}"
 KEY_VAULT="${ROLLING_CORES_KEY_VAULT:-rappter-credit-3d0e6986}"
 SIGNING_KEY="${ROLLING_CORES_SIGNING_KEY:-credit-registry-signing-v1}"
+ARTIFACT_WRAPPING_KEY="${ROLLING_CORES_ARTIFACT_KEY:-artifact-dek-wrapping-v1}"
 TABLE_NAME="${ROLLING_CORES_TABLE_NAME:-RapterCreditRegistry}"
 DEPLOYMENT="${AZURE_OPENAI_DEPLOYMENT:-gpt-5.4}"
 API_VERSION="${AZURE_OPENAI_API_VERSION:-2025-04-01-preview}"
@@ -183,6 +184,18 @@ if ! az keyvault key show \
     --name "$SIGNING_KEY" \
     --output none
 fi
+if ! az keyvault key show \
+  --vault-name "$KEY_VAULT" \
+  --name "$ARTIFACT_WRAPPING_KEY" \
+  --output none 2>/dev/null; then
+  az keyvault key create \
+    --vault-name "$KEY_VAULT" \
+    --name "$ARTIFACT_WRAPPING_KEY" \
+    --kty RSA \
+    --size 2048 \
+    --ops wrapKey unwrapKey \
+    --output none
+fi
 
 AZURE_OPENAI_ENDPOINT="$(
   az cognitiveservices account show \
@@ -218,6 +231,11 @@ az functionapp config appsettings set \
     "WILD_BREATH_MAX_TOTAL_OUTPUT_TOKENS=6144" \
     "WILD_BREATH_MAX_LEASE_SECONDS=86400" \
     "BITCOIN_REFUND_FEE_SATS=0" \
+    "ARTIFACT_KEY_VAULT_URL=https://$KEY_VAULT.vault.azure.net" \
+    "ARTIFACT_WRAPPING_KEY_NAME=$ARTIFACT_WRAPPING_KEY" \
+    "ARTIFACT_MANIFEST_MAX_BYTES=65536" \
+    "ARTIFACT_CIPHERTEXT_MAX_BYTES=52428800" \
+    "ARTIFACT_ENTITLEMENT_MODE=disabled" \
     "CREDIT_PRODUCTS_JSON={}" \
     "PURCHASE_VERIFIER_MODE=disabled" \
   --output none
@@ -227,5 +245,6 @@ printf 'Storage account: %s\n' "$STORAGE_ACCOUNT"
 printf 'Credit table: %s\n' "$TABLE_NAME"
 printf 'Key Vault: %s\n' "$KEY_VAULT"
 printf 'Signing key: %s\n' "$SIGNING_KEY"
+printf 'Artifact wrapping key: %s\n' "$ARTIFACT_WRAPPING_KEY"
 printf 'Endpoint: https://%s.azurewebsites.net\n' "$FUNCTION_APP"
 printf 'Identity role: Cognitive Services OpenAI User at %s\n' "$AI_SCOPE"

@@ -1,6 +1,6 @@
 # Deployment evidence
 
-- Verified: 2026-08-29T23:42:50+00:00
+- Verified: 2026-08-30T00:12:35+00:00
 - Function app: `rappter-rolling-cores-3d0e6986`
 - Endpoint: `https://rappter-rolling-cores-3d0e6986.azurewebsites.net`
 - Credit table: `rapprolling3d0e6986` / `RapterCreditRegistry`
@@ -25,6 +25,8 @@
 - Return/resale lifecycle: HTTP 200, 30-day window, immutable birth valuation
 - Unauthenticated return/listing: HTTP 401/401 (refused)
 - Return/listing without scoped owner token: HTTP 403/403 (refused)
+- Artifact delivery policy: HTTP 200, commit pin required, entitlement adapter disabled
+- Artifact release without Function/scoped token: HTTP 401/403 (refused)
 - Client-declared payment success: HTTP 400 (rejected)
 - Completion shape: `chat.completion`
 - Completion model: `gpt-5.4-2026-03-05`

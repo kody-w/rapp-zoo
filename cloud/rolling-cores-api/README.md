@@ -47,6 +47,8 @@ request an unsigned official record.
 | `POST` | `/v1/resale/listings` | Function | Append a post-window resale listing with a separate ask price. |
 | `POST` | `/v1/resale/listings/cancel` | Function | Cancel the current owner's active listing. |
 | `POST` | `/v1/resale/sales` | Function | Verify settlement and atomically append sale plus ownership-transfer events. |
+| `GET` | `/v1/artifacts/status` | Public | Report delivery limits and entitlement-adapter readiness. |
+| `POST` | `/v1/artifacts/release-key` | Function + scoped token | Validate entitlement, manifest, ciphertext, recipient, expiry, and replay before releasing a recipient-wrapped DEK. |
 
 Every server-side `rappter-credit-registry-entry/1` binds:
 
@@ -202,6 +204,46 @@ receipt redemption cannot create an official credit.
 Return and resale writes also remain disabled until an official-owner token
 verifier, App Store/Play/Bitcoin refund adapters, and a resale-settlement
 verifier are implemented. All adapter references are hashed before persistence.
+
+## Restricted global artifact delivery
+
+GitHub raw may host only public ciphertext and a signed, content-addressed
+`rappter-encrypted-artifact-manifest/1`. Both manifest and ciphertext URLs must
+use `raw.githubusercontent.com` with a full commit SHA; branch names, redirects,
+query-string passwords, and client-embedded master keys are refused.
+
+Each artifact uses a random 256-bit AES-GCM data-encryption key and 96-bit nonce.
+The DEK is wrapped by the versioned Key Vault RSA key
+`artifact-dek-wrapping-v1` using RSA-OAEP-256. The public manifest contains only
+the ciphertext hash/size/URL, nonce, wrapped DEK, AAD, wrapping-key version, and
+issuer signature.
+
+`POST /v1/artifacts/release-key` requires a server-verified token scoped to the
+artifact and device recipient-key thumbprint. The Function verifies token
+expiry/revocation, exact manifest bytes, issuer signature, pinned ciphertext
+bytes, and recipient binding before unwrapping the DEK with managed identity.
+It returns only a new RSA-OAEP-256 envelope for that recipient. One-time token
+IDs are hashed into Table Storage to reject replay.
+
+Create publishable files after the ciphertext has a commit-pinned destination:
+
+```bash
+export ARTIFACT_KEY_VAULT_URL=https://rappter-credit-3d0e6986.vault.azure.net
+export ARTIFACT_WRAPPING_KEY_NAME=artifact-dek-wrapping-v1
+.venv/bin/python ./scripts/package-artifact.py \
+  --input ./capsule.rapp \
+  --ciphertext-output ./public/rapter.ciphertext \
+  --manifest-output ./public/rapter.manifest.json \
+  --ciphertext-url https://raw.githubusercontent.com/OWNER/REPO/FULL_COMMIT_SHA/public/rapter.ciphertext \
+  --logical-name rapter.rapp \
+  --content-type application/vnd.rapterbox.capsule
+```
+
+The entitlement verifier is deployed disabled until a scoped device-token
+issuer is configured. Revocation prevents future DEK releases. It cannot erase
+or claw back plaintext that an authorized recipient previously decrypted.
+Bytecode obfuscation and passwords embedded in URLs or clients are never
+treated as access control.
 
 ## Cost controls and next ledger boundary
 

@@ -84,6 +84,13 @@ unowned, verifiable copy. Later listings, cancellations, sales, and transfers
 are signed append-only events; ask and sale prices never rewrite birth value or
 promise appreciation or liquidity.
 
+Restricted global downloads use public, commit-pinned GitHub raw ciphertext plus
+a signed content-addressed manifest. After scoped entitlement and device-key
+authorization, Azure releases only a recipient-wrapped per-artifact DEK. No
+master key, plaintext key, URL password, or bytecode-obfuscation scheme is
+placed in clients, frames, source, or logs. Revocation stops future key release
+but cannot erase a copy that was previously decrypted.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

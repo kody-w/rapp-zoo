@@ -23,7 +23,9 @@ cp \
   "$APP_DIR/requirements.txt" \
   "$BUILD_DIR/"
 cp -R "$APP_DIR/credits" "$BUILD_DIR/credits"
-find "$BUILD_DIR/credits" -type d -name __pycache__ -prune -exec rm -rf {} +
+cp -R "$APP_DIR/artifacts" "$BUILD_DIR/artifacts"
+find "$BUILD_DIR/credits" "$BUILD_DIR/artifacts" \
+  -type d -name __pycache__ -prune -exec rm -rf {} +
 mkdir -p "$PIP_TEMP"
 TMPDIR="$PIP_TEMP" python3 -m pip install \
   --quiet \

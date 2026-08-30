@@ -3,6 +3,7 @@ import logging
 
 import azure.functions as func
 
+from artifacts import api as artifact_api
 from breathing import wild_breathing_service
 import model_gateway
 from credits import api as credit_api
@@ -153,6 +154,24 @@ def credit_lifecycle(req: func.HttpRequest) -> func.HttpResponse:
 )
 def credit_verify(req: func.HttpRequest) -> func.HttpResponse:
     return credit_api.verify(req)
+
+
+@app.route(
+    route="v1/artifacts/status",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def artifact_status(req: func.HttpRequest) -> func.HttpResponse:
+    return artifact_api.status(req)
+
+
+@app.route(
+    route="v1/artifacts/release-key",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def artifact_release_key(req: func.HttpRequest) -> func.HttpResponse:
+    return artifact_api.release_key(req)
 
 
 @app.route(
