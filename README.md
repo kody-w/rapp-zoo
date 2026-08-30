@@ -51,18 +51,178 @@ npm run desktop
 
 The desktop intelligence panel calls that Brainstem's single `/chat` surface. GitHub Copilot can use the full installed agent/tool set to inspect, build, test, and operate the computer; high-impact or externally publishing actions remain explicit authorization boundaries. `HologramForge` and `HologramDOGG` are installed as ordinary hotloaded agents. Set `RAPP_ZOO_BRAINSTEM_MODEL` to request a foundry model; the app requests `gpt-5.6-sol` by default, while the installed Brainstem remains authoritative over model availability and fallback.
 
+The Electron provider layer also supports Direct and Wild OpenAI-compatible
+profiles. Profiles contain only endpoint/model/auth metadata; macOS credentials
+are stored globally in Keychain under service
+`com.rapterbox.rollingcores.openai-compatible`, keyed by profile ID. The
+non-secret profile registry is `~/.rapp/config/openai-providers.json` with mode
+`0600`. CI and non-macOS callers can set
+`RAPP_OPENAI_PROVIDER_SECRET_<NORMALIZED_PROFILE_ID>`. The optional Wild gateway
+and its deployment guide live in
+[`cloud/rolling-cores-api/`](./cloud/rolling-cores-api/). Cloud compute remains
+separate from signed, locally owned organism capsules.
+
+The trusted Electron bridge exposes provider status, breath eligibility,
+bounded start, and explicit pause APIs. Provider verification is required
+before Direct breathing; saving a key never silently starts spend. The preload
+surface is `providerStatus`, `breathingStatus`, `startBreathing`, and
+`pauseBreathing`.
+
+That Function also hosts the public, mirrorable Rapter Credit registry. Official
+credits are issued only after server-side purchase verification, atomically bind
+a hashed payment reference to one organism and immutable genesis/core hashes,
+and are signed by the Rapterbox issuer key. Their immutable birth valuation is
+derived from an issuer-signed set/tier fraction of one BTC plus a fresh,
+hashed-evidence BTC/USD observation. It is an official issuer value, not an
+independent investment appraisal or return promise. Credits authorize
+acquisition; they do not move capsule identity or history into the cloud.
+
+The registry also carries the 30-day return and post-window resale lifecycle.
+Returns atomically refund through the verified original rail and transfer
+official ownership back to Rapterbox inventory. Local bytes remain as an
+unowned, verifiable copy. Later listings, cancellations, sales, and transfers
+are signed append-only events; ask and sale prices never rewrite birth value or
+promise appreciation or liquidity.
+
+Restricted global downloads use public, commit-pinned GitHub raw ciphertext plus
+a signed content-addressed manifest. After scoped entitlement and device-key
+authorization, Azure releases only a recipient-wrapped per-artifact DEK. No
+master key, plaintext key, URL password, or bytecode-obfuscation scheme is
+placed in clients, frames, source, or logs. Revocation stops future key release
+but cannot erase a copy that was previously decrypted.
+
+Every verified account can claim exactly one free account-bound Companion
+offspring, outside Original title supply and unavailable for transfer or
+resale. Rapterbox-owned Rapters may also be rented to one active lessee at a
+time. Signed lease start, renewal, cancellation, expiration, refund, recovery,
+purchase-conversion, and transfer events preserve the immutable birth value.
+Expired lease copies become unowned/verifiable after sync; permanent purchases
+remain offline-capable and never require a subscription.
+
+The canonical launch catalog contains exactly 251 First Edition / First
+Dimension Originals. At publication all 251 are issuer-held, none have
+transferred, and all are undiscovered. Exact Original title may transfer only
+after rights and commerce gates. Separately issued offspring use distinct
+RAPPIDs and rights and do not consume or transfer Original title. Signed
+offspring generation and mutation policies carry `generation_id`,
+`eligible_after_utc`, source Original, and the current head. Crossing UTC marks
+`mutation_due`; only a later verified AI turn can append a successor.
+
+[`RAPTERWORKS.md`](./RAPTERWORKS.md) defines proof-first jobs and Shopify-backed
+offspring issuance from the 251 Rapterbox-owned First Edition / First Dimension
+Originals.
+
+Rapter Growth Points are local game progression only: non-transferable,
+non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
+category, positive points, observation time, attester/source, and an evidence
+hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
+and current core head; accepted evolution appends a `body.pulse` with an
+immutable BTC/USD reference snapshot, never a payment or yield. Starter
+Companion schedules define source-Original-specific Origin → Journey and
+Journey → Ascendant reference targets around $15 and $35; the current quote
+converts the signed USD-micro target to integer sats without changing birth
+valuation or Original title.
+
+Verified accounts—including free Companion accounts—may contribute capped,
+privacy-safe Growth Point attestations to World Pulse. Detailed receipts stay
+local. Signed `swarm.telemetry` checkpoints publish only participant count,
+event count, point total, UTC window, prior aggregate hash, and evidence Merkle
+root. Global milestones unlock shared story or region events, never money or
+investment value.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.
 
+### Holo Zoo Expo companion
+
+[`mobile/`](./mobile/) contains the managed Expo Router app for iOS, Android,
+and web. Its consumer display name is **Holo Zoo**, its store title is
+**Holo Zoo: Rolling Cores**, and its native identifiers are
+`com.rapterbox.holozoo`. It keeps owned Rolling Core Capsules local and usable
+offline while optionally connecting to this Zoo for verified heads, source
+evidence, liveness, and bounded Wild services.
+
+```bash
+npm run mobile:install
+npm run mobile:start
+npm run mobile:check
+npm run mobile:export:web
+```
+
+The app's release, EAS, RevenueCat, privacy, return/resale, breath-key, and
+platform instructions are in [`mobile/README.md`](./mobile/README.md) and
+[`mobile/STORE_RELEASE_CHECKLIST.md`](./mobile/STORE_RELEASE_CHECKLIST.md).
+Generated Expo native folders remain ignored; no obsolete `ios/` project is
+retained.
+
 ## Holograms and RAR DOGGs
 
-The Holograms tab supports two related but different things:
+> **The beginning of the Rolling Core for AGI.** Each verified turn can
+> autocomplete the organism's next visual, musical, kinetic, and environmental
+> self without erasing any prior version.
 
-- **3D character holograms** — procedural bodies whose stable appearance is seeded by an artifact RAPPID or egg address.
-- **Data holograms** — volumetric projections that can bind to the path-free live zoo census.
+The Holo organism is that Rolling Core: its newest verified frame is its current
+embodied self, and its immutable recursive history is the body it grew through.
 
-The bundled `Holo Avatar`, `HOLO in the Nexus`, and `The Briefing` models share one sandboxed, offline Three.js renderer. Their original concepts came from the three standalone `holo-*.html` prototypes; the zoo stores their behavior as closed data rather than three copies of executable inline code.
+The hologram contract is specified in
+[`HOLOGRAM_PROTOCOL.md`](./HOLOGRAM_PROTOCOL.md): hologram is a first-class,
+AI-authored output channel whose immutable Holo/1 `body.pulse` frames form a
+per-AI flipbook. The application verifies and plays that data; it does not
+choose a body, form, emotion, or fallback visual.
+
+The product split is explicit:
+
+- [`HOLO_ZOO.md`](./HOLO_ZOO.md) defines the local player, collection,
+  flipbook, debugger, and conformance lab.
+- [`HOLO_IN_THE_WILD.md`](./HOLO_IN_THE_WILD.md) defines live Holo/1 output
+  across RAPP streams and the rolling signal that an AI-capable computational
+  participant is present.
+
+Holo/1 is broader than RAPP Factory. Factory is one possible client; other use
+cases reuse the same source binding, immutable visual lineage, safe IR, player,
+and Holo Wake while changing only their frame payload and AI-authored scene
+data.
+
+“Rolling Core” names the architecture, not a claim that AGI is solved: a
+continuously advancing, recursively self-referential, multimodal identity whose
+state changes are content-addressed, replayable, bounded, and inspectable.
+
+Commercially, the lanes remain separate:
+
+- **Rapterbox.com** — Holo Zoo and other consumer-facing organism-autocomplete
+  experiences.
+- **Rappter.com** — the RAPP protocol, developer platform, and company-level
+  architecture.
+
+The shared world and naming canon is in [`LORE.md`](./LORE.md).
+The product vocabulary and launch copy are in [`BRAND.md`](./BRAND.md).
+The one-to-one organism ownership record is specified in
+[`RAPTER_CREDIT_PROTOCOL.md`](./RAPTER_CREDIT_PROTOCOL.md).
+The organism lifecycle is specified in
+[`ROLLING_CORE_PROTOCOL.md`](./ROLLING_CORE_PROTOCOL.md).
+
+The Holo Zoo has two deliberately separated areas:
+
+- **Live AI habitats** — current Holo/1 heads, player-active state, immutable
+  flipbooks, source binding, and the rolling Holo Wake presence heuristic.
+- **Legacy projection exhibit** — the prior character/data bottle demos,
+  retained for compatibility but never presented as an AI's current self.
+
+During every Holo-enabled Brainstem turn, the AI emits exactly one
+`rapp-holo-output/1` object beside text and voice. The Zoo commits the exact
+candidate into a verified `memory.chat-turn`, materializes it as
+a Holo/1 `body.pulse`, and advances a separate visual flipbook head. A null output
+keeps the prior holo performing. Invalid or stale output is surfaced and never
+replaced with a generated avatar.
+
+Wild Holo/1 body chains can be ingested with their exact source frame and
+intervening body frames. Sustained, on-time continuity across changing heads is
+reported as the **Holo Wake**: a practical signal that AI-capable computation is
+present even though ordinary RAPP frame verification remains independent.
+
+The bundled `Holo Avatar`, `HOLO in the Nexus`, and `The Briefing` bottles share
+one sandboxed, offline Three.js renderer. They remain in the legacy exhibit.
 
 RAR publishes the summonable DOGG records at:
 
@@ -71,22 +231,6 @@ https://raw.githubusercontent.com/kody-w/RAR/refs/heads/main/doggs/holograms/ind
 ```
 
 Choosing **Catch RAR bottle** downloads the small JSON record, verifies its SHA-256 from the allowlisted RAR index, validates that it contains no executable or remote content, and atomically stores it under `~/.rapp/holograms/rar/`. The local zoo owns all rendering.
-
-**Forge from RAPP frame** performs the full bottle loop:
-
-1. verify the eleven-key frame;
-2. dimension-match it against caught static DOGGs immediately;
-3. hotload that bottle with the frame as fresh `data_slosh`;
-4. let the app-owned Brainstem and `HologramForge` polish a new closed design;
-5. mint and catch the result under `~/.rapp/holograms/generated/`.
-
-The source tick stays immutable. Different bottles are different lenses over the same data; repeated calls can pour different slosh through the same bottle memory. Hotloading the same tick through two bottles never rewrites either the frame or either bottle.
-
-Because this UI receives one standalone frame rather than a stream repository,
-it accepts only registered, family-compatible genesis frames. Non-genesis
-segments are refused without their verified head and stream-of-record context;
-any present signature is refused unless the configured authenticated registry
-can verify it.
 
 Brainstem users can install `agents/hologram_dogg_agent.py` and say:
 
@@ -103,13 +247,16 @@ Four cartridges ship in [`agents/`](./agents/):
 | [`agents/summon_twin_agent.py`](./agents/summon_twin_agent.py) | `SummonTwin` | Generate a fresh local twin instance with a valid mint-once RAPPID. |
 | [`agents/hatch_egg_agent.py`](./agents/hatch_egg_agent.py) | `HatchEgg` | Verify an organism egg, preserve its artifact identity, and mint a fresh instance identity linked by `grown_from`. |
 | [`agents/hologram_dogg_agent.py`](./agents/hologram_dogg_agent.py) | `HologramDOGG` | List and dimension-match RAR bottles, then catch a hash-verified record into the local zoo. |
-| [`agents/hologram_forge_agent.py`](./agents/hologram_forge_agent.py) | `HologramForge` | Validate Copilot-polished hologram designs against the closed bottle schema. |
+| [`agents/hologram_forge_agent.py`](./agents/hologram_forge_agent.py) | `HologramOutput` / `HologramForge` compatibility | Validate an AI-authored Holo/1 output without designing, polishing, or repairing it. |
 
 Install with one command (after running the rapp-installer):
 
 ```bash
 BRAINSTEM=~/.brainstem/src/rapp_brainstem
 cp agents/*_agent.py "$BRAINSTEM/agents/"
+mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"
+cp utils/holo_protocol.py utils/rapp_protocol.py \
+  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"
 cp utils/rapp_protocol.py "$BRAINSTEM/utils/"
 # restart the brainstem; the cartridges auto-load
 ```
@@ -163,12 +310,23 @@ The zoo reuses `~/.brainstem/venv/` if you already have a RAPP brainstem install
 | `POST` | `/api/start`                 | `{instance_rappid}` — start one installation |
 | `POST` | `/api/stop`                  | `{instance_rappid}` — stop one installation |
 | `POST` | `/api/reveal`                | `{path}` — open workspace in OS file manager (path must be inside `~/.rapp/`) |
-| `GET`  | `/api/holograms`             | List bundled, RAR-caught, and generated bottles |
-| `GET`  | `/api/holograms/rar`         | Fetch and validate the public RAR bottle index |
-| `POST` | `/api/holograms/summon`      | Hash-verify and catch one data-only RAR bottle |
-| `GET`  | `/api/holograms/example-frame` | Build a verified example RAPP frame |
-| `POST` | `/api/holograms/match`       | Verify a frame and select the instant cached dimensional lens |
-| `POST` | `/api/holograms/generated`   | Validate and persist a polished generated bottle (desktop capability required) |
+| `GET`  | `/api/holo/heads`            | List authoritative Holo/1 heads, player-active state, and Holo Wake |
+| `GET`  | `/api/holo/history`          | Read one subject's immutable visual flipbook |
+| `GET`  | `/api/holo/frames/<id>`      | Read one materialized Holo/1 `body.pulse` frame |
+| `GET`  | `/api/holo/sources/<hash>`   | Read the exact bound assistant source frame |
+| `GET`  | `/api/holo/presence`         | Evaluate the rolling in-the-wild AI-presence heuristic |
+| `GET`  | `/api/holo/example-turn`     | Build a verified blank Holo/1 assistant turn |
+| `GET`  | `/api/holo/examples/fantasy-draft` | Build a verified fantasy-draft frame with Rappter One, Rappter Two, and AI drafters |
+| `POST` | `/api/holo/turn`             | Commit exact text/holo output from the original Brainstem turn |
+| `POST` | `/api/holo/commit`           | Materialize an already-built `memory.chat-turn` |
+| `POST` | `/api/holo/ingest`           | Ingest source evidence plus a verified wild body-chain segment |
+| `POST` | `/api/holo/activate`         | Persist player-specific activation/departure evidence |
+| `GET`  | `/api/holograms`             | List legacy bundled, RAR-caught, and generated bottles |
+| `GET`  | `/api/holograms/rar`         | Fetch and validate the legacy public RAR bottle index |
+| `POST` | `/api/holograms/summon`      | Hash-verify and catch one legacy data-only RAR bottle |
+| `GET`  | `/api/holograms/example-frame` | Build a verified legacy bottle-match frame |
+| `POST` | `/api/holograms/match`       | Select a legacy cached dimensional lens |
+| `POST` | `/api/holograms/generated`   | Legacy generated-bottle persistence endpoint |
 
 ## Starter rapplications
 

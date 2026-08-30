@@ -107,6 +107,10 @@ def _stage_cartridges() -> str:
     ):
         src = _REPO_ROOT / "agents" / cart
         shutil.copy2(src, os.path.join(tmp_agents, cart))
+    protocol_dir = pathlib.Path(tmp_agents) / "rapp_zoo_holo_protocol"
+    protocol_dir.mkdir()
+    for filename in ("holo_protocol.py", "rapp_protocol.py"):
+        shutil.copy2(_REPO_ROOT / "utils" / filename, protocol_dir / filename)
     return tmp_agents
 
 
@@ -121,6 +125,27 @@ def _register_protocol_shim():
     if utils_pkg is not None:
         setattr(utils_pkg, "rapp_protocol", rapp_protocol)
     return rapp_protocol
+
+
+class TestDocumentedCartridgeInstall(unittest.TestCase):
+    def test_readme_installs_both_protocol_modules_in_the_sibling_package(self):
+        readme = (_REPO_ROOT / "README.md").read_text()
+        self.assertIn(
+            'mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"',
+            readme,
+        )
+        self.assertIn(
+            "cp utils/holo_protocol.py utils/rapp_protocol.py \\\n"
+            '  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"',
+            readme,
+        )
+        agents_dir = pathlib.Path(_stage_cartridges())
+        try:
+            protocol_dir = agents_dir / "rapp_zoo_holo_protocol"
+            self.assertTrue((protocol_dir / "holo_protocol.py").is_file())
+            self.assertTrue((protocol_dir / "rapp_protocol.py").is_file())
+        finally:
+            shutil.rmtree(agents_dir, ignore_errors=True)
 
 
 @unittest.skipUnless(HAVE_BRAINSTEM, "ancestor brainstem.py not available")
@@ -227,42 +252,38 @@ class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
         finally:
             shutil.rmtree(agents_dir, ignore_errors=True)
 
-    def test_hologram_forge_agent_accepts_closed_design(self):
+    def test_hologram_forge_agent_accepts_exact_holo_output(self):
         agents_dir = _stage_cartridges()
+        previous_schema = os.environ.get("RAPP_HOLO_OUTPUT_SCHEMA")
+        os.environ["RAPP_HOLO_OUTPUT_SCHEMA"] = str(
+            _REPO_ROOT
+            / "holograms"
+            / "protocol"
+            / "rapp-holo-output.schema.json"
+        )
         try:
             cart_path = os.path.join(agents_dir, "hologram_forge_agent.py")
             loaded = _brainstem._load_agent_from_file(cart_path)
             self.assertIn("HologramForge", loaded)
-            frame = {
-                "spec": "rapp/1",
-                "kind": "body.pulse",
-                "stream_id": "rappid:@kody-w/test:" + "a" * 64,
-                "seq": 0,
-                "utc": "2026-08-28T20:00:00.000Z",
-                "payload": {"query": "make a character"},
-                "payload_hash": "b" * 64,
-                "frame_hash": "c" * 64,
-                "prev": None,
-                "prev_wave": None,
-                "sig": None,
-            }
-            design = {
-                "name": "Frame Ghost",
-                "kind": "character",
-                "accent": "violet",
-                "description": "A reusable bottle shaped by one frame.",
-                "scene": {
-                    "title": "Frame Ghost",
-                    "subtitle": "Fresh slosh, stable memory.",
-                },
-            }
+            authored = json.loads(
+                (
+                    _REPO_ROOT
+                    / "holograms"
+                    / "protocol"
+                    / "examples"
+                    / "minimal-blank-output.json"
+                ).read_text()
+            )
             result = json.loads(loaded["HologramForge"].perform(
-                frame_json=json.dumps(frame),
-                design_json=json.dumps(design),
+                authored_holo_output=authored,
             ))
             self.assertEqual(result["status"], "ok")
-            self.assertEqual(result["design"], design)
+            self.assertEqual(result["authored"], authored)
         finally:
+            if previous_schema is None:
+                os.environ.pop("RAPP_HOLO_OUTPUT_SCHEMA", None)
+            else:
+                os.environ["RAPP_HOLO_OUTPUT_SCHEMA"] = previous_schema
             shutil.rmtree(agents_dir, ignore_errors=True)
 
     def test_summon_twin_perform_creates_viable_workspace(self):

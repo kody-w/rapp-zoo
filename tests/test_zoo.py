@@ -492,7 +492,9 @@ class TestZooEndpoints(unittest.TestCase):
             self.assertNotIn(private_path, encoded)
             self.assertEqual(response.get_json()["health"]["instance_count"], 1)
             self.assertIn("brainstem.open", response.get_json()["visible_controls"])
-            self.assertIn("hologram.generate", response.get_json()["visible_controls"])
+            self.assertIn("holo.view-current", response.get_json()["visible_controls"])
+            self.assertIn("holo.flipbook", response.get_json()["visible_controls"])
+            self.assertIn("holo.presence", response.get_json()["visible_controls"])
             self.assertEqual(response.get_json()["health"]["hologram_count"], 3)
             self.assertIn("nav.holograms", response.get_json()["visible_controls"])
 
@@ -512,6 +514,17 @@ class TestZooEndpoints(unittest.TestCase):
             for entry in entries:
                 self.assertTrue(R.rappid_valid(entry["rappid"]))
 
+    def test_holo_zoo_ui_separates_live_habitats_from_legacy_bottles(self):
+        with IsolatedHome():
+            response = self.client.get("/")
+            html = response.get_data(as_text=True)
+            self.assertIn("Holo Zoo", html)
+            self.assertIn("Live AI habitats", html)
+            self.assertIn("Legacy projection exhibit", html)
+            self.assertNotIn("Forge from RAPP frame", html)
+            self.assertNotIn("Match → polish → catch", html)
+            response.close()
+
     def test_hologram_viewer_is_allowlisted_and_sandbox_ready(self):
         with IsolatedHome():
             response = self.client.get("/holograms/holo-avatar")
@@ -519,6 +532,11 @@ class TestZooEndpoints(unittest.TestCase):
             html = response.get_data(as_text=True)
             self.assertIn('"id":"holo-avatar"', html)
             self.assertIn("/static/vendor/three-r128.min.js", html)
+            self.assertIn("/static/holo-protocol.js", html)
+            self.assertLess(
+                html.index("/static/holo-protocol.js"),
+                html.index("/static/hologram-runtime.js"),
+            )
             self.assertNotIn("cdnjs.cloudflare.com", html)
             self.assertNotIn("__HOLOGRAM_CONFIG__", html)
             self.assertNotIn("__HOLOGRAM_NONCE__", html)
@@ -526,7 +544,7 @@ class TestZooEndpoints(unittest.TestCase):
             self.assertIn("connect-src 'none'", csp)
             nonce = re.search(r"script-src 'nonce-([^']+)'", csp)
             self.assertIsNotNone(nonce)
-            self.assertEqual(html.count(f'nonce="{nonce.group(1)}"'), 4)
+            self.assertEqual(html.count(f'nonce="{nonce.group(1)}"'), 5)
             self.assertIn("frame-ancestors 'self' http://127.0.0.1:7070", csp)
             self.assertNotIn("'unsafe-inline'", csp)
             response.close()

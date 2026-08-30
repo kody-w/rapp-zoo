@@ -1,0 +1,80 @@
+:root {
+  color-scheme: dark;
+  --ink: #e6f6ff;
+  --dim: #86a8bc;
+  --beam: #7fd4ff;
+  --deep: #03070c;
+  --panel: rgba(5, 13, 21, .82);
+}
+* { box-sizing: border-box; }
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at 60% 35%, #0c1b29 0, var(--deep) 55%);
+  color: var(--ink);
+  font: 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#hologram-canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+.hologram-hud {
+  position: fixed;
+  z-index: 2;
+  top: 18px;
+  left: 18px;
+  width: min(380px, calc(100vw - 36px));
+  padding: 15px 17px;
+  border: 1px solid rgba(127, 212, 255, .28);
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .34);
+}
+.hologram-kind {
+  color: var(--beam);
+  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .16em;
+}
+h1 {
+  margin: 7px 0 4px;
+  color: #dff5ff;
+  font-size: 20px;
+  letter-spacing: .02em;
+}
+#hologram-subtitle { margin: 0 0 12px; color: var(--dim); font-size: 12px; }
+.hologram-facts {
+  display: grid;
+  gap: 5px;
+  color: #b9d7e7;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.hologram-fact {
+  padding-top: 5px;
+  border-top: 1px solid rgba(127, 212, 255, .12);
+  overflow-wrap: anywhere;
+}
+.hologram-fact b { color: var(--beam); font-weight: 600; }
+.hologram-tip {
+  position: fixed;
+  z-index: 2;
+  right: 18px;
+  bottom: 16px;
+  color: var(--dim);
+  font-size: 11px;
+  text-align: right;
+}
+.hologram-error {
+  color: #ff8b8b;
+}
+@media (max-width: 640px) {
+  .hologram-hud {
+    top: 10px;
+    left: 10px;
+    width: calc(100vw - 20px);
+    padding: 11px 13px;
+  }
+  h1 { font-size: 16px; }
+  #hologram-subtitle { margin-bottom: 7px; }
+  .hologram-tip { right: 10px; bottom: 9px; max-width: 55vw; }
+}

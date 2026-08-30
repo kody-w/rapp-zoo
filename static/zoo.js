@@ -565,19 +565,42 @@ async function loadStarters() {
   }
 }
 
-// ── Holograms: sandboxed 3D characters + data projections ───────────
+// ── Holo Zoo: live Holo/1 habitats + quarantined legacy bottles ─────
+let holoHeads = [];
 let hologramEntries = [];
 let activeHologram = null;
 let activeHologramContext = null;
 let currentDataSlosh = null;
-let hologramPolishing = false;
-let justCaughtHologramId = null;
 
 async function loadHolograms() {
-  const root = $('holograms');
-  root.innerHTML = '<div class="empty">Calibrating emitters…</div>';
+  const legacyRoot = $('holograms');
+  const headsRoot = $('holo-heads');
+  legacyRoot.innerHTML = '<div class="empty">Loading legacy exhibit…</div>';
+  headsRoot.innerHTML = '<div class="empty">Watching for Holo/1 streams…</div>';
   try {
-    const data = await api('/api/holograms');
+    const [data, headData] = await Promise.all([
+      api('/api/holograms'),
+      api('/api/holo/heads'),
+    ]);
+    holoHeads = headData.heads || [];
+    $('holo-heads-count').textContent = `${holoHeads.length} current`;
+    headsRoot.innerHTML = holoHeads.length
+      ? holoHeads.map(holoHeadHTML).join('')
+      : '<div class="empty">No AI has emitted a Holo/1 output yet. The stage stays empty until an AI chooses one.</div>';
+    headsRoot.onclick = event => {
+      const open = event.target.closest('button[data-holo-open]');
+      if (open) {
+        const head = holoHeads.find(item => item.holo_id === open.dataset.holoOpen);
+        if (head) openCurrentHolo(head);
+        return;
+      }
+      const history = event.target.closest('button[data-holo-history]');
+      if (history) {
+        const head = holoHeads.find(item => item.subject_rappid === history.dataset.holoHistory);
+        if (head) showHoloHistory(head);
+      }
+    };
+
     const local = data.holograms || [];
     let remote = [];
     try {
@@ -601,8 +624,9 @@ async function loadHolograms() {
       }
     }
     hologramEntries = [...byId.values()];
-    $('holograms-count').textContent = `${hologramEntries.length} bottles`;
-    root.innerHTML = hologramEntries.map(entry => {
+    $('holograms-count').textContent =
+      `${holoHeads.length} live · ${hologramEntries.length} legacy`;
+    legacyRoot.innerHTML = hologramEntries.map(entry => {
       const rarAction = entry.rar_notarized
         ? '<span class="pill live">RAR bottle ✓</span>'
         : `<button class="btn" data-hologram-summon="${escapeHtml(entry.id)}" data-zoo-control="hologram.summon.${escapeHtml(entry.id)}">Catch RAR bottle</button>`;
@@ -615,22 +639,31 @@ async function loadHolograms() {
       const html = holocardHTML({
         ...entry,
         type: entry.kind === 'character' ? 'twin' : 'analysis',
-        tagline: entry.description,
+        tagline: `Legacy projection · ${entry.description}`,
       }, 'hologram', { actions });
       return html.replace('class="sprite"', 'class="sprite hologram-card-art"');
     }).join('');
-    root.onclick = event => {
+    legacyRoot.onclick = event => {
       const button = event.target.closest('button[data-hologram]');
       if (button) {
-        openHologram(button.dataset.hologram);
+        openLegacyHologram(button.dataset.hologram);
         return;
       }
       const summon = event.target.closest('button[data-hologram-summon]');
       if (summon) summonHologramDogg(summon.dataset.hologramSummon, summon);
     };
-    bindHoloTilt(root);
+    bindHoloTilt(legacyRoot);
+    if (activeHologram?.mode === 'holo/1' && activeHologram.live) {
+      const newest = holoHeads.find(
+        head => head.subject_rappid === activeHologram.subject_rappid,
+      );
+      if (newest && newest.holo_id !== activeHologram.target_holo_id) {
+        await queueHoloCatchup(newest);
+      }
+    }
   } catch (error) {
-    root.innerHTML = `<div class="err">${escapeHtml(error.message)}</div>`;
+    headsRoot.innerHTML = `<div class="err">${escapeHtml(error.message)}</div>`;
+    legacyRoot.innerHTML = '<div class="empty">Legacy exhibit unavailable.</div>';
   }
 
   async function summonHologramDogg(id, button) {
@@ -653,8 +686,120 @@ async function loadHolograms() {
   }
 }
 
+function holoSubjectName(rappid) {
+  const slash = String(rappid || '').lastIndexOf('/');
+  const colon = String(rappid || '').lastIndexOf(':');
+  return slash >= 0 && colon > slash ? rappid.slice(slash + 1, colon) : rappid;
+}
+
+function holoPresence(head) {
+  const classification = head.presence?.classification || 'indeterminate';
+  if (classification === 'ai-present-likely') {
+    return { label: 'Holo Wake active', cls: 'live' };
+  }
+  if (classification === 'unassisted-human-likely') {
+    return { label: 'Holo Wake lost', cls: 'err' };
+  }
+  return { label: 'Wake gathering', cls: '' };
+}
+
+function holoHeadHTML(head) {
+  const presence = holoPresence(head);
+  const playerState = head.player_active_holo_id === head.holo_id
+    ? '<span class="pill live">player active</span>'
+    : head.player_active_holo_id
+      ? '<span class="pill err">player behind</span>'
+      : '<span class="pill">not opened here</span>';
+  return `
+    <article class="card holo-stream-card" data-holo-id="${escapeHtml(head.holo_id)}">
+      <div class="holo-stream-mark" aria-hidden="true">H/1</div>
+      <div class="body">
+        <div class="holo-header">
+          <span class="dex-num mono">#${String(head.holo_seq).padStart(3, '0')}</span>
+          <h3>${escapeHtml(holoSubjectName(head.subject_rappid))}</h3>
+          <span class="pill ${presence.cls}">${escapeHtml(presence.label)}</span>
+        </div>
+        <div class="rappid">${escapeHtml(head.subject_rappid)}</div>
+        <div class="meta">
+          <span class="pill live">current rolling core</span>
+          ${playerState}
+          <span class="pill">body ${head.body_seq}</span>
+          <span class="pill">immutable</span>
+        </div>
+        <div class="desc mono">holo ${escapeHtml(head.holo_id.slice(0, 16))}…<br>source ${escapeHtml(head.source_frame_hash.slice(0, 16))}…</div>
+        <div class="actions">
+          <button class="btn primary" data-holo-open="${escapeHtml(head.holo_id)}">Open current</button>
+          <button class="btn" data-holo-history="${escapeHtml(head.subject_rappid)}">Flipbook</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function holoPlayerId(subjectRappid) {
+  return `zoo-${simpleHash(subjectRappid).toString(16)}`;
+}
+
+async function holoHistory(subjectRappid) {
+  return api(
+    `/api/holo/history?subject_rappid=${encodeURIComponent(subjectRappid)}&limit=256`,
+  );
+}
+
+function holoPlayerUpdate(item, historyData, authoritativeHoloId) {
+  const older = Object.fromEntries(
+    historyData.frames
+      .filter(frame => frame.holo_seq < item.holo_seq)
+      .map(frame => [frame.holo_id, frame.frame]),
+  );
+  return {
+    schema: 'rapp-holo-player-update/1',
+    authoritative_holo_id: authoritativeHoloId,
+    holo_id: item.holo_id,
+    record: item.frame,
+    base: item.visual_parent ? older[item.visual_parent] : null,
+    history: older,
+  };
+}
+
+function sendNextHoloUpdate() {
+  if (
+    activeHologram?.mode !== 'holo/1'
+    || !activeHologram.live
+    || activeHologram.updateInFlight
+    || !activeHologram.pendingUpdates?.length
+    || !$('hologram-frame').contentWindow
+  ) return;
+  const item = activeHologram.pendingUpdates.shift();
+  activeHologram.updateInFlight = item.holo_id;
+  $('hologram-frame').contentWindow.postMessage(
+    holoPlayerUpdate(
+      item,
+      activeHologram.historyData,
+      activeHologram.target_holo_id,
+    ),
+    '*',
+  );
+}
+
+async function queueHoloCatchup(head) {
+  const data = await holoHistory(head.subject_rappid);
+  const ascending = data.frames.slice().reverse();
+  const currentIndex = ascending.findIndex(
+    item => item.holo_id === activeHologram?.id,
+  );
+  if (!activeHologram || currentIndex < 0) return;
+  activeHologram.historyData = data;
+  activeHologram.target_holo_id = head.holo_id;
+  activeHologram.pendingUpdates = ascending.slice(currentIndex + 1);
+  sendNextHoloUpdate();
+}
+
 function sendHologramContext(context) {
-  if (!activeHologram || !$('hologram-frame').contentWindow) return;
+  if (
+    !activeHologram
+    || activeHologram.mode === 'holo/1'
+    || !$('hologram-frame').contentWindow
+  ) return;
   $('hologram-frame').contentWindow.postMessage({
     schema: 'rapp-zoo-hologram-context/1.0',
     hologram_id: activeHologram.id,
@@ -662,18 +807,7 @@ function sendHologramContext(context) {
   }, '*');
 }
 
-function openHologram(id) {
-  if (justCaughtHologramId !== id) justCaughtHologramId = null;
-  activeHologram = hologramEntries.find(entry => entry.id === id);
-  if (!activeHologram) return;
-  activeHologramContext = currentDataSlosh;
-  $('hologram-viewer-kind').textContent = activeHologram.kind === 'character'
-    ? '3D CHARACTER BOTTLE'
-    : 'DATA HOLOGRAM BOTTLE';
-  $('hologram-viewer-title').textContent = activeHologram.name;
-  $('hologram-binding-status').textContent = currentDataSlosh
-    ? 'data slosh'
-    : 'bottle memory';
+function prepareHologramFrame(src) {
   const frame = $('hologram-frame');
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
   frame.setAttribute(
@@ -683,22 +817,199 @@ function openHologram(id) {
   const hologramOrigin = loopback
     ? `${location.protocol}//hologram.localhost:${location.port}`
     : location.origin;
-  frame.src = `${hologramOrigin}/holograms/${encodeURIComponent(activeHologram.id)}`;
-  if (!$('hologram-dialog').open) $('hologram-dialog').showModal();
+  frame.src = hologramOrigin + src;
+  if (!$('hologram-dialog').open) {
+    if (
+      desktopBridge
+      && window.matchMedia('(min-width: 1100px)').matches
+    ) {
+      $('hologram-dialog').show();
+    } else {
+      $('hologram-dialog').showModal();
+    }
+  }
 }
 
-window.addEventListener('message', event => {
+function openLegacyHologram(id) {
+  activeHologram = hologramEntries.find(entry => entry.id === id);
+  if (!activeHologram) return;
+  activeHologram.mode = 'legacy';
+  activeHologramContext = currentDataSlosh;
+  $('hologram-viewer-kind').textContent = activeHologram.kind === 'character'
+    ? 'LEGACY CHARACTER BOTTLE'
+    : 'LEGACY DATA BOTTLE';
+  $('hologram-viewer-title').textContent = activeHologram.name;
+  $('hologram-mode-note').textContent =
+    'Legacy projection exhibit. This bottle is not an AI Holo/1 self.';
+  $('hologram-binding-status').textContent = currentDataSlosh
+    ? 'data slosh'
+    : 'bottle memory';
+  document.querySelectorAll('.legacy-hologram-control').forEach(node => {
+    node.hidden = false;
+  });
+  $('holo-flipbook').hidden = true;
+  prepareHologramFrame(`/holograms/${encodeURIComponent(activeHologram.id)}`);
+}
+
+async function openHoloFrame(item) {
+  const subject = item.subject_rappid || item.frame?.stream_id;
+  const holoId = item.holo_id || item.frame?.frame_hash;
+  if (!subject || !holoId) return;
+  const current = holoHeads.find(head => head.subject_rappid === subject);
+  activeHologram = {
+    id: holoId,
+    mode: 'holo/1',
+    subject_rappid: subject,
+    holo_seq: item.holo_seq ?? item.frame?.payload?.holo_seq,
+    live: false,
+    target_holo_id: current?.holo_id || holoId,
+    pendingUpdates: [],
+    updateInFlight: null,
+  };
+  activeHologramContext = null;
+  $('hologram-viewer-kind').textContent =
+    current?.holo_id === holoId ? 'CURRENT AI HOLO · H/1' : 'IMMUTABLE HOLO HISTORY · H/1';
+  $('hologram-viewer-title').textContent = holoSubjectName(subject);
+  $('hologram-mode-note').textContent =
+    'Exact AI-authored output. The Zoo validates and plays it without choosing a form.';
+  $('hologram-binding-status').textContent =
+    current?.holo_id === holoId ? holoPresence(current).label : `flipbook #${activeHologram.holo_seq}`;
+  document.querySelectorAll('.legacy-hologram-control').forEach(node => {
+    node.hidden = true;
+  });
+  await showHoloHistory(current || { subject_rappid: subject, holo_id: holoId });
+  prepareHologramFrame(`/holo/${encodeURIComponent(holoId)}`);
+}
+
+async function openCurrentHolo(head) {
+  const data = await holoHistory(head.subject_rappid);
+  const ascending = data.frames.slice().reverse();
+  const persistedIndex = ascending.findIndex(
+    item => item.holo_id === head.player_active_holo_id,
+  );
+  const startIndex = persistedIndex >= 0 ? persistedIndex : 0;
+  const start = ascending[startIndex];
+  if (!start) throw new Error('Current Holo history is unavailable.');
+  activeHologram = {
+    id: start.holo_id,
+    mode: 'holo/1',
+    subject_rappid: head.subject_rappid,
+    holo_seq: start.holo_seq,
+    live: true,
+    target_holo_id: head.holo_id,
+    historyData: data,
+    pendingUpdates: ascending.slice(startIndex + 1),
+    updateInFlight: null,
+  };
+  activeHologramContext = null;
+  $('hologram-viewer-kind').textContent = 'CURRENT ROLLING CORE · H/1';
+  $('hologram-viewer-title').textContent = holoSubjectName(head.subject_rappid);
+  $('hologram-mode-note').textContent =
+    'Exact AI-authored output. The Zoo validates and plays it without choosing a form.';
+  $('hologram-binding-status').textContent =
+    start.holo_id === head.holo_id ? holoPresence(head).label : 'catching up flipbook';
+  document.querySelectorAll('.legacy-hologram-control').forEach(node => {
+    node.hidden = true;
+  });
+  await showHoloHistory(head, data);
+  prepareHologramFrame(`/holo/${encodeURIComponent(start.holo_id)}`);
+}
+
+async function showHoloHistory(head, loadedData = null) {
+  const root = $('holo-flipbook');
+  root.hidden = false;
+  root.innerHTML = '<span class="muted small">Loading immutable flipbook…</span>';
+  try {
+    const data = loadedData || await holoHistory(head.subject_rappid);
+    root.innerHTML = `
+      <div class="holo-flipbook-head">
+        <strong>Flipbook</strong>
+        <span class="muted small">${data.frames.length} retained frames</span>
+      </div>
+      <div class="holo-flipbook-strip">
+        ${data.frames.slice().reverse().map(item => `
+          <button class="holo-frame-chip${item.holo_id === head.holo_id ? ' is-current' : ''}"
+                  data-holo-flipbook-open="${escapeHtml(item.holo_id)}"
+                  title="${escapeHtml(item.holo_id)}">
+            H${item.holo_seq}
+          </button>`).join('')}
+      </div>`;
+    root.onclick = event => {
+      const button = event.target.closest('button[data-holo-flipbook-open]');
+      if (!button) return;
+      const item = data.frames.find(frame => frame.holo_id === button.dataset.holoFlipbookOpen);
+      if (item) openHoloFrame({
+        ...item,
+        subject_rappid: data.subject_rappid,
+      });
+    };
+  } catch (error) {
+    root.innerHTML = `<span class="err">${escapeHtml(error.message)}</span>`;
+  }
+}
+
+window.addEventListener('message', async event => {
   if (event.source !== $('hologram-frame').contentWindow) return;
   const message = event.data || {};
-  if (message.hologram_id !== activeHologram?.id) return;
+  const messageId = message.holo_id || message.hologram_id;
+  if (
+    activeHologram?.mode !== 'holo/1'
+    && messageId !== activeHologram?.id
+  ) return;
+  if (message.schema === 'rapp-holo-ready/1') {
+    $('hologram-binding-status').textContent = 'Holo/1 ready';
+    return;
+  }
+  if (message.schema === 'rapp-holo-active/1') {
+    $('hologram-binding-status').textContent = message.authoritative
+      ? 'current AI holo'
+      : 'historical holo';
+    if (activeHologram?.live) {
+      try {
+        await api('/api/holo/activate', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            player_id: holoPlayerId(activeHologram.subject_rappid),
+            previous_active_holo_id: message.previous_active_holo_id ?? null,
+            departure_logical_ms: message.departure_logical_ms ?? null,
+            departure_manifest_hash: message.departure_manifest_hash ?? null,
+            new_holo_id: message.holo_id,
+          }),
+        });
+        activeHologram.id = message.holo_id;
+        activeHologram.holo_seq = activeHologram.historyData?.frames.find(
+          item => item.holo_id === message.holo_id,
+        )?.holo_seq ?? activeHologram.holo_seq;
+        activeHologram.updateInFlight = null;
+        if (activeHologram.pendingUpdates.length) {
+          $('hologram-binding-status').textContent = 'catching up flipbook';
+          sendNextHoloUpdate();
+        } else {
+          $('hologram-binding-status').textContent = message.authoritative
+            ? 'current AI holo'
+            : 'player caught up';
+          await loadHolograms();
+        }
+      } catch (error) {
+        activeHologram.updateInFlight = null;
+        $('hologram-binding-status').textContent = 'active locally · record failed';
+        toast(error.message, 'err');
+      }
+    }
+    return;
+  }
+  if (message.schema === 'rapp-holo-error/1') {
+    $('hologram-binding-status').textContent = 'player held prior holo';
+    toast(message.error || 'Holo/1 output refused', 'err');
+    return;
+  }
   if (message.schema === 'rapp-zoo-hologram-ready/1.0') {
-    sendHologramContext(activeHologramContext);
+    if (activeHologram?.mode === 'holo/1') sendNextHoloUpdate();
+    else sendHologramContext(activeHologramContext);
   } else if (message.schema === 'rapp-zoo-hologram-bound/1.0') {
-    $('hologram-binding-status').textContent = hologramPolishing
-      ? `matched ${activeHologram.name} · polishing`
-      : justCaughtHologramId === activeHologram.id
-        ? 'new bottle caught'
-      : message.live ? 'data slosh' : 'bottle memory';
+    $('hologram-binding-status').textContent =
+      message.live ? 'data slosh' : 'bottle memory';
   } else if (message.schema === 'rapp-zoo-hologram-error/1.0') {
     $('hologram-binding-status').textContent = 'projection error';
     toast(message.error || 'Hologram projection failed', 'err');
@@ -730,6 +1041,7 @@ $('hologram-close').addEventListener('click', () => {
 });
 $('hologram-dialog').addEventListener('close', () => {
   $('hologram-frame').src = 'about:blank';
+  $('holo-flipbook').hidden = true;
   activeHologram = null;
   activeHologramContext = null;
 });
@@ -1346,6 +1658,23 @@ const desktopBridge = window.rappZooDesktop;
 let copilotBusy = false;
 let copilotAssistant = null;
 
+function renderBreathingStatus(status) {
+  const breathing = status?.breathing || {};
+  const eligibility = status?.eligibility || {};
+  const running = breathing.state === 'running';
+  const label = running
+    ? `Breathing ${breathing.successful_ticks || 0}/${breathing.limits?.max_ticks || 0}`
+    : eligibility.eligible
+      ? `Breathing ${breathing.state || 'paused'}`
+      : 'Breath key unavailable';
+  $('breathing-status').textContent = label;
+  $('breathing-status').title = (
+    eligibility.reason_codes || [breathing.pause_reason]
+  ).filter(Boolean).join(', ');
+  $('breathing-start').disabled = !eligibility.eligible || running;
+  $('breathing-pause').disabled = !running;
+}
+
 function copilotMessage(kind, text) {
   const node = document.createElement('div');
   node.className = 'copilot-message ' + kind;
@@ -1363,20 +1692,62 @@ function setCopilotBusy(busy) {
   $('copilot-status').textContent = busy ? 'thinking' : 'ready';
 }
 
+function setCopilotPanel(open) {
+  const dialog = $('copilot-dialog');
+  const docked = Boolean(
+    desktopBridge
+    && window.matchMedia('(min-width: 1100px)').matches
+  );
+  if (!open) {
+    document.body.classList.remove('copilot-dock-open');
+    if (dialog.open) dialog.close();
+    return;
+  }
+  if (dialog.open) dialog.close();
+  if (docked) {
+    document.body.classList.add('copilot-dock-open');
+    dialog.show();
+  } else {
+    document.body.classList.remove('copilot-dock-open');
+    dialog.showModal();
+  }
+  $('copilot-input').focus();
+}
+
 if (desktopBridge) {
+  document.body.classList.add('desktop-vc');
   $('btn-copilot').hidden = false;
-  $('hologram-generate').hidden = false;
-  $('hologram-generate').disabled = true;
   desktopBridge.brainstemStatus().then((status) => {
     const ready = status.state === 'ready';
     $('copilot-status').textContent = ready ? `${status.tools.length} tools ready` : status.state;
     $('copilot-status').title = status.model || '';
     $('copilot-send').disabled = !ready;
-    $('hologram-generate').disabled = !ready;
   }).catch((error) => {
     $('copilot-status').textContent = 'Brainstem unavailable';
     $('copilot-status').title = error.message;
     $('copilot-send').disabled = true;
+  });
+  desktopBridge.breathingStatus().then(renderBreathingStatus).catch(() => {
+    renderBreathingStatus(null);
+  });
+  desktopBridge.onBreathingState(renderBreathingStatus);
+  $('breathing-start').addEventListener('click', async () => {
+    try {
+      renderBreathingStatus(await desktopBridge.startBreathing({
+        interval_seconds: 300,
+        max_ticks: 6,
+        max_output_tokens_per_tick: 512,
+        max_total_output_tokens: 3072,
+        max_session_seconds: 3600,
+      }));
+    } catch (error) {
+      toast(`Breathing did not start: ${error.message}`, 'err');
+      renderBreathingStatus(await desktopBridge.breathingStatus());
+    }
+  });
+  $('breathing-pause').addEventListener('click', async () => {
+    await desktopBridge.pauseBreathing();
+    renderBreathingStatus(await desktopBridge.breathingStatus());
   });
   desktopBridge.onState((state) => {
     const status = state.brainstem || {};
@@ -1386,15 +1757,19 @@ if (desktopBridge) {
         : status.state || 'starting';
     }
     $('copilot-send').disabled = status.state !== 'ready' || copilotBusy;
-    $('hologram-generate').disabled = status.state !== 'ready';
   });
   $('btn-copilot').addEventListener('click', () => {
-    $('copilot-dialog').showModal();
-    $('copilot-input').focus();
+    setCopilotPanel(!$('copilot-dialog').open);
   });
-  $('copilot-close').addEventListener('click', () => $('copilot-dialog').close());
+  $('copilot-close').addEventListener('click', () => setCopilotPanel(false));
   $('copilot-cancel').addEventListener('click', async () => {
     await desktopBridge.cancelBrainstem(null);
+  });
+  document.querySelectorAll('[data-copilot-prompt]').forEach(button => {
+    button.addEventListener('click', () => {
+      $('copilot-input').value = button.dataset.copilotPrompt;
+      $('copilot-form').requestSubmit();
+    });
   });
   $('copilot-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1410,6 +1785,11 @@ if (desktopBridge) {
       if (result.agent_logs) {
         copilotAssistant.textContent += `\n\nAgents: ${result.agent_logs}`;
       }
+      if (result.holo_error || result.holo_commit_error) {
+        copilotAssistant.textContent +=
+          `\n\nHolo Wake: ${result.holo_error || result.holo_commit_error}`;
+      }
+      await loadHolograms();
     } catch (error) {
       copilotAssistant.textContent = 'Brainstem error: ' + error.message;
     } finally {
@@ -1417,71 +1797,9 @@ if (desktopBridge) {
       setCopilotBusy(false);
     }
   });
-
-  $('hologram-generate').addEventListener('click', () => {
-    $('hologram-generate-dialog').showModal();
-  });
-  $('hologram-generate-close').addEventListener('click', () => {
-    $('hologram-generate-dialog').close();
-  });
-  $('hologram-capture-frame').addEventListener('click', async () => {
-    try {
-      const frame = await api('/api/holograms/example-frame');
-      $('hologram-frame-input').value = JSON.stringify(frame, null, 2);
-      $('hologram-generate-status').textContent = 'Live frame captured. Ready to match.';
-    } catch (error) {
-      $('hologram-generate-status').textContent = error.message;
-    }
-  });
-  $('hologram-generate-submit').addEventListener('click', async () => {
-    const button = $('hologram-generate-submit');
-    let frame;
-    try {
-      frame = JSON.parse($('hologram-frame-input').value);
-    } catch {
-      $('hologram-generate-status').textContent = 'Paste or capture a valid JSON frame first.';
-      return;
-    }
-    button.disabled = true;
-    try {
-      $('hologram-generate-status').textContent = 'Finding the nearest bottle…';
-      const match = await api('/api/holograms/match', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ frame }),
-      });
-      const snapshot = await api('/api/intelligence-context');
-      currentDataSlosh = {
-        ...snapshot,
-        data_slosh: { frame },
-      };
-      hologramPolishing = true;
-      $('hologram-generate-dialog').close();
-      if (!hologramEntries.length) await loadHolograms();
-      openHologram(match.hologram.id);
-      $('hologram-binding-status').textContent = `matched ${match.hologram.name} · polishing`;
-      sendHologramContext(currentDataSlosh);
-
-      const result = await desktopBridge.generateHologram({
-        frame,
-        randomize: $('hologram-randomize').checked,
-      });
-      hologramPolishing = false;
-      await loadHolograms();
-      justCaughtHologramId = result.hologram.id;
-      openHologram(result.hologram.id);
-      $('hologram-binding-status').textContent = 'new bottle caught';
-      sendHologramContext(currentDataSlosh);
-      toast(`Caught ${result.hologram.name} from frame ${frame.frame_hash.slice(0, 12)}…`);
-    } catch (error) {
-      hologramPolishing = false;
-      $('hologram-generate-status').textContent = error.message;
-      if (activeHologram) $('hologram-binding-status').textContent = 'polish failed';
-      toast(error.message, 'err');
-    } finally {
-      button.disabled = false;
-    }
-  });
+  if (window.matchMedia('(min-width: 1100px)').matches) {
+    setCopilotPanel(true);
+  }
 }
 
 if ('serviceWorker' in navigator && location.protocol === 'http:') {

@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RAPP Holo/1 observer sightedness record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "subject_rappid",
+    "holo_id",
+    "source_frame_hash",
+    "evaluated_utc",
+    "frame_integrity",
+    "producer_provenance",
+    "stream_sightedness",
+    "origin_hint",
+    "evidence",
+    "reason_codes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rapp-holo-sightedness/1"
+    },
+    "subject_rappid": {
+      "$ref": "#/$defs/rappid"
+    },
+    "holo_id": {
+      "$ref": "#/$defs/hex64"
+    },
+    "source_frame_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "evaluated_utc": {
+      "$ref": "#/$defs/utc"
+    },
+    "frame_integrity": {
+      "enum": [
+        "verified",
+        "refused"
+      ]
+    },
+    "producer_provenance": {
+      "enum": [
+        "attested",
+        "unattested",
+        "invalid"
+      ]
+    },
+    "stream_sightedness": {
+      "enum": [
+        "sighted",
+        "stale",
+        "blind",
+        "unknown"
+      ]
+    },
+    "origin_hint": {
+      "enum": [
+        "machine-likely",
+        "indeterminate"
+      ]
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "reason_codes": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 16,
+      "items": {
+        "enum": [
+          "current-base",
+          "stale-base",
+          "source-included",
+          "source-proof-missing",
+          "producer-attested",
+          "producer-unattested",
+          "producer-invalid",
+          "history-resolved",
+          "history-impossible",
+          "continuity-valid",
+          "continuity-invalid",
+          "replay-consistent",
+          "replay-inconsistent",
+          "conversational-latency",
+          "high-structure",
+          "insufficient-evidence"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "utc": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "rappid": {
+      "type": "string",
+      "pattern": "^rappid:@[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*:[0-9a-f]{64}$"
+    },
+    "nullableBoolean": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullableUint53": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_matches",
+        "source_included",
+        "history_resolved",
+        "continuity_valid",
+        "replay_consistent",
+        "latency_ms",
+        "structural_work_units"
+      ],
+      "properties": {
+        "base_matches": {
+          "$ref": "#/$defs/nullableBoolean"
+        },
+        "source_included": {
+          "$ref": "#/$defs/nullableBoolean"
+        },
+        "history_resolved": {
+          "$ref": "#/$defs/nullableBoolean"
+        },
+        "continuity_valid": {
+          "$ref": "#/$defs/nullableBoolean"
+        },
+        "replay_consistent": {
+          "$ref": "#/$defs/nullableBoolean"
+        },
+        "latency_ms": {
+          "$ref": "#/$defs/nullableUint53"
+        },
+        "structural_work_units": {
+          "$ref": "#/$defs/nullableUint53"
+        }
+      }
+    }
+  }
+}

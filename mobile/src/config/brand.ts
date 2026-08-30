@@ -1,0 +1,21 @@
+export const brand = {
+  consumer: "Rapterbox",
+  product: "Rolling Cores",
+  displayName: "Holo Zoo",
+  storeTitle: "Holo Zoo: Rolling Cores",
+  tagline: "Everything autocomplete on an organism.",
+  rapterPositioning: "A Rapter is a living digital organism.",
+  lockup: "Holo Zoo: Rolling Cores",
+  poweredBy: "Powered by RAPP/1.",
+  from: "From Rapterbox.",
+  vocabulary: {
+    rapter: "One organism",
+    rappter: "A flock of Rapters",
+    protocol: "RAPP/1",
+    habitat: "Holo Zoo",
+    core: "Rolling Core",
+  },
+  marketingUrl: "https://rapterbox.com/holo",
+  privacyUrl: "https://rapterbox.com/privacy",
+  supportUrl: "https://rapterbox.com/support",
+} as const;

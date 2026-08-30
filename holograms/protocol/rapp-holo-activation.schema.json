@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RAPP Holo/1 player activation record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "player_id",
+    "activation_order",
+    "previous_active_holo_id",
+    "departure_logical_ms",
+    "departure_manifest_hash",
+    "new_holo_id",
+    "activated_utc"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rapp-holo-activation/1"
+    },
+    "player_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "activation_order": {
+      "$ref": "#/$defs/uint53"
+    },
+    "previous_active_holo_id": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hex64"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "departure_logical_ms": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/uint53"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "departure_manifest_hash": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hex64"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "new_holo_id": {
+      "$ref": "#/$defs/hex64"
+    },
+    "activated_utc": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "previous_active_holo_id": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "departure_logical_ms": {
+            "type": "null"
+          },
+          "departure_manifest_hash": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "departure_logical_ms": {
+            "$ref": "#/$defs/uint53"
+          },
+          "departure_manifest_hash": {
+            "$ref": "#/$defs/hex64"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uint53": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  }
+}

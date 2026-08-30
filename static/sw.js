@@ -1,10 +1,11 @@
-const CACHE = "rapp-zoo-shell-v2";
+const CACHE = "rapp-zoo-shell-v5";
 const SHELL = [
   "/",
   "/manifest.webmanifest",
   "/static/zoo.css",
   "/static/zoo.js",
   "/static/hologram.css",
+  "/static/holo-protocol.js",
   "/static/hologram-runtime.js",
   "/static/vendor/jszip.min.js",
   "/static/vendor/three-r128.min.js",

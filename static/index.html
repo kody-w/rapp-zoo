@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>rapp-zoo — Pokédex</title>
+<title>Holo Zoo: Rolling Cores</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0d1117">
 <meta name="mobile-web-app-capable" content="yes">
@@ -24,8 +24,8 @@
 </div>
 
 <header>
-  <h1>rapp-zoo
-    <span class="sub">your local Pokédex of digital organisms</span>
+  <h1>Holo Zoo
+    <span class="sub">Rolling Cores · everything autocomplete on an organism</span>
   </h1>
   <div class="header-actions">
     <button class="btn" id="btn-copilot" data-zoo-control="brainstem.open" hidden>🧠 Brainstem</button>
@@ -114,16 +114,27 @@
 <!-- ── Holograms ─────────────────────────────────────────────────────── -->
 <section class="tab-panel" id="panel-holograms" role="tabpanel">
   <div class="starters-intro">
-    <h2>Hologram Bottle Rack <span class="muted small" id="holograms-count"></span></h2>
+    <h2>Holo Zoo <span class="muted small" id="holograms-count"></span></h2>
+    <p class="holo-rolling-core">THE BEGINNING OF THE ROLLING CORE FOR AGI</p>
     <p class="muted">
-      <strong>Character holograms</strong> are procedural 3D bodies seeded by identity.
-      <strong>Data holograms</strong> are volumetric projections bound to live zoo state.
-      Each variant is caught as a reusable bottle. Hotloading pours fresh
-      <code>data_slosh</code> through the bottle without changing its memory.
+      <strong>The Holo organism is the Rolling Core.</strong> Its newest
+      immutable Holo/1 frame is its current embodied self; prior frames remain
+      the body it grew through and can continue performing until the next turn
+      arrives. The Zoo validates and displays; it never chooses the hologram.
     </p>
-    <button class="btn primary" id="hologram-generate" data-zoo-control="hologram.generate" hidden>✦ Forge from RAPP frame</button>
   </div>
-  <div id="holograms" class="cards-grid">Loading projections…</div>
+  <div class="holo-zoo-section">
+    <h3>Live AI habitats <span class="muted small" id="holo-heads-count"></span></h3>
+    <div id="holo-heads" class="cards-grid">Watching for Holo/1 streams…</div>
+  </div>
+  <div class="holo-zoo-section legacy-holograms">
+    <h3>Legacy projection exhibit</h3>
+    <p class="muted small">
+      Bottle demonstrations remain available for history and compatibility.
+      They are not an AI's Holo/1 self and never advance a live holo head.
+    </p>
+    <div id="holograms" class="cards-grid">Loading legacy projections…</div>
+  </div>
 </section>
 
 <!-- ── Discover ──────────────────────────────────────────────────────── -->
@@ -173,6 +184,7 @@
     </div>
     <span id="hologram-binding-status" class="pill">demo</span>
   </div>
+  <div id="hologram-mode-note" class="muted small"></div>
   <iframe
     id="hologram-frame"
     title="RAPP Zoo hologram viewer"
@@ -180,41 +192,46 @@
     referrerpolicy="no-referrer"
     allow="fullscreen"
   ></iframe>
+  <div id="holo-flipbook" class="holo-flipbook" hidden></div>
   <div class="dialog-actions">
-    <button class="btn" id="hologram-demo" data-zoo-control="hologram.demo">Demo data</button>
-    <button class="btn primary" id="hologram-bind" data-zoo-control="hologram.bind">Bind live zoo</button>
+    <button class="btn legacy-hologram-control" id="hologram-demo" data-zoo-control="hologram.demo">Demo data</button>
+    <button class="btn primary legacy-hologram-control" id="hologram-bind" data-zoo-control="hologram.bind">Bind live zoo</button>
     <button class="btn" id="hologram-fullscreen">Fullscreen</button>
     <button class="btn" id="hologram-close">Close</button>
-  </div>
-</dialog>
-
-<dialog id="hologram-generate-dialog" class="hologram-generate-dialog">
-  <h3>Forge and catch a hologram bottle</h3>
-  <p>
-    A deterministic dimensional match is projected immediately. The app-owned
-    Brainstem then uses its agents and Copilot to polish a new variant from the
-    same bottle memory plus this frame's fresh <code>data_slosh</code>.
-  </p>
-  <textarea id="hologram-frame-input" rows="13" spellcheck="false" placeholder="Paste an exact RAPP/1 frame JSON object"></textarea>
-  <label class="checkbox">
-    <input id="hologram-randomize" type="checkbox" checked>
-    Generate a surprising new variant instead of a close adaptation
-  </label>
-  <div id="hologram-generate-status" class="muted small"></div>
-  <div class="dialog-actions">
-    <button class="btn" id="hologram-capture-frame">Capture live frame</button>
-    <button class="btn" id="hologram-generate-close">Close</button>
-    <button class="btn primary" id="hologram-generate-submit">Match → polish → catch</button>
   </div>
 </dialog>
 
 <dialog id="copilot-dialog" class="copilot-dialog">
   <div class="copilot-head">
     <div>
-      <span class="muted small">APP-OWNED OPERATING ENGINE</span>
-      <h3>RAPP Brainstem · GitHub Copilot</h3>
+      <span class="muted small">HOLO/1 AGENT MODE</span>
+      <h3>GitHub Copilot</h3>
     </div>
     <span id="copilot-status" class="pill">checking</span>
+  </div>
+  <div class="copilot-intro">
+    <strong>Holo Zoo Copilot</strong>
+    <p>
+      Operate the local Zoo, inspect immutable flipbooks, and ask the AI to
+      express its next Holo/1 state during this same turn.
+    </p>
+    <div class="copilot-suggestions">
+      <button type="button" data-copilot-prompt="Explain the current Holo Wake and any stale or blind turns.">Explain the current Holo Wake</button>
+      <button type="button" data-copilot-prompt="Inspect the current immutable Holo/1 flipbook and describe its visual continuity.">Inspect the current flipbook</button>
+      <button type="button" data-copilot-prompt="Express your next Holo/1 state for this turn using any visual form you choose.">Emit the next Holo/1 state</button>
+      <button type="button" data-copilot-prompt="Start the AI fantasy draft using the verified fantasy-draft frame, with Rappter One and Rappter Two seated as players.">Start the AI fantasy draft</button>
+      <button type="button" data-copilot-prompt="Run the Holo/1 conformance checks and report any refusal evidence.">Run Holo/1 conformance</button>
+    </div>
+    <div class="dialog-actions breathing-controls">
+      <span id="breathing-status" class="pill">Breathing paused</span>
+      <button type="button" class="btn" id="breathing-start">Start bounded breathing</button>
+      <button type="button" class="btn" id="breathing-pause" disabled>Pause breathing</button>
+    </div>
+    <p class="muted small">
+      Opt-in only: at most 6 provider calls, 512 output tokens each, every
+      5 minutes for up to 1 hour. Missing, revoked, offline, or exhausted breath
+      keys stop breathing; the last verified core remains intact.
+    </p>
   </div>
   <div id="copilot-transcript" class="copilot-transcript" aria-live="polite"></div>
   <form id="copilot-form">

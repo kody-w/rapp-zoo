@@ -1,0 +1,1771 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RAPP Holo/1 authored output",
+  "description": "Portable AI-authored visual and piano-continuation data suitable for immutable signed local Rolling Core Capsules, offline use, and import/export. Storefront purchase flow and optional cloud compute are outside this payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "base_holo_id",
+    "ir_version",
+    "renderer_contract",
+    "growl",
+    "state",
+    "transition",
+    "performance",
+    "accessibility"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rapp-holo-output/1"
+    },
+    "base_holo_id": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hex64"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ir_version": {
+      "const": "rapp-holo-ir/1"
+    },
+    "renderer_contract": {
+      "const": "rapp-holo-renderer/1"
+    },
+    "growl": {
+      "$ref": "#/$defs/growl"
+    },
+    "state": {
+      "$ref": "#/$defs/state"
+    },
+    "transition": {
+      "$ref": "#/$defs/transition"
+    },
+    "performance": {
+      "$ref": "#/$defs/performance"
+    },
+    "accessibility": {
+      "$ref": "#/$defs/accessibility"
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$"
+    },
+    "positionVec": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": -1000000,
+        "maximum": 1000000
+      }
+    },
+    "rotationVec": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": -360000,
+        "maximum": 360000
+      }
+    },
+    "scaleVec": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100000
+      }
+    },
+    "unitVec": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": -1000,
+        "maximum": 1000
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "rotation",
+        "scale"
+      ],
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/positionVec"
+        },
+        "rotation": {
+          "$ref": "#/$defs/rotationVec"
+        },
+        "scale": {
+          "$ref": "#/$defs/scaleVec"
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection",
+        "position",
+        "target",
+        "up",
+        "near",
+        "far",
+        "fov_mdeg",
+        "ortho_height"
+      ],
+      "properties": {
+        "projection": {
+          "enum": [
+            "perspective",
+            "orthographic"
+          ]
+        },
+        "position": {
+          "$ref": "#/$defs/positionVec"
+        },
+        "target": {
+          "$ref": "#/$defs/positionVec"
+        },
+        "up": {
+          "$ref": "#/$defs/unitVec"
+        },
+        "near": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "far": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10000000
+        },
+        "fov_mdeg": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 179000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ortho_height": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "projection": {
+                "const": "perspective"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fov_mdeg": {
+                "type": "integer"
+              },
+              "ortho_height": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fov_mdeg": {
+                "type": "null"
+              },
+              "ortho_height": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "near",
+        "far"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "near": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        },
+        "far": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10000000
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clear_color",
+        "fog"
+      ],
+      "properties": {
+        "clear_color": {
+          "$ref": "#/$defs/color"
+        },
+        "fog": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/fog"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "emissive",
+        "emissive_strength",
+        "opacity",
+        "presentation",
+        "blend",
+        "side",
+        "metallic",
+        "roughness"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "emissive": {
+          "$ref": "#/$defs/color"
+        },
+        "emissive_strength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "opacity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "presentation": {
+          "enum": [
+            "solid",
+            "wire",
+            "points",
+            "line"
+          ]
+        },
+        "blend": {
+          "enum": [
+            "normal",
+            "additive",
+            "multiply"
+          ]
+        },
+        "side": {
+          "enum": [
+            "front",
+            "double"
+          ]
+        },
+        "metallic": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "roughness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "growlNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pitch",
+        "delta_onset",
+        "duration",
+        "velocity"
+      ],
+      "properties": {
+        "pitch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "delta_onset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        }
+      }
+    },
+    "growl": {
+      "description": "Required immutable AI/model-authored piano prompt and completed continuation using NOTE(pitch,delta_onset,duration,velocity). Sustain is baked into duration; simultaneous delta_onset-zero chord notes are strictly pitch-sorted. The validator never generates notes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "representation",
+        "seed",
+        "model",
+        "ticks_per_quarter",
+        "tempo_milli_bpm",
+        "program",
+        "title",
+        "subject_description",
+        "prompt",
+        "continuation",
+        "complete",
+        "context_policy"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rapp-holo-growl/1"
+        },
+        "representation": {
+          "const": "note-pitch-delta-duration-velocity/1"
+        },
+        "seed": {
+          "$ref": "#/$defs/hex64"
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "revision"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        },
+        "ticks_per_quarter": {
+          "type": "integer",
+          "minimum": 24,
+          "maximum": 960
+        },
+        "tempo_milli_bpm": {
+          "type": "integer",
+          "minimum": 30000,
+          "maximum": 300000
+        },
+        "program": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "subject_description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "prompt": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/growlNote"
+          }
+        },
+        "continuation": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/growlNote"
+          }
+        },
+        "complete": {
+          "const": true
+        },
+        "context_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_notes",
+            "retain_latest"
+          ],
+          "properties": {
+            "max_notes": {
+              "const": 512
+            },
+            "retain_latest": {
+              "const": 384
+            }
+          }
+        }
+      }
+    },
+    "primitiveSphereLike": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "radius",
+        "detail"
+      ],
+      "properties": {
+        "shape": {
+          "enum": [
+            "sphere",
+            "tetrahedron",
+            "octahedron",
+            "icosahedron"
+          ]
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "detail": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      }
+    },
+    "primitiveBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "size"
+      ],
+      "properties": {
+        "shape": {
+          "const": "box"
+        },
+        "size": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000000
+          }
+        }
+      }
+    },
+    "primitiveAxial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "radius",
+        "height",
+        "detail"
+      ],
+      "properties": {
+        "shape": {
+          "enum": [
+            "capsule",
+            "cylinder",
+            "cone"
+          ]
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        },
+        "detail": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 128
+        }
+      }
+    },
+    "primitiveRadial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "major_radius",
+        "minor_radius",
+        "detail"
+      ],
+      "properties": {
+        "shape": {
+          "enum": [
+            "torus",
+            "ring"
+          ]
+        },
+        "major_radius": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 1000000
+        },
+        "minor_radius": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999999
+        },
+        "detail": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 128
+        }
+      }
+    },
+    "primitivePlane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "shape": {
+          "const": "plane"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000000
+        }
+      }
+    },
+    "primitiveShapee": {
+      "description": "An optional AI-authored compact identity tile that may seed or anchor expanded outlines, silhouettes, multi-node forms, auras, habitats, and full-frame scenes; it is never a fixed avatar or composition boundary. The protocol defines no default seed, so public brand fixtures do not constrain seeds authored by individual Rapters. The first teeth seed nibbles define top relief and the next teeth nibbles define bottom relief over equal round_div width intervals; the closed outline uses only horizontal and vertical segments.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "seed",
+        "width",
+        "height",
+        "depth",
+        "teeth",
+        "relief"
+      ],
+      "properties": {
+        "shape": {
+          "const": "shapee"
+        },
+        "seed": {
+          "$ref": "#/$defs/hex64"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 2000000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 2000000
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200000
+        },
+        "teeth": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 32
+        },
+        "relief": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500000
+        }
+      }
+    },
+    "primitiveGeometry": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/primitiveSphereLike"
+        },
+        {
+          "$ref": "#/$defs/primitiveBox"
+        },
+        {
+          "$ref": "#/$defs/primitiveAxial"
+        },
+        {
+          "$ref": "#/$defs/primitiveRadial"
+        },
+        {
+          "$ref": "#/$defs/primitivePlane"
+        },
+        {
+          "$ref": "#/$defs/primitiveShapee"
+        }
+      ]
+    },
+    "triangle": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4095
+      }
+    },
+    "meshGeometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vertices",
+        "triangles"
+      ],
+      "properties": {
+        "vertices": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/positionVec"
+          }
+        },
+        "triangles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "items": {
+            "$ref": "#/$defs/triangle"
+          }
+        }
+      }
+    },
+    "polylineGeometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "points",
+        "closed",
+        "width"
+      ],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8192,
+          "items": {
+            "$ref": "#/$defs/positionVec"
+          }
+        },
+        "closed": {
+          "type": "boolean"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        }
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "size"
+      ],
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/positionVec"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        }
+      }
+    },
+    "pointsGeometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "points"
+      ],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8192,
+          "items": {
+            "$ref": "#/$defs/point"
+          }
+        }
+      }
+    },
+    "lightGeometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "color",
+        "intensity",
+        "range",
+        "angle_mdeg",
+        "direction"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "ambient",
+            "directional",
+            "point",
+            "spot"
+          ]
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "intensity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "range": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "angle_mdeg": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 179000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "direction": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/unitVec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ambient"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "range": {
+                "type": "null"
+              },
+              "angle_mdeg": {
+                "type": "null"
+              },
+              "direction": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "directional"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "range": {
+                "type": "null"
+              },
+              "angle_mdeg": {
+                "type": "null"
+              },
+              "direction": {
+                "$ref": "#/$defs/unitVec"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "point"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "range": {
+                "type": "integer"
+              },
+              "angle_mdeg": {
+                "type": "null"
+              },
+              "direction": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "spot"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "range": {
+                "type": "integer"
+              },
+              "angle_mdeg": {
+                "type": "integer"
+              },
+              "direction": {
+                "$ref": "#/$defs/unitVec"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "groupNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "group"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "type": "null"
+        },
+        "material": {
+          "type": "null"
+        }
+      }
+    },
+    "primitiveNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "primitive"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "$ref": "#/$defs/primitiveGeometry"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        }
+      }
+    },
+    "meshNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "mesh"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "$ref": "#/$defs/meshGeometry"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        }
+      }
+    },
+    "polylineNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "polyline"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "$ref": "#/$defs/polylineGeometry"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        }
+      }
+    },
+    "pointsNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "points"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "$ref": "#/$defs/pointsGeometry"
+        },
+        "material": {
+          "$ref": "#/$defs/material"
+        }
+      }
+    },
+    "lightNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "parent",
+        "type",
+        "visible",
+        "transform",
+        "geometry",
+        "material"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/nodeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "const": "light"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "geometry": {
+          "$ref": "#/$defs/lightGeometry"
+        },
+        "material": {
+          "type": "null"
+        }
+      }
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/groupNode"
+        },
+        {
+          "$ref": "#/$defs/primitiveNode"
+        },
+        {
+          "$ref": "#/$defs/meshNode"
+        },
+        {
+          "$ref": "#/$defs/polylineNode"
+        },
+        {
+          "$ref": "#/$defs/pointsNode"
+        },
+        {
+          "$ref": "#/$defs/lightNode"
+        }
+      ]
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "camera",
+        "environment",
+        "nodes"
+      ],
+      "properties": {
+        "camera": {
+          "$ref": "#/$defs/camera"
+        },
+        "environment": {
+          "$ref": "#/$defs/environment"
+        },
+        "nodes": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        }
+      }
+    },
+    "transitionNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "mode"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "mode": {
+          "enum": [
+            "cut",
+            "fade-in",
+            "fade-out",
+            "crossfade",
+            "interpolate"
+          ]
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_ms",
+        "easing",
+        "default",
+        "nodes"
+      ],
+      "properties": {
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in",
+            "ease-out",
+            "ease-in-out"
+          ]
+        },
+        "default": {
+          "enum": [
+            "cut",
+            "crossfade"
+          ]
+        },
+        "nodes": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/transitionNode"
+          }
+        }
+      }
+    },
+    "numericEasing": {
+      "enum": [
+        "step",
+        "linear",
+        "ease-in",
+        "ease-out",
+        "ease-in-out"
+      ]
+    },
+    "vectorKeyframePosition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "$ref": "#/$defs/positionVec"
+        }
+      }
+    },
+    "vectorKeyframeRotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "$ref": "#/$defs/rotationVec"
+        }
+      }
+    },
+    "vectorKeyframeScale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "$ref": "#/$defs/scaleVec"
+        }
+      }
+    },
+    "colorKeyframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "opacityKeyframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "visibleKeyframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "value"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "value": {
+          "type": "boolean"
+        }
+      }
+    },
+    "positionTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "const": "transform.position"
+        },
+        "interpolation": {
+          "$ref": "#/$defs/numericEasing"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/vectorKeyframePosition"
+          }
+        }
+      }
+    },
+    "rotationTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "const": "transform.rotation"
+        },
+        "interpolation": {
+          "$ref": "#/$defs/numericEasing"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/vectorKeyframeRotation"
+          }
+        }
+      }
+    },
+    "scaleTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "const": "transform.scale"
+        },
+        "interpolation": {
+          "$ref": "#/$defs/numericEasing"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/vectorKeyframeScale"
+          }
+        }
+      }
+    },
+    "colorTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "enum": [
+            "material.color",
+            "material.emissive"
+          ]
+        },
+        "interpolation": {
+          "$ref": "#/$defs/numericEasing"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/colorKeyframe"
+          }
+        }
+      }
+    },
+    "opacityTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "const": "material.opacity"
+        },
+        "interpolation": {
+          "$ref": "#/$defs/numericEasing"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/opacityKeyframe"
+          }
+        }
+      }
+    },
+    "visibleTrack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "property",
+        "interpolation",
+        "keyframes"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "property": {
+          "const": "visible"
+        },
+        "interpolation": {
+          "const": "step"
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/visibleKeyframe"
+          }
+        }
+      }
+    },
+    "track": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positionTrack"
+        },
+        {
+          "$ref": "#/$defs/rotationTrack"
+        },
+        {
+          "$ref": "#/$defs/scaleTrack"
+        },
+        {
+          "$ref": "#/$defs/colorTrack"
+        },
+        {
+          "$ref": "#/$defs/opacityTrack"
+        },
+        {
+          "$ref": "#/$defs/visibleTrack"
+        }
+      ]
+    },
+    "flipbookEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "at_ms",
+        "holo_id",
+        "blend",
+        "blend_ms"
+      ],
+      "properties": {
+        "at_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "holo_id": {
+          "oneOf": [
+            {
+              "const": "self"
+            },
+            {
+              "$ref": "#/$defs/hex64"
+            }
+          ]
+        },
+        "blend": {
+          "enum": [
+            "cut",
+            "crossfade"
+          ]
+        },
+        "blend_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      }
+    },
+    "sustain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_ms",
+        "repeat",
+        "tracks",
+        "flipbook"
+      ],
+      "properties": {
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "repeat": {
+          "enum": [
+            "hold",
+            "once",
+            "loop",
+            "ping-pong"
+          ]
+        },
+        "tracks": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        },
+        "flipbook": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/flipbookEntry"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "repeat": {
+                "const": "hold"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "duration_ms": {
+                "const": 0
+              },
+              "tracks": {
+                "maxItems": 0
+              },
+              "flipbook": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "duration_ms": {
+                "minimum": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "performance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clock",
+        "sustain"
+      ],
+      "properties": {
+        "clock": {
+          "const": "rapp-holo-logical-ms/1"
+        },
+        "sustain": {
+          "$ref": "#/$defs/sustain"
+        }
+      }
+    },
+    "accessibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "reduced_motion"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "reduced_motion": {
+          "enum": [
+            "hold",
+            "crossfade"
+          ]
+        }
+      }
+    }
+  }
+}

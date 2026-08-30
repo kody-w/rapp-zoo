@@ -1,9 +1,12 @@
-"""Validate Copilot-authored scene data for the RAPP Zoo hologram foundry."""
+"""Validate and hash an exact Holo/1 object authored on the original AI turn."""
 
 from __future__ import annotations
 
+import importlib.util
 import json
-import unicodedata
+from pathlib import Path
+import sys
+import types
 
 try:
     from agents.basic_agent import BasicAgent
@@ -36,99 +39,71 @@ except Exception:
 __manifest__ = {
     "schema": "rapp-agent/1.0",
     "name": "@kody-w/hologram_forge",
-    "version": "1.0.0",
-    "display_name": "HologramForge",
+    "version": "2.2.0",
+    "display_name": "HologramOutput",
     "description": (
-        "Validates a proposed data-only hologram design against the RAPP Zoo "
-        "closed scene schema. The calling model supplies the creative polish; "
-        "the forge refuses executable, remote, malformed, or overlong content."
+        "Validates one exact Rolling Core rapp-holo-output/1 growth frame "
+        "authored during the current AI response, including its already-"
+        "authored growl prompt and continuation, and returns it unchanged with "
+        "its canonical hash. It never generates, defaults, repairs, adapts, "
+        "or polishes."
     ),
     "author": "Kody Wildfeuer",
-    "tags": ["hologram", "forge", "frame", "validation", "three-js", "dogg"],
-    "category": "creative",
+    "tags": ["hologram", "holo-1", "output", "validation"],
+    "category": "protocol",
     "quality_tier": "community",
     "requires_env": [],
     "dependencies": ["@rapp/basic_agent"],
 }
 
 
-FRAME_KEYS = {
-    "spec",
-    "kind",
-    "stream_id",
-    "seq",
-    "utc",
-    "payload",
-    "payload_hash",
-    "frame_hash",
-    "prev",
-    "prev_wave",
-    "sig",
-}
-ACCENTS = {"violet", "cyan", "ice"}
-
-
-def _text(value, label, limit):
-    if (
-        not isinstance(value, str)
-        or not value.strip()
-        or len(value) > limit
-        or value != unicodedata.normalize("NFC", value)
-    ):
-        raise ValueError(f"{label} must be a non-empty NFC string up to {limit} characters")
-    return value
-
-
-def _validate_design(value):
-    if not isinstance(value, dict) or set(value) != {
-        "name",
-        "kind",
-        "accent",
-        "description",
-        "scene",
-    }:
-        raise ValueError("design must contain exactly name, kind, accent, description, scene")
-    _text(value["name"], "name", 60)
-    _text(value["description"], "description", 500)
-    if value["kind"] not in {"character", "data-projection"}:
-        raise ValueError("kind must be character or data-projection")
-    if value["accent"] not in ACCENTS:
-        raise ValueError("accent must be violet, cyan, or ice")
-    scene = value["scene"]
-    if not isinstance(scene, dict):
-        raise ValueError("scene must be an object")
-    if value["kind"] == "character":
-        if set(scene) != {"title", "subtitle"}:
-            raise ValueError("character scene must contain exactly title and subtitle")
-        _text(scene["title"], "scene.title", 120)
-        _text(scene["subtitle"], "scene.subtitle", 240)
-    else:
-        if set(scene) != {"prompt", "options"}:
-            raise ValueError("data projection scene must contain exactly prompt and options")
-        _text(scene["prompt"], "scene.prompt", 300)
-        if not isinstance(scene["options"], list) or len(scene["options"]) != 3:
-            raise ValueError("data projection must contain exactly three options")
-        for option in scene["options"]:
-            if not isinstance(option, dict) or set(option) != {"label", "value"}:
-                raise ValueError("each option must contain exactly label and value")
-            _text(option["label"], "option.label", 100)
-            _text(option["value"], "option.value", 240)
-    encoded = json.dumps(value, ensure_ascii=False).lower()
-    if any(
-        token in encoded
-        for token in (
-            "<script",
-            "javascript:",
-            "http://",
-            "https://",
-            "shader",
-            "eval(",
-            "subprocess",
-            "shell",
+def _load_shared_holo_protocol():
+    agent_path = Path(__file__).resolve()
+    candidates = (
+        agent_path.parent / "rapp_zoo_holo_protocol",
+        agent_path.parents[1] / "utils",
+    )
+    module_root = next(
+        (
+            candidate
+            for candidate in candidates
+            if (candidate / "holo_protocol.py").is_file()
+            and (candidate / "rapp_protocol.py").is_file()
+        ),
+        None,
+    )
+    if module_root is None:
+        checked = ", ".join(str(candidate) for candidate in candidates)
+        raise ImportError(
+            "shared Holo/1 validator is unavailable; checked " + checked
         )
-    ):
-        raise ValueError("design contains executable, remote, or shell content")
-    return value
+
+    package_name = "_rapp_zoo_holo_protocol"
+    package = types.ModuleType(package_name)
+    package.__path__ = [str(module_root)]
+    package.__package__ = package_name
+    sys.modules[package_name] = package
+
+    for name in ("rapp_protocol", "holo_protocol"):
+        full_name = f"{package_name}.{name}"
+        spec = importlib.util.spec_from_file_location(
+            full_name,
+            module_root / f"{name}.py",
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load shared Holo/1 module {full_name}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[full_name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[f"{package_name}.holo_protocol"]
+
+
+HOLO_PROTOCOL = _load_shared_holo_protocol()
+for required_api in ("validate_output", "authored_hash", "growl_events"):
+    if not callable(getattr(HOLO_PROTOCOL, required_api, None)):
+        raise ImportError(
+            f"shared Holo/1 validator is missing required API {required_api}"
+        )
 
 
 class HologramForgeAgent(BasicAgent):
@@ -140,48 +115,75 @@ class HologramForgeAgent(BasicAgent):
             "description": __manifest__["description"],
             "parameters": {
                 "type": "object",
+                "additionalProperties": False,
                 "properties": {
-                    "frame_json": {
-                        "type": "string",
-                        "description": "The exact verified RAPP/1 frame as JSON.",
+                    "authored_holo_output": {
+                        "type": "object",
+                        "description": (
+                            "The exact complete rapp-holo-output/1 object authored "
+                            "during this original response."
+                        ),
                     },
-                    "design_json": {
-                        "type": "string",
-                        "description": "The proposed closed hologram design as JSON.",
+                    "base_holo_output": {
+                        "type": ["object", "null"],
+                        "description": (
+                            "The verified current base Holo output supplied to "
+                            "the original turn, or null at genesis."
+                        ),
+                    },
+                    "ancestor_holo_outputs": {
+                        "type": "object",
+                        "description": (
+                            "Verified retained ancestor holo IDs mapped to their "
+                            "exact outputs, as supplied to the original turn."
+                        ),
                     },
                 },
-                "required": ["frame_json", "design_json"],
+                "required": ["authored_holo_output"],
             },
         }
         super().__init__(self.name, self.metadata)
 
     def perform(self, **kwargs):
         try:
-            frame = json.loads(kwargs.get("frame_json") or "")
-            design = json.loads(kwargs.get("design_json") or "")
-            if not isinstance(frame, dict) or set(frame) != FRAME_KEYS:
-                raise ValueError("frame must contain exactly the eleven RAPP/1 keys")
-            if frame.get("spec") != "rapp/1" or not isinstance(frame.get("payload"), dict):
-                raise ValueError("frame spec or payload is invalid")
-            for field in ("payload_hash", "frame_hash"):
-                value = frame.get(field)
-                if (
-                    not isinstance(value, str)
-                    or len(value) != 64
-                    or any(char not in "0123456789abcdef" for char in value)
-                ):
-                    raise ValueError(f"frame {field} is invalid")
-            accepted = _validate_design(design)
-            return json.dumps({
-                "status": "ok",
-                "source_frame_hash": frame["frame_hash"],
-                "design": accepted,
-            }, ensure_ascii=False)
-        except (TypeError, ValueError, json.JSONDecodeError) as exc:
-            return json.dumps({
-                "status": "refused",
-                "message": str(exc),
-            })
+            allowed = {
+                "authored_holo_output",
+                "base_holo_output",
+                "ancestor_holo_outputs",
+            }
+            if "authored_holo_output" not in kwargs or not set(kwargs) <= allowed:
+                if {"frame_json", "design_json"} & set(kwargs):
+                    raise ValueError(
+                        "legacy post-hoc frame/design generation is refused"
+                    )
+                raise ValueError(
+                    "authored_holo_output and only Holo validation context are required"
+                )
+            authored = kwargs["authored_holo_output"]
+            accepted = HOLO_PROTOCOL.validate_output(
+                authored,
+                base=kwargs.get("base_holo_output"),
+                ancestor_ids=kwargs.get("ancestor_holo_outputs"),
+            )
+            HOLO_PROTOCOL.growl_events(accepted["growl"])
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "authored": accepted,
+                    "authored_hash": HOLO_PROTOCOL.authored_hash(authored),
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        except (TypeError, ValueError, KeyError) as exc:
+            return json.dumps(
+                {
+                    "status": "refused",
+                    "message": str(exc),
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
 
 
 if __name__ == "__main__":
