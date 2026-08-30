@@ -384,3 +384,6 @@ See [`APP_STORE_METADATA.md`](./APP_STORE_METADATA.md) for reviewed vocabulary
 and store-listing copy.
 See [`STORE_RELEASE_CHECKLIST.md`](./STORE_RELEASE_CHECKLIST.md) for the
 owner-only account, payment, signing, TestFlight, and store preparation steps.
+See [`ENTITLEMENT_ARCHITECTURE.md`](./ENTITLEMENT_ARCHITECTURE.md) for the
+typed Free Companion, premium rental, permanent ownership, and Sovereign
+application boundary intentionally deferred from this immediate handoff.
