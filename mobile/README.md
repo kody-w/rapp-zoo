@@ -390,3 +390,6 @@ application boundary intentionally deferred from this immediate handoff.
 See [`GENESIS_FAMILY_ARCHITECTURE.md`](./GENESIS_FAMILY_ARCHITECTURE.md) for
 the typed 151-family catalog and signed generation/mutation eligibility
 boundary, also intentionally deferred from the immediate UI handoff.
+See [`GROWTH_POINTS_ARCHITECTURE.md`](./GROWTH_POINTS_ARCHITECTURE.md) for
+non-monetary Growth Points, signed mutation timing, accessibility-safe
+micro-events, and the disabled-by-default preview HealthKit adapter.
