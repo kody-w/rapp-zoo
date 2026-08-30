@@ -85,6 +85,9 @@ export class OpenAICompatibleClient {
     const headers = { accept: "application/json", ...profile.headers };
     if (includeContentType) headers["content-type"] = "application/json";
     if (profile.auth_kind !== "none") {
+      if (new URL(profile.base_url).protocol !== "https:") {
+        throw new Error("Provider credentials require HTTPS.");
+      }
       const secret = await this.store.credentials.get(profile.id);
       if (profile.auth_kind === "bearer") headers.authorization = `Bearer ${secret}`;
       if (profile.auth_kind === "api-key") headers["api-key"] = secret;

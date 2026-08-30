@@ -41,6 +41,28 @@ test("provider test authenticates without exposing credentials", async () => {
   assert.doesNotMatch(JSON.stringify(result), /private-value/);
 });
 
+test("credentialed profiles cannot bypass HTTPS validation", async () => {
+  let called = false;
+  const insecureProfile = {
+    ...profile,
+    base_url: "http://127.0.0.1:11434/v1",
+    auth_kind: "bearer",
+  };
+  const client = new OpenAICompatibleClient({
+    store: {
+      credentials: { get: async () => "private-value" },
+      get: () => insecureProfile,
+      active: () => insecureProfile,
+    },
+    fetchImpl: async () => {
+      called = true;
+      throw new Error("must not send");
+    },
+  });
+  await assert.rejects(client.test({ id: "wild" }), /require HTTPS/);
+  assert.equal(called, false);
+});
+
 test("active provider chat forces the configured model and bounded schema", async () => {
   let outbound;
   const client = new OpenAICompatibleClient({

@@ -94,9 +94,20 @@ describe("shared OpenAI-compatible provider interface", () => {
       () => normalizeOpenAIEndpoint("http://api.example.test/v1"),
       /require HTTPS/,
     );
+    assert.throws(
+      () => normalizeOpenAIEndpoint("http://192.168.1.4:11434/v1"),
+      /HTTP is allowed only for unauthenticated loopback/,
+    );
+    assert.throws(
+      () => normalizeOpenAIEndpoint("http://127.0.0.1:11434/v1"),
+      /HTTP is allowed only for unauthenticated loopback/,
+    );
     assert.equal(
-      normalizeOpenAIEndpoint("http://192.168.1.4:11434/v1"),
-      "http://192.168.1.4:11434/v1",
+      normalizeOpenAIEndpoint(
+        "http://127.0.0.1:11434/v1",
+        false,
+      ),
+      "http://127.0.0.1:11434/v1",
     );
   });
 

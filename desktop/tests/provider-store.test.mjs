@@ -16,7 +16,7 @@ const testRoot = path.resolve(".test-state/provider-store");
 function profile(id = "direct-local", authKind = "bearer") {
   return {
     id,
-    base_url: "http://127.0.0.1:11434/v1",
+    base_url: "https://127.0.0.1:11434/v1",
     model: "local-model",
     auth_kind: authKind,
     headers: {},

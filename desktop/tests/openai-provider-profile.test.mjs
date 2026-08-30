@@ -38,6 +38,23 @@ test("provider profiles are strict, normalized, and provider-neutral", () => {
     ...valid,
     headers: { Accept: "ok\r\nInjected: yes" },
   }), /invalid/);
+  assert.throws(() => validateProviderProfile({
+    ...valid,
+    base_url: "http://127.0.0.1:11434/v1",
+  }), /HTTP is allowed only for unauthenticated loopback/);
+  assert.equal(
+    validateProviderProfile({
+      ...valid,
+      base_url: "http://127.0.0.1:11434/v1",
+      auth_kind: "none",
+    }).base_url,
+    "http://127.0.0.1:11434/v1",
+  );
+  assert.throws(() => validateProviderProfile({
+    ...valid,
+    base_url: "http://192.168.1.4:11434/v1",
+    auth_kind: "none",
+  }), /HTTP is allowed only for unauthenticated loopback/);
 });
 
 test("Azure deployment metadata produces a fixed deployment URL", () => {

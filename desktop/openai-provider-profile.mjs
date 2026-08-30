@@ -123,6 +123,8 @@ export function validateProviderProfile(value) {
   plainObject(value, "profile");
   exactKeys(value, PROFILE_KEYS, "profile");
   const id = validateProviderId(value.id);
+  const authKind = boundedText(value.auth_kind, "auth_kind", 32);
+  if (!AUTH_KINDS.has(authKind)) throw new TypeError("auth_kind is not supported.");
   const baseUrlValue = boundedText(value.base_url, "base_url", 2_048);
   let baseUrl;
   try {
@@ -133,11 +135,17 @@ export function validateProviderProfile(value) {
   if (!["http:", "https:"].includes(baseUrl.protocol)) {
     throw new TypeError("base_url must use http or https.");
   }
+  if (
+    baseUrl.protocol === "http:"
+    && (authKind !== "none" || !isLoopbackHostname(baseUrl.hostname))
+  ) {
+    throw new TypeError(
+      "Provider credentials require HTTPS; HTTP is allowed only for unauthenticated loopback providers.",
+    );
+  }
   if (baseUrl.username || baseUrl.password || baseUrl.hash || baseUrl.search) {
     throw new TypeError("base_url cannot contain credentials, query parameters, or a fragment.");
   }
-  const authKind = boundedText(value.auth_kind, "auth_kind", 32);
-  if (!AUTH_KINDS.has(authKind)) throw new TypeError("auth_kind is not supported.");
   const azure = validateAzure(value.azure);
   const normalizedBaseUrl = baseUrl.toString().replace(/\/+$/u, "");
   return Object.freeze({
@@ -149,6 +157,12 @@ export function validateProviderProfile(value) {
     headers: validateHeaders(value.headers),
     timeouts: validateTimeouts(value.timeouts),
   });
+}
+
+function isLoopbackHostname(hostname) {
+  return hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || hostname === "[::1]";
 }
 
 export function validateProviderMetadata(value) {
