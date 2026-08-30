@@ -15,6 +15,13 @@
     "check:desktop": "node --check desktop/main.mjs && node --check desktop/preload.cjs && node --check desktop/contracts.mjs && node --check desktop/brainstem-supervisor.mjs && node --check desktop/hologram-generator.mjs && node --check desktop/zoo-supervisor.mjs",
     "test:desktop": "node --test desktop/tests/*.test.mjs",
     "test": "npm run check:desktop && npm run test:desktop",
+    "mobile:install": "npm --prefix mobile install",
+    "mobile:start": "npm --prefix mobile start",
+    "mobile:lint": "npm --prefix mobile run lint",
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "mobile:test": "npm --prefix mobile test",
+    "mobile:export:web": "npm --prefix mobile run export:web",
+    "mobile:check": "npm run mobile:lint && npm run mobile:typecheck && npm run mobile:test",
     "dist": "electron-builder",
     "dist:dir": "electron-builder --dir"
   },

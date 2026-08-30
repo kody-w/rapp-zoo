@@ -1,0 +1,20 @@
+{
+  "schema": "rapterbox-shapee-sigil/1",
+  "source": "shared-helper",
+  "geometry": {
+    "shape": "shapee",
+    "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+    "width": 2400,
+    "height": 1800,
+    "depth": 180,
+    "teeth": 16,
+    "relief": 420
+  },
+  "outline_sha256": "4409011f32b6304ed0c45ef92daf606c418bf1063b5a5e6a3c31c9c13c8f1426",
+  "assets": {
+    "icon.png": "81829b3f3af6af92b4f8826e6a3975ca2e8fceb3efeb369e9a9ca234e854e9aa",
+    "adaptive-foreground.png": "ccf829802fcc092723e26af28e3e4ac5cf45285e8e967fd1fe6100cb9f5541d1",
+    "splash.png": "ccf829802fcc092723e26af28e3e4ac5cf45285e8e967fd1fe6100cb9f5541d1",
+    "favicon.png": "3dc59a4821775bbfd89ea29fa10f42d941759902a00ef04577e43b615322150c"
+  }
+}

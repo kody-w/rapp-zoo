@@ -1,0 +1,23 @@
+{
+  "schema": "rolling-core-lifecycle-fixtures/1",
+  "states": [
+    {"credit_id":"1111111111111111111111111111111111111111111111111111111111111111","state":"owned"},
+    {"credit_id":"2222222222222222222222222222222222222222222222222222222222222222","state":"return-eligible"},
+    {"credit_id":"3333333333333333333333333333333333333333333333333333333333333333","state":"return-pending"},
+    {"credit_id":"4444444444444444444444444444444444444444444444444444444444444444","state":"returned"},
+    {"credit_id":"5555555555555555555555555555555555555555555555555555555555555555","state":"listed"},
+    {"credit_id":"6666666666666666666666666666666666666666666666666666666666666666","state":"sold"},
+    {"credit_id":null,"state":"unverified-copy"}
+  ],
+  "marketplace": [
+    {
+      "organism_id": "archive-reef",
+      "display_name": "Archive Reef",
+      "state": "listed",
+      "official_birth_price_sats": 21000,
+      "current_seller_ask_sats": 42000,
+      "last_verified_sale_sats": 33000,
+      "event_verification": "preview-fixture"
+    }
+  ]
+}

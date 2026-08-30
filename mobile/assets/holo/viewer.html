@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rolling Core Capsule Player</title>
+  <link rel="stylesheet" href="/static/hologram.css" nonce="__HOLOGRAM_NONCE__">
+</head>
+<body>
+  <canvas id="hologram-canvas"></canvas>
+  <section class="hologram-hud">
+    <span id="hologram-kind" class="hologram-kind">ROLLING CORE CAPSULE</span>
+    <h1 id="hologram-title">Opening local capsule</h1>
+    <p id="hologram-subtitle"></p>
+    <div id="hologram-facts" class="hologram-facts"></div>
+  </section>
+  <div class="hologram-tip">
+    <button id="hologram-growl" type="button" hidden>play authored piano</button>
+    <span id="hologram-tip-text">drag to orbit · scroll to zoom · live binding is explicit</span>
+  </div>
+  <script id="hologram-config" type="application/json" nonce="__HOLOGRAM_NONCE__">__HOLOGRAM_CONFIG__</script>
+  <script src="/static/vendor/three-r128.min.js" nonce="__HOLOGRAM_NONCE__"></script>
+  <script src="/static/holo-protocol.js" nonce="__HOLOGRAM_NONCE__"></script>
+  <script src="/static/hologram-runtime.js" nonce="__HOLOGRAM_NONCE__"></script>
+</body>
+</html>

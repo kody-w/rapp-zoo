@@ -55,6 +55,28 @@ The same responsive UI is an installable PWA through `/manifest.webmanifest`. A 
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.
 
+### Holo Zoo Expo companion
+
+[`mobile/`](./mobile/) contains the managed Expo Router app for iOS, Android,
+and web. Its consumer display name is **Holo Zoo**, its store title is
+**Holo Zoo: Rolling Cores**, and its native identifiers are
+`com.rapterbox.holozoo`. It keeps owned Rolling Core Capsules local and usable
+offline while optionally connecting to this Zoo for verified heads, source
+evidence, liveness, and bounded Wild services.
+
+```bash
+npm run mobile:install
+npm run mobile:start
+npm run mobile:check
+npm run mobile:export:web
+```
+
+The app's release, EAS, RevenueCat, privacy, return/resale, breath-key, and
+platform instructions are in [`mobile/README.md`](./mobile/README.md) and
+[`mobile/STORE_RELEASE_CHECKLIST.md`](./mobile/STORE_RELEASE_CHECKLIST.md).
+Generated Expo native folders remain ignored; no obsolete `ios/` project is
+retained.
+
 ## Holograms and RAR DOGGs
 
 > **The beginning of the Rolling Core for AGI.** Each verified turn can

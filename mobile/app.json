@@ -1,0 +1,130 @@
+{
+  "expo": {
+    "name": "Holo Zoo",
+    "slug": "holo-zoo",
+    "version": "1.0.0",
+    "scheme": "holo-zoo",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/images/icon.png",
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rapterbox.holozoo",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Holo Zoo connects to the RAPP Zoo host you choose on your local network to load Rapter Holo frames and source evidence.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Rolling Core Capsule",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Owner",
+            "LSItemContentTypes": [
+              "com.rapterbox.rollingcore",
+              "public.json"
+            ]
+          }
+        ],
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.rapterbox.rollingcore",
+            "UTTypeDescription": "Rolling Core Capsule",
+            "UTTypeConformsTo": [
+              "public.json"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "rollingcore"
+              ],
+              "public.mime-type": "application/vnd.rapterbox.rolling-core+json"
+            }
+          }
+        ]
+      }
+    },
+    "android": {
+      "package": "com.rapterbox.holozoo",
+      "permissions": [
+        "INTERNET"
+      ],
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-foreground.png",
+        "backgroundColor": "#07111F"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "content",
+              "mimeType": "application/json"
+            },
+            {
+              "scheme": "content",
+              "mimeType": "application/vnd.rapterbox.rolling-core+json"
+            }
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#07111F",
+          "dark": {
+            "backgroundColor": "#03070C"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "brand": {
+        "consumer": "Rapterbox",
+        "product": "Rolling Cores",
+        "displayName": "Holo Zoo",
+        "storeTitle": "Holo Zoo: Rolling Cores",
+        "lockup": "Holo Zoo: Rolling Cores",
+        "tagline": "Everything autocomplete on an organism.",
+        "rapterPositioning": "A Rapter is a living digital organism.",
+        "attribution": "Powered by RAPP/1. From Rapterbox.",
+        "holoZooFeature": "Consumer habitat, player, and Rolling Core library",
+        "sigil": {
+          "schema": "shapee",
+          "seed": "005db34e1c471e94ac4c2b286efb46a9aa328ec7fcd2b9762fa20cc961eef3f7",
+          "width": 2400,
+          "height": 1800,
+          "depth": 180,
+          "teeth": 16,
+          "relief": 420
+        },
+        "marketingUrl": "https://rapterbox.com/holo",
+        "privacyUrl": "https://rapterbox.com/privacy",
+        "supportUrl": "https://rapterbox.com/support"
+      }
+    }
+  }
+}
