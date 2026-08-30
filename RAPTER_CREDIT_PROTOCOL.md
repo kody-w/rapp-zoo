@@ -384,8 +384,17 @@ A signed `rapp-rapter-growth-stage-policy/1` binds:
 - `stage_id` and `generation_id`;
 - the required point threshold;
 - `eligible_after_utc`;
-- an exact rational BTC fraction;
+- the signed Family evolution schedule and transition target;
 - `pay_to_evolve: false` and `retroactive_rewrite: false`.
+
+Each starter Companion Family has two progressive transition targets in its
+signed `rapp-rapter-evolution-schedule/1`:
+
+- Origin → Journey, initially around `15_000_000` USD micros;
+- Journey → Ascendant, initially around `35_000_000` USD micros.
+
+Exact targets may vary by Family. They are issuer stage references, not client
+prices, and a later schedule appends rather than changing an earlier target.
 
 Crossing the UTC boundary does not mutate a frame. It marks the stage
 `mutation_due`. If compute is offline or unavailable, the transition remains
@@ -394,9 +403,17 @@ the next verified AI turn may author a successor.
 
 The accepted aggregate `rapp-rapter-evolution/1` uses `body.pulse`, links the
 prior and successor core heads, hashes the counted receipt set, and snapshots
-BTC/USD evidence. It burns the signed fraction, integer sats, raw quote hash,
-and fiat reference into the immutable event. BTC is reference and provenance,
-not payment, redemption value, or yield.
+BTC/USD evidence. It burns `target_usd_micros`, the exact current-quote satoshi
+equivalent, source, observed UTC, raw quote hash, and rounded fiat reference
+into the immutable event:
+
+```text
+price_sats =
+  ceil(target_usd_micros * 100,000,000 / btc_usd_micros)
+```
+
+BTC is reference and provenance, not payment, redemption value, or yield.
+Evolution does not modify the separate birth valuation.
 
 ### 11.3 World Pulse
 

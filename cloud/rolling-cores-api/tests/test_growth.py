@@ -7,12 +7,16 @@ import pytest
 from credits.domain import CreditError, canonical_json
 from credits.growth import (
     InMemoryGrowthPointLedger,
+    build_companion_evolution_schedule,
     build_evolution_event,
     build_growth_receipt,
     build_stage_policy,
     default_growth_policy,
+    sats_for_usd_target,
     stage_status,
+    validate_evolution_schedule,
 )
+from credits.generations import FREE_COMPANION_FAMILY_IDS
 from credits.quotes import BtcUsdQuote
 
 
@@ -46,18 +50,44 @@ def receipt(index, points=2, category="care"):
     )
 
 
-def stage_policy(required_points=4, eligible_after=NOW):
+def evolution_schedule(
+    *,
+    origin_target=15_000_000,
+    ascendant_target=35_000_000,
+    origin_eligible=NOW,
+):
+    return build_companion_evolution_schedule(
+        issuer="rappterbox",
+        family_id=FREE_COMPANION_FAMILY_IDS[0],
+        generation_id="generation-0002",
+        origin_to_journey={
+            "required_points": 4,
+            "eligible_after_utc": origin_eligible.isoformat(timespec="seconds"),
+            "target_usd_micros": origin_target,
+        },
+        journey_to_ascendant={
+            "required_points": 10,
+            "eligible_after_utc": (NOW + timedelta(days=30)).isoformat(timespec="seconds"),
+            "target_usd_micros": ascendant_target,
+        },
+        previous_schedule_hash=None,
+        created_utc=(NOW - timedelta(minutes=1)).isoformat(timespec="seconds"),
+        signer=Signer(),
+    )
+
+
+def stage_policy(eligible_after=NOW):
+    schedule = evolution_schedule(origin_eligible=eligible_after)
     return build_stage_policy(
         issuer="rappterbox",
         organism_rappid=SUBJECT,
         stage_id="stage-2",
-        generation_id="generation-0002",
-        required_points=required_points,
-        eligible_after_utc=eligible_after.isoformat(timespec="seconds"),
+        transition_id="origin-to-journey",
         current_core_head="b" * 64,
-        btc_fraction={"numerator": 1, "denominator": 500_000},
+        evolution_schedule=schedule,
         created_utc=(NOW - timedelta(minutes=1)).isoformat(timespec="seconds"),
         signer=Signer(),
+        verifier=Signer(),
     )
 
 
@@ -73,6 +103,28 @@ def test_growth_points_are_positive_local_game_points_only():
         receipt(1, points=0)
     with pytest.raises(CreditError):
         receipt(1, points=-1)
+
+
+def test_companion_evolution_schedule_has_two_signed_family_specific_targets():
+    schedule = evolution_schedule(
+        origin_target=14_500_000,
+        ascendant_target=36_000_000,
+    )
+    assert validate_evolution_schedule(schedule, Signer()) == schedule
+    assert schedule["family_id"] == FREE_COMPANION_FAMILY_IDS[0]
+    assert list(schedule["transitions"]) == [
+        "origin-to-journey",
+        "journey-to-ascendant",
+    ]
+    assert (
+        schedule["transitions"]["origin-to-journey"]["target_usd_micros"]
+        == 14_500_000
+    )
+    assert (
+        schedule["transitions"]["journey-to-ascendant"]["target_usd_micros"]
+        == 36_000_000
+    )
+    assert schedule["retroactive_rewrite"] is False
 
 
 def test_growth_ledger_is_idempotent_and_enforces_daily_caps():
@@ -143,12 +195,15 @@ def test_accepted_transition_burns_immutable_btc_reference_not_payment():
     assert event["generation_id"] == "generation-0002"
     assert event["previous_core_head"] == "b" * 64
     assert event["successor_core_head"] == "c" * 64
-    assert event["btc_reference"]["price_sats"] == 200
-    assert event["btc_reference"]["fiat_reference_usd_micros"] == 120_000
-    assert event["btc_reference"]["purpose"] == "reference-provenance-only"
+    assert sats_for_usd_target(15_000_000, 60_000_000_000) == 25_000
+    assert event["btc_reference"]["target_usd_micros"] == 15_000_000
+    assert event["btc_reference"]["price_sats"] == 25_000
+    assert event["btc_reference"]["fiat_reference_usd_micros"] == 15_000_000
+    assert event["btc_reference"]["purpose"] == "issuer-stage-reference-only"
     assert event["btc_reference"]["payment"] is False
     assert event["btc_reference"]["yield"] is False
     assert event["btc_reference"]["redeemable"] is False
+    assert event["birth_valuation_changed"] is False
     assert event["old_bytes_mutated"] is False
     with pytest.raises(CreditError, match="replay"):
         build_evolution_event(

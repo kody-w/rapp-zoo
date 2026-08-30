@@ -111,7 +111,10 @@ non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
 category, positive points, observation time, attester/source, and an evidence
 hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
 and current core head; accepted evolution appends a `body.pulse` with an
-immutable BTC/USD reference snapshot, never a payment or yield.
+immutable BTC/USD reference snapshot, never a payment or yield. Starter
+Companion schedules define Family-specific Origin → Journey and Journey →
+Ascendant reference targets around $15 and $35; the current quote converts the
+signed USD-micro target to integer sats without changing birth valuation.
 
 Verified accounts—including free Companion accounts—may contribute capped,
 privacy-safe Growth Point attestations to World Pulse. Detailed receipts stay

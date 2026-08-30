@@ -297,14 +297,18 @@ remains pending until a verified AI successor turn is available.
 - equal-cap accessibility alternatives;
 - signed stage policies requiring a point threshold, `eligible_after_utc`, and
   the current core head;
+- signed Family evolution schedules with Origin → Journey targets around
+  `15_000_000` USD micros and Journey → Ascendant targets around `35_000_000`
+  USD micros;
 - signed aggregate `body.pulse` evolution events.
 
 Crossing a stage time only marks `mutation_due`. No bytes change until a
 verified AI turn authors and validates a successor. Offline/no-compute state
 remains pending. Accepted evolution snapshots a fresh BTC/USD quote and burns
-the policy fraction, sats, quote hash, and fiat reference into the event. The
-BTC amount is provenance only—not payment, redemption, investment yield, or a
-promise of return.
+the signed `target_usd_micros`, exact ceiling-rounded `price_sats`, quote
+source/time/hash, and rounded fiat reference into the event. The BTC amount is
+provenance only—not payment, redemption, investment yield, or a promise of
+return. Birth valuation remains a separate immutable record.
 
 ## World Pulse aggregation
 

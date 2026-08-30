@@ -8,17 +8,19 @@ from .domain import (
     birth_value_usd_micros,
     bounded_text,
     canonical_json,
-    price_sats_for_fraction,
     validate_organism_rappid,
     validate_sha256,
 )
+from .generations import FREE_COMPANION_FAMILY_IDS
 from .quotes import BtcUsdQuote, validate_fresh_quote
 from .signing import RegistrySigner
 
 
 GROWTH_RECEIPT_SCHEMA = "rapp-rapter-growth-receipt/1"
+EVOLUTION_SCHEDULE_SCHEMA = "rapp-rapter-evolution-schedule/1"
 STAGE_POLICY_SCHEMA = "rapp-rapter-growth-stage-policy/1"
 EVOLUTION_SCHEMA = "rapp-rapter-evolution/1"
+TRANSITIONS = ("origin-to-journey", "journey-to-ascendant")
 GROWTH_CATEGORIES = (
     "care",
     "curiosity",
@@ -50,11 +52,15 @@ STAGE_POLICY_KEYS = {
     "issuer",
     "organism_rappid",
     "stage_id",
+    "family_id",
     "generation_id",
+    "transition_id",
     "required_points",
     "eligible_after_utc",
     "current_core_head",
-    "btc_fraction",
+    "evolution_schedule_id",
+    "evolution_schedule_hash",
+    "target_usd_micros",
     "created_utc",
     "retroactive_rewrite",
     "pay_to_evolve",
@@ -261,47 +267,195 @@ class InMemoryGrowthPointLedger:
         )
 
 
+def sats_for_usd_target(target_usd_micros: int, btc_usd_micros: int) -> int:
+    target = _positive_int(
+        target_usd_micros,
+        "target_usd_micros",
+        9_007_199_254_740_991,
+    )
+    quote = _positive_int(
+        btc_usd_micros,
+        "btc_usd_micros",
+        9_007_199_254_740_991,
+    )
+    return (target * 100_000_000 + quote - 1) // quote
+
+
+def build_companion_evolution_schedule(
+    *,
+    issuer: str,
+    family_id: str,
+    generation_id: str,
+    origin_to_journey: dict[str, Any],
+    journey_to_ascendant: dict[str, Any],
+    previous_schedule_hash: str | None,
+    created_utc: str,
+    signer: RegistrySigner,
+) -> dict[str, Any]:
+    if family_id not in FREE_COMPANION_FAMILY_IDS:
+        raise CreditError("Starter evolution schedules require a free Companion Family.")
+    transitions = {
+        "origin-to-journey": _transition(
+            origin_to_journey,
+            "origin-to-journey",
+            10_000_000,
+            20_000_000,
+        ),
+        "journey-to-ascendant": _transition(
+            journey_to_ascendant,
+            "journey-to-ascendant",
+            25_000_000,
+            45_000_000,
+        ),
+    }
+    if previous_schedule_hash is not None:
+        previous_schedule_hash = validate_sha256(
+            previous_schedule_hash,
+            "previous_schedule_hash",
+        )
+    base = {
+        "schema": EVOLUTION_SCHEDULE_SCHEMA,
+        "kind": "body.pulse",
+        "issuer": bounded_text(issuer, "issuer", 128),
+        "family_id": family_id,
+        "generation_id": bounded_text(generation_id, "generation_id", 128),
+        "transitions": transitions,
+        "previous_schedule_hash": previous_schedule_hash,
+        "created_utc": _utc(created_utc, "created_utc").isoformat(timespec="seconds"),
+        "retroactive_rewrite": False,
+    }
+    return _signed_record(base, id_prefix="evolution-schedule", signer=signer)
+
+
+def _transition(
+    value: Any,
+    transition_id: str,
+    minimum_target: int,
+    maximum_target: int,
+) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {
+        "required_points",
+        "eligible_after_utc",
+        "target_usd_micros",
+    }:
+        raise CreditError(f"{transition_id} has an invalid shape.")
+    target = _positive_int(
+        value["target_usd_micros"],
+        f"{transition_id}.target_usd_micros",
+        9_007_199_254_740_991,
+    )
+    if target < minimum_target or target > maximum_target:
+        raise CreditError(f"{transition_id} target is outside its initial range.")
+    return {
+        "required_points": _positive_int(
+            value["required_points"],
+            f"{transition_id}.required_points",
+            9_007_199_254_740_991,
+        ),
+        "eligible_after_utc": _utc(
+            value["eligible_after_utc"],
+            f"{transition_id}.eligible_after_utc",
+        ).isoformat(timespec="seconds"),
+        "target_usd_micros": target,
+    }
+
+
+def validate_evolution_schedule(policy: Any, verifier: GrowthReceiptVerifier) -> dict[str, Any]:
+    if not isinstance(policy, dict) or policy.get("schema") != EVOLUTION_SCHEDULE_SCHEMA:
+        raise CreditError("Evolution schedule schema is invalid.")
+    expected_keys = {
+        "schema",
+        "kind",
+        "issuer",
+        "family_id",
+        "generation_id",
+        "transitions",
+        "previous_schedule_hash",
+        "created_utc",
+        "retroactive_rewrite",
+        "record_id",
+        "record_hash",
+        "signature",
+    }
+    if set(policy) != expected_keys or policy.get("kind") != "body.pulse":
+        raise CreditError("Evolution schedule shape is invalid.")
+    if policy.get("family_id") not in FREE_COMPANION_FAMILY_IDS:
+        raise CreditError("Evolution schedule Family is not a free Companion Family.")
+    if set(policy.get("transitions", {})) != set(TRANSITIONS):
+        raise CreditError("Evolution schedule must contain both progressive transitions.")
+    _transition(
+        policy["transitions"]["origin-to-journey"],
+        "origin-to-journey",
+        10_000_000,
+        20_000_000,
+    )
+    _transition(
+        policy["transitions"]["journey-to-ascendant"],
+        "journey-to-ascendant",
+        25_000_000,
+        45_000_000,
+    )
+    if policy.get("previous_schedule_hash") is not None:
+        validate_sha256(policy["previous_schedule_hash"], "previous_schedule_hash")
+    _utc(policy.get("created_utc"), "created_utc")
+    if policy.get("retroactive_rewrite") is not False:
+        raise CreditError("Evolution schedule cannot rewrite prior records.")
+    payload = {
+        key: value
+        for key, value in policy.items()
+        if key != "signature"
+    }
+    if not verifier.verify(payload, policy.get("signature")):
+        raise CreditError("Evolution schedule signature is invalid.")
+    hash_payload = {
+        key: value
+        for key, value in policy.items()
+        if key not in {"record_id", "record_hash", "signature"}
+    }
+    expected_hash = hashlib.sha256(canonical_json(hash_payload)).hexdigest()
+    if (
+        policy.get("record_hash") != expected_hash
+        or policy.get("record_id") != f"evolution-schedule:{expected_hash}"
+    ):
+        raise CreditError("Evolution schedule content address is invalid.")
+    return policy
+
+
 def build_stage_policy(
     *,
     issuer: str,
     organism_rappid: str,
     stage_id: str,
-    generation_id: str,
-    required_points: int,
-    eligible_after_utc: str,
+    transition_id: str,
     current_core_head: str,
-    btc_fraction: dict[str, int],
+    evolution_schedule: dict[str, Any],
     created_utc: str,
     signer: RegistrySigner,
+    verifier: GrowthReceiptVerifier,
 ) -> dict[str, Any]:
     validate_organism_rappid(organism_rappid)
-    numerator = btc_fraction.get("numerator")
-    denominator = btc_fraction.get("denominator")
-    price_sats_for_fraction(numerator, denominator)
+    schedule = validate_evolution_schedule(evolution_schedule, verifier)
+    if transition_id not in TRANSITIONS:
+        raise CreditError("transition_id is invalid.")
+    transition = schedule["transitions"][transition_id]
     base = {
         "schema": STAGE_POLICY_SCHEMA,
         "kind": "body.pulse",
         "issuer": bounded_text(issuer, "issuer", 128),
         "organism_rappid": organism_rappid,
         "stage_id": bounded_text(stage_id, "stage_id", 128),
-        "generation_id": bounded_text(generation_id, "generation_id", 128),
-        "required_points": _positive_int(
-            required_points,
-            "required_points",
-            9_007_199_254_740_991,
-        ),
-        "eligible_after_utc": _utc(
-            eligible_after_utc,
-            "eligible_after_utc",
-        ).isoformat(timespec="seconds"),
+        "family_id": schedule["family_id"],
+        "generation_id": schedule["generation_id"],
+        "transition_id": transition_id,
+        "required_points": transition["required_points"],
+        "eligible_after_utc": transition["eligible_after_utc"],
         "current_core_head": validate_sha256(
             current_core_head,
             "current_core_head",
         ),
-        "btc_fraction": {
-            "numerator": numerator,
-            "denominator": denominator,
-        },
+        "evolution_schedule_id": schedule["record_id"],
+        "evolution_schedule_hash": schedule["record_hash"],
+        "target_usd_micros": transition["target_usd_micros"],
         "created_utc": _utc(created_utc, "created_utc").isoformat(timespec="seconds"),
         "retroactive_rewrite": False,
         "pay_to_evolve": False,
@@ -367,7 +521,11 @@ def validate_stage_policy(
         raise CreditError("Stage policy must use body.pulse.")
     validate_organism_rappid(policy.get("organism_rappid"))
     bounded_text(policy.get("stage_id"), "stage_id", 128)
+    if policy.get("family_id") not in FREE_COMPANION_FAMILY_IDS:
+        raise CreditError("Stage policy Family is not a free Companion Family.")
     bounded_text(policy.get("generation_id"), "generation_id", 128)
+    if policy.get("transition_id") not in TRANSITIONS:
+        raise CreditError("Stage policy transition is invalid.")
     _positive_int(
         policy.get("required_points"),
         "required_points",
@@ -376,10 +534,16 @@ def validate_stage_policy(
     _utc(policy.get("eligible_after_utc"), "eligible_after_utc")
     _utc(policy.get("created_utc"), "created_utc")
     validate_sha256(policy.get("current_core_head"), "current_core_head")
-    fraction = policy.get("btc_fraction")
-    if not isinstance(fraction, dict) or set(fraction) != {"numerator", "denominator"}:
-        raise CreditError("Stage policy BTC fraction is invalid.")
-    price_sats_for_fraction(fraction["numerator"], fraction["denominator"])
+    bounded_text(policy.get("evolution_schedule_id"), "evolution_schedule_id", 128)
+    validate_sha256(
+        policy.get("evolution_schedule_hash"),
+        "evolution_schedule_hash",
+    )
+    _positive_int(
+        policy.get("target_usd_micros"),
+        "target_usd_micros",
+        9_007_199_254_740_991,
+    )
     if policy.get("retroactive_rewrite") is not False or policy.get("pay_to_evolve") is not False:
         raise CreditError("Stage policy cannot rewrite history or require payment.")
     record_hash = validate_sha256(policy.get("record_hash"), "record_hash")
@@ -450,9 +614,11 @@ def build_evolution_event(
         now=_utc(accepted_utc, "accepted_utc"),
         maximum_age_seconds=quote_max_age_seconds,
     )
-    numerator = policy["btc_fraction"]["numerator"]
-    denominator = policy["btc_fraction"]["denominator"]
-    price_sats = price_sats_for_fraction(numerator, denominator)
+    target_usd_micros = policy["target_usd_micros"]
+    price_sats = sats_for_usd_target(
+        target_usd_micros,
+        verified_quote.btc_usd_micros,
+    )
     receipt_hash = hashlib.sha256(canonical_json({
         "receipts": sorted(verified_receipts, key=lambda item: item["record_id"]),
     })).hexdigest()
@@ -463,7 +629,11 @@ def build_evolution_event(
         "organism_rappid": policy["organism_rappid"],
         "stage_id": policy["stage_id"],
         "generation_id": policy["generation_id"],
+        "family_id": policy["family_id"],
+        "transition_id": policy["transition_id"],
         "stage_policy_id": policy["record_id"],
+        "evolution_schedule_id": policy["evolution_schedule_id"],
+        "evolution_schedule_hash": policy["evolution_schedule_hash"],
         "previous_core_head": policy["current_core_head"],
         "successor_core_head": successor,
         "accepted_utc": _utc(accepted_utc, "accepted_utc").isoformat(timespec="seconds"),
@@ -471,14 +641,11 @@ def build_evolution_event(
         "required_points": policy["required_points"],
         "growth_receipt_set_hash": receipt_hash,
         "btc_reference": {
-            "purpose": "reference-provenance-only",
+            "purpose": "issuer-stage-reference-only",
             "payment": False,
             "yield": False,
             "redeemable": False,
-            "fraction": {
-                "numerator": numerator,
-                "denominator": denominator,
-            },
+            "target_usd_micros": target_usd_micros,
             "price_sats": price_sats,
             "quote": {
                 "source": verified_quote.source,
@@ -491,6 +658,7 @@ def build_evolution_event(
                 verified_quote.btc_usd_micros,
             ),
         },
+        "birth_valuation_changed": False,
         "old_bytes_mutated": False,
     }
     return _signed_record(base, id_prefix="evolution-event", signer=signer)
