@@ -107,6 +107,10 @@ def _stage_cartridges() -> str:
     ):
         src = _REPO_ROOT / "agents" / cart
         shutil.copy2(src, os.path.join(tmp_agents, cart))
+    protocol_dir = pathlib.Path(tmp_agents) / "rapp_zoo_holo_protocol"
+    protocol_dir.mkdir()
+    for filename in ("holo_protocol.py", "rapp_protocol.py"):
+        shutil.copy2(_REPO_ROOT / "utils" / filename, protocol_dir / filename)
     return tmp_agents
 
 
