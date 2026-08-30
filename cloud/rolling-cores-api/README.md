@@ -277,6 +277,15 @@ The deployed account-token, billing-webhook, subscription-recovery, and worker
 adapters remain disabled. No endpoint trusts client-declared subscription,
 refund, balance, buyer, or payment success.
 
+The typed commerce model fixes the Genesis catalog at 151 neutral Family IDs:
+3 free Companion Families and 148 premium Families. Free account assignment is
+deterministic and does not consume premium supply. Premium generation policies
+are signed and include exact per-Family birth and exclusive-rental caps.
+Mutation policies are also signed and carry `generation_id`,
+`eligible_after_utc`, and the current core head. Crossing UTC marks
+`mutation_due`; it never changes historical bytes, and offline/no-compute state
+remains pending until a verified AI successor turn is available.
+
 ## Cost controls and next ledger boundary
 
 Current controls are a fixed model allowlist, 64 KiB body limit, bounded message

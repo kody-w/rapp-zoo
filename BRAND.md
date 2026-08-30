@@ -57,6 +57,8 @@ verified core intact.
 Supporting lines:
 
 - Every verified account gets one free, account-bound Companion.
+- The canonical Genesis catalog has 151 original Rapter Families: the first 3
+  are free Companion Families and the remaining 148 are premium.
 - Premium Rapters can be rented without changing Rapterbox title.
 - One purchase. One Rapter. One official Credit.
 - Its birth value is fixed in sats.
@@ -65,6 +67,8 @@ Supporting lines:
 - Its local capsule is yours while the official Credit is yours.
 - No subscription is required to open an organism you own.
 - Renting is access, not ownership; buying remains permanent and offline.
+- Family names, bodies, type systems, capture mechanics, and trade dress remain
+  original to Rapterbox.
 
 ## Positioning
 

@@ -577,6 +577,12 @@ if subscription.get("free_companions_per_verified_account") != 1:
     raise SystemExit("Subscription policy did not enforce one free Companion.")
 if subscription.get("exclusive_active_lessee") is not True:
     raise SystemExit("Subscription policy did not enforce exclusive leasing.")
+if (
+    subscription.get("canonical_genesis_families") != 151
+    or subscription.get("free_companion_families") != 3
+    or subscription.get("premium_families") != 148
+):
+    raise SystemExit("Subscription policy did not expose the canonical family split.")
 choice = completion["choices"][0]
 message = choice.get("message", {})
 content = message.get("content")
@@ -611,7 +617,7 @@ evidence = f"""# Deployment evidence
 - Return/listing without scoped owner token: HTTP {os.environ["RETURN_NO_OWNER_STATUS"]}/{os.environ["LISTING_NO_OWNER_STATUS"]} (refused)
 - Artifact delivery policy: HTTP {os.environ["ARTIFACT_STATUS"]}, commit pin required, entitlement adapter disabled
 - Artifact release without Function/scoped token: HTTP {os.environ["UNAUTH_ARTIFACT_STATUS"]}/{os.environ["ARTIFACT_NO_TOKEN_STATUS"]} (refused)
-- Subscription policy: HTTP {os.environ["SUBSCRIPTION_POLICY_STATUS"]}, one free Companion/account, exclusive premium lessee
+- Subscription policy: HTTP {os.environ["SUBSCRIPTION_POLICY_STATUS"]}, 151 families (3 free / 148 premium), one free Companion/account, exclusive premium lessee
 - Companion claim without Function/account token: HTTP {os.environ["UNAUTH_COMPANION_STATUS"]}/{os.environ["COMPANION_NO_ACCOUNT_STATUS"]} (refused)
 - Lease Capsule access without Function token: HTTP {os.environ["UNAUTH_LEASE_CAPSULE_STATUS"]} (refused)
 - Client-declared payment success: HTTP {os.environ["UNTRUSTED_PAYMENT_STATUS"]} (rejected)

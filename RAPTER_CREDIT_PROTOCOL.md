@@ -338,6 +338,33 @@ Subscription billing webhooks and recovery are idempotent. Account identity,
 billing status, refund status, buyer identity, and settlement success come only
 from server-verified adapters, never client claims.
 
+### 11.1 Genesis Families and generations
+
+The canonical Genesis catalog has exactly 151 neutral Family identifiers:
+
+- `genesis-family-001` through `genesis-family-003` are free Companion
+  Families;
+- `genesis-family-004` through `genesis-family-151` are premium Families.
+
+Each verified account receives one deterministic Companion instance from the
+three free Families. It remains account-bound and does not consume a premium
+birth or rental cap.
+
+Every premium generation has a signed `rapp-rapter-generation-policy/1` with a
+`generation_id`, an `eligible_after_utc`, the previous policy hash, and exact
+per-Family birth and exclusive-rental caps. New generations append policy
+records; they do not rewrite an older schedule, Credit, Capsule, or core frame.
+
+A signed `rapp-rapter-mutation-policy/1` can mark an existing Family eligible
+for mutation. Crossing `eligible_after_utc` changes only the derived
+`mutation_due` status. The next verified AI turn may author a successor against
+the current core head. Offline or unavailable compute leaves the mutation
+pending with all old bytes unchanged.
+
+Family identifiers and commerce rules are original and neutral. This protocol
+does not define names, shapes, elemental types, capture mechanics, or trade
+dress from another creature franchise.
+
 ---
 
 ## 12. Offline behavior

@@ -218,7 +218,12 @@ def test_free_companion_is_idempotent_one_per_verified_account_and_outside_suppl
     assert first["transferable"] is False
     assert first["resellable"] is False
     assert first["premium_series"] is False
+    assert first["family_id"].startswith("genesis-family-00")
     assert credits.issued_count == issued_before
+    status = subscription_service.service_status()
+    assert status["canonical_genesis_families"] == 151
+    assert status["free_companion_families"] == 3
+    assert status["premium_families"] == 148
 
 
 def test_owned_rapter_cannot_lease_and_active_lease_cannot_double_assign():

@@ -99,6 +99,13 @@ purchase-conversion, and transfer events preserve the immutable birth value.
 Expired lease copies become unowned/verifiable after sync; permanent purchases
 remain offline-capable and never require a subscription.
 
+The typed Genesis catalog contains 151 neutral Rapter Family identifiers. The
+first 3 are free Companion Families; the remaining 148 use signed
+per-generation birth and exclusive-rental caps. Signed mutation policies carry
+`generation_id` and `eligible_after_utc`. Crossing UTC marks `mutation_due`;
+only a later verified AI turn can append a successor. Offline or unavailable
+compute leaves the mutation pending and never rewrites old bytes.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

@@ -22,6 +22,12 @@ from .domain import (
     validate_sha256,
 )
 from .lifecycle import INVENTORY_OWNER_HASH
+from .generations import (
+    FREE_COMPANION_FAMILY_COUNT,
+    GENESIS_FAMILY_COUNT,
+    PREMIUM_FAMILY_COUNT,
+    companion_family_for_account,
+)
 from .repository import PARTITION, CreditRepository
 from .signing import RegistrySigner
 
@@ -508,6 +514,9 @@ class SubscriptionService:
         return {
             "schema": "rappter-subscription-service-status/1",
             "free_companions_per_verified_account": 1,
+            "canonical_genesis_families": GENESIS_FAMILY_COUNT,
+            "free_companion_families": FREE_COMPANION_FAMILY_COUNT,
+            "premium_families": PREMIUM_FAMILY_COUNT,
             "free_companion_transferable": False,
             "free_companion_resellable": False,
             "free_companion_uses_premium_supply": False,
@@ -523,6 +532,7 @@ class SubscriptionService:
     def claim_companion(self, token: str | None) -> tuple[dict[str, Any], bool]:
         claims = self._claims(token)
         account_hash = _account_hash(claims.account_reference)
+        family_id = companion_family_for_account(account_hash)
         entitlement_id = "companion:" + hashlib.sha256(
             f"free-companion\0{account_hash}".encode(),
         ).hexdigest()
@@ -536,6 +546,7 @@ class SubscriptionService:
             "parent_event_id": None,
             "occurred_utc": self.now().isoformat(timespec="seconds"),
             "entitlement_id": entitlement_id,
+            "family_id": family_id,
             "account_hash": account_hash,
             "state": "active",
             "transferable": False,
