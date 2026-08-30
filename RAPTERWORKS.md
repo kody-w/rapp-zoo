@@ -99,8 +99,9 @@ Each signed tip event reports two explicit views:
 
 - **Raw economic evidence** preserves the full verified amount and currency,
   owner/operator/dealer payouts, compute reserve, species R&D allocation,
-  payment-reference hash, and patronage linkage. Amounts are validated for
-  storage but never clipped or replaced by a capped proxy.
+  premium review, evolution-service allocation, payment-reference hash, and
+  patronage linkage. Amounts are validated for storage but never clipped or
+  replaced by a capped proxy.
 - **Normalized quality evidence** caps only the tip component used beside
   independent rating, repeat work, completion, disputes, and cost evidence.
 
@@ -108,10 +109,37 @@ Signed cohort and patronage snapshots preserve lifetime volume, largest tip,
 median tip, tip velocity, repeat tipping, full per-job patronage history, unique
 payer count, largest-payer share, and payer-concentration HHI. Raw economic
 evidence may materially inform demand and market alpha, owner/operator/dealer
-payouts, compute reserves, species R&D, and the patronage lens. A large tip may
-sponsor additional candidate mutations, experiments, or market evaluation. It
-cannot rewrite a bad rating, certify correctness, or guarantee that a
-predetermined candidate becomes the canonical mutation.
+payouts, compute reserves, species R&D, and the patronage lens.
+
+### Patronage-weighted evolution
+
+Buying additional evolution work is an intentional RapterWorks service. Each
+positive tip declares whether it targets an owner instance or a species-level
+canonical candidate, a content-addressed target reference, and the selected
+creative lens. The signed policy publishes exact currency-minor conversion
+costs and multipliers. The signed tip event then discloses:
+
+- additional mutation frames;
+- compute units and faster-iteration units;
+- premium-review units;
+- the uncapped selected-lens weight;
+- the uncapped market-alpha signal;
+- the exact owner/operator/dealer, compute, R&D, review, and evolution
+  allocations, including deterministic rounding remainders.
+
+Owner-instance sponsorship may directly increase iteration and
+market-perceived quality/alpha for that instance. Species-level pooled
+patronage may fund canonical candidate frames, experiments, and review, but
+Rapterbox remains the sole canon-acceptance authority. Sponsorship buys
+creative transformation services and evaluation effort, not equity, a
+security, guaranteed returns, or a predetermined canonical result.
+
+Every public quality report presents two views side by side. The unweighted
+technical test score is the exact test pass rate and consumes no patronage
+input. The patronage-weighted view exposes the raw tip, selected lens, target,
+purchased service units, and normalized tip component. Money may influence the
+weighted market/evolution view, but it never rewrites ratings, test results, or
+history.
 
 ## Regression fixtures
 

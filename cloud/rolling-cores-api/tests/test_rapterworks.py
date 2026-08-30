@@ -423,12 +423,22 @@ def tip_policy():
         dealer_reference_hash="2" * 64,
         compute_reserve_reference_hash="3" * 64,
         species_rnd_reference_hash="4" * 64,
-        owner_basis_points=3000,
-        operator_basis_points=2500,
-        dealer_basis_points=2000,
+        premium_review_reference_hash="8" * 64,
+        evolution_service_reference_hash="9" * 64,
+        owner_basis_points=2000,
+        operator_basis_points=2000,
+        dealer_basis_points=1000,
         compute_reserve_basis_points=1500,
         species_rnd_basis_points=1000,
+        premium_review_basis_points=1000,
+        evolution_sponsorship_basis_points=1500,
         quality_tip_ratio_cap_basis_points=2000,
+        mutation_frame_cost_minor=100,
+        compute_unit_cost_minor=50,
+        iteration_unit_cost_minor=25,
+        premium_review_cost_minor=200,
+        selected_lens_weight_micros_per_minor=10,
+        market_alpha_micros_per_minor=5,
         created_utc=NOW.isoformat(timespec="seconds"),
         signer=Signer(),
     )
@@ -454,6 +464,9 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="5" * 64,
+        selected_lens="motion",
     )
     repeated, repeated_created = tips.record(
         job=job,
@@ -465,6 +478,9 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="5" * 64,
+        selected_lens="motion",
     )
     assert created is True
     assert repeated_created is False
@@ -474,15 +490,25 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
     assert event["amount_minor"] == 1_000_000
     assert event["suggested_tip_ratio_basis_points"] == 2000
     assert event["quality_tip_signal_ppm"] == 1_000_000
-    assert event["owner_amount_minor"] == 300_000
-    assert event["operator_amount_minor"] == 250_000
-    assert event["dealer_amount_minor"] == 200_000
+    assert event["owner_amount_minor"] == 200_000
+    assert event["operator_amount_minor"] == 200_000
+    assert event["dealer_amount_minor"] == 100_000
     assert event["compute_reserve_amount_minor"] == 150_000
     assert event["species_rnd_amount_minor"] == 100_000
+    assert event["premium_review_amount_minor"] == 100_000
+    assert event["evolution_sponsorship_amount_minor"] == 150_000
     assert event["raw_economic_view"]["amount_minor"] == 1_000_000
-    assert event["raw_economic_view"]["market_evaluation_eligible"] is True
-    assert event["raw_economic_view"]["candidate_experiment_sponsorship_minor"] == 250_000
+    assert event["raw_economic_view"]["market_evaluation_influence"] is True
+    assert event["selected_lens_weight_micros"] == 1_500_000
+    assert event["market_alpha_signal_micros"] == 5_000_000
+    assert event["purchased_mutation_frames"] == 1500
+    assert event["purchased_compute_units"] == 3000
+    assert event["purchased_iteration_units"] == 6000
+    assert event["purchased_premium_review_units"] == 500
+    assert event["species_candidate_sponsorship_minor"] == 100_000
+    assert event["species_candidate_mutation_frames"] == 1000
     assert event["raw_economic_view"]["canonical_mutation_guaranteed"] is False
+    assert event["raw_economic_view"]["canon_acceptance_authority"] == "rappterbox"
     assert event["normalized_quality_view"] == {
         "tip_ratio_basis_points": 2000,
         "tip_signal_ppm": 1_000_000,
@@ -521,11 +547,18 @@ def test_zero_tip_is_valid_and_does_not_call_payment_or_create_debt():
         reference_cost_minor=1_000,
         payment_proof=None,
         cohort_id="artifact-build-2026-08",
+        evolution_target="none",
+        evolution_target_reference_hash=None,
+        selected_lens=None,
     )
     assert event["tipped"] is False
     assert event["amount_minor"] == 0
     assert event["payment_reference_hash"] is None
     assert event["debt_created"] is False
+    assert event["evolution_target"] == "none"
+    assert event["purchased_mutation_frames"] == 0
+    assert event["market_alpha_signal_micros"] == 0
+    assert event["raw_economic_view"]["demand_market_alpha_influence"] is False
     assert verifier.calls == 0
 
 
@@ -562,6 +595,9 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
+            evolution_target="owner-instance",
+            evolution_target_reference_hash="5" * 64,
+            selected_lens="motion",
         )
     delivered = delivered_job()
     tips.record(
@@ -574,6 +610,9 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="5" * 64,
+        selected_lens="motion",
     )
     with pytest.raises(CreditError, match="already has"):
         tips.record(
@@ -586,6 +625,9 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
+            evolution_target="owner-instance",
+            evolution_target_reference_hash="5" * 64,
+            selected_lens="motion",
         )
     second_job = delivered_job("second-tip-job", "account-2")
     with pytest.raises(CreditError, match="already been recorded"):
@@ -599,6 +641,9 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
+            evolution_target="owner-instance",
+            evolution_target_reference_hash="5" * 64,
+            selected_lens="motion",
         )
     tampered = dict(tip_policy())
     tampered["operator_basis_points"] = 6000
@@ -633,6 +678,9 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="5" * 64,
+        selected_lens="motion",
     )
     assert whale["amount_minor"] == whale_amount
     assert sum(
@@ -643,13 +691,15 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
             "dealer_amount_minor",
             "compute_reserve_amount_minor",
             "species_rnd_amount_minor",
+            "premium_review_amount_minor",
+            "evolution_sponsorship_amount_minor",
         )
     ) == whale_amount
     assert whale["raw_economic_view"]["amount_minor"] == whale_amount
     assert whale["normalized_quality_view"]["tip_signal_ppm"] == 1_000_000
     tips.payment_verifier = TipVerifier(100)
     small_job = delivered_job("tip-job-small", "account-2")
-    tips.record(
+    small, _ = tips.record(
         job=small_job,
         operation_id="tip-small",
         account_reference="account-2",
@@ -659,6 +709,9 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="5" * 64,
+        selected_lens="motion",
     )
     no_tip_job = delivered_job("tip-job-none", "account-3")
     tips.record(
@@ -671,11 +724,14 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof=None,
         cohort_id="artifact-build-2026-08",
+        evolution_target="none",
+        evolution_target_reference_hash=None,
+        selected_lens=None,
     )
     current_time[0] = NOW + timedelta(days=1)
     tips.payment_verifier = TipVerifier(500)
     repeat_job = delivered_job("tip-job-repeat", "account-1")
-    tips.record(
+    repeat, _ = tips.record(
         job=repeat_job,
         operation_id="tip-repeat",
         account_reference="account-1",
@@ -685,7 +741,14 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
+        evolution_target="species-candidate",
+        evolution_target_reference_hash="6" * 64,
+        selected_lens="memory",
     )
+    assert repeat["species_candidate_sponsorship_minor"] == 125
+    assert repeat["species_candidate_mutation_frames"] == 1
+    assert repeat["raw_economic_view"]["canon_acceptance_authority"] == "rappterbox"
+    assert repeat["raw_economic_view"]["canonical_mutation_guaranteed"] is False
     tips.payment_verifier = TipVerifier(999)
     other_job = delivered_job("tip-job-other", "account-4")
     tips.record(
@@ -698,6 +761,9 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="different-cohort",
+        evolution_target="owner-instance",
+        evolution_target_reference_hash="7" * 64,
+        selected_lens="utility",
     )
     cohort = tips.cohort(
         cohort_id="artifact-build-2026-08",
@@ -723,7 +789,26 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
     ) // (lifetime_volume**2)
     assert cohort["tip_velocity_minor_per_day"] == (lifetime_volume + 1) // 2
     assert cohort["tip_rate_ppm"] == 750_000
-    assert cohort["raw_economic_view"]["demand_market_alpha_eligible"] is True
+    assert cohort["raw_economic_view"]["demand_market_alpha_influence"] is True
+    assert cohort["owner_instance_sponsorship_minor"] == (
+        whale["evolution_sponsorship_amount_minor"]
+        + small["evolution_sponsorship_amount_minor"]
+    )
+    assert cohort["species_candidate_target_sponsorship_minor"] == (
+        repeat["evolution_sponsorship_amount_minor"]
+    )
+    assert cohort["species_candidate_pool_minor"] == sum(
+        event["species_candidate_sponsorship_minor"]
+        for event in (whale, small, repeat)
+    )
+    assert cohort["selected_lens_weights_micros"] == {
+        "motion": (
+            whale["selected_lens_weight_micros"]
+            + small["selected_lens_weight_micros"]
+        ),
+        "memory": repeat["selected_lens_weight_micros"],
+    }
+    assert cohort["canon_acceptance_authority"] == "rappterbox"
     assert cohort["normalized_quality_view"]["raw_volume_used_directly"] is False
     assert Signer().verify(
         {key: value for key, value in cohort.items() if key != "signature"},
@@ -736,15 +821,26 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
     assert patronage["repeat_tip_count"] == 1
     assert patronage["repeat_tipping"] is True
     assert patronage["tip_velocity_minor_per_day"] == largest_payer_volume
+    assert patronage["selected_lens_weights_micros"] == {
+        "memory": repeat["selected_lens_weight_micros"],
+        "motion": whale["selected_lens_weight_micros"],
+    }
+    assert patronage["canon_acceptance_authority"] == "rappterbox"
     assert [entry["amount_minor"] for entry in patronage["history"]] == [
         whale_amount,
         500,
+    ]
+    assert [entry["evolution_target"] for entry in patronage["history"]] == [
+        "owner-instance",
+        "species-candidate",
     ]
     assert Signer().verify(
         {key: value for key, value in patronage.items() if key != "signature"},
         patronage["signature"],
     )
     evidence = bounded_quality_evidence(
+        issuer="rappterbox",
+        signer=Signer(),
         tip_event=whale,
         cohort=cohort,
         rating=1,
@@ -752,14 +848,26 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         completed=True,
         dispute_count=1,
         cost_ratio_ppm=500_000,
+        tests_passed=7,
+        tests_total=10,
     )
+    assert evidence["unweighted_technical_test_score_ppm"] == 700_000
+    assert evidence["unweighted_technical_view"]["patronage_inputs_used"] is False
     assert evidence["rating_ppm"] == 200_000
     assert evidence["normalized_tip_component_ppm"] == 1_000_000
-    assert evidence["raw_tip_amount_used_directly"] is False
-    assert evidence["payer_concentration_used_directly"] is False
-    assert evidence["lifetime_volume_used_directly"] is False
-    assert evidence["largest_tip_used_directly"] is False
-    assert evidence["tip_velocity_used_directly"] is False
+    assert evidence["patronage_weighted_view"]["raw_tip_amount_minor"] == whale_amount
+    assert evidence["patronage_weighted_view"]["selected_lens"] == "motion"
+    assert evidence["patronage_weighted_view"]["market_alpha_signal_micros"] == (
+        whale_amount * 5
+    )
+    assert evidence["raw_tip_amount_used_in_unweighted_technical_score"] is False
+    assert evidence["raw_tip_amount_used_in_patronage_weighted_view"] is True
     assert evidence["rating_overridden_by_tip"] is False
     assert evidence["canonical_mutation_guaranteed"] is False
-    assert "amount_minor" not in evidence
+    assert evidence["canon_acceptance_authority"] == "rappterbox"
+    assert "unweighted-technical-test-score" in evidence["money_did_not_influence"]
+    assert "selected-lens-weight" in evidence["money_influenced_fields"]
+    assert Signer().verify(
+        {key: value for key, value in evidence.items() if key != "signature"},
+        evidence["signature"],
+    )

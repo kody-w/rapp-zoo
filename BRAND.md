@@ -77,8 +77,12 @@ Supporting lines:
 - RapterWorks delivery is full and free. A post-service tip may be any amount
   or zero, is separate from rating, and never creates debt or gates the work.
 - TIPS preserve full patronage and economic evidence for payouts, reserves,
-  R&D, and market learning; only their quality component is capped, and money
-  cannot rewrite a bad rating or guarantee a canonical mutation.
+  R&D, market learning, and purchased evolution services. Patronage may buy
+  more instance mutation frames, compute, iteration, selected-lens weight, and
+  premium review, while species pools may fund canonical candidate work.
+- Public reports separate unweighted technical test quality from the
+  patronage-weighted market/evolution view. Money cannot rewrite ratings or
+  history, buy Rapterbox canon acceptance, or guarantee returns.
 
 ## Positioning
 

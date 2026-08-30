@@ -349,15 +349,25 @@ hashed, and reused payments are refused. Rating remains independent, zero tip
 creates no debt, and artifact access is always full and unconditional.
 
 Every signed signal contains both a lossless raw economic view and a separate
-capped quality view. The raw view preserves the full verified amount, currency,
-payout and reserve allocations, and candidate-experiment sponsorship amount;
-it is never clipped to the quality ceiling. Signed cohort and patronage reports
-preserve lifetime volume, largest and median tips, velocity, repeat tipping,
-per-job history, unique payer count, largest-payer share, and concentration
-HHI. Raw evidence may materially inform demand/market alpha, payouts, compute
-reserve, species R&D, patronage, candidate experiments, and market evaluation.
-Only the normalized component enters quality evidence, so even the largest tip
-cannot rewrite a bad rating or guarantee a predetermined canonical mutation.
+capped quality component. The raw view preserves the full verified amount,
+currency, exact allocation, evolution target, selected lens, purchased
+mutation frames, compute, iteration, premium review, species-candidate pool,
+and market-alpha signal. It is never clipped to the quality ceiling.
+
+The signed policy publishes the exact allocation basis points, service unit
+costs, lens-weight multiplier, and market-alpha multiplier. Raw patronage can
+therefore materially buy or sponsor owner-instance evolution work and
+species-level candidate work. Rapterbox remains the canon-acceptance authority;
+payment cannot guarantee a predetermined canonical mutation or rewrite a
+rating, test result, or prior event. Evolution sponsorship is a creative
+transformation service, not equity or a guaranteed return.
+
+Signed cohort and patronage reports preserve lifetime volume, largest and
+median tips, velocity, repeat tipping, per-job history, unique payer count,
+largest-payer share, concentration HHI, target mix, selected-lens weights, and
+purchased service units. Signed quality reports show an unweighted technical
+test pass-rate beside the disclosed patronage-weighted view, making exactly
+what money influenced visible rather than blending it into technical quality.
 
 The Shopify Admin token, commission verification, tip verification, signed tip
 allocation policy, and durable job/tip/patronage persistence remain server-side adapter
