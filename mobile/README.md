@@ -396,3 +396,6 @@ micro-events, and the disabled-by-default preview HealthKit adapter.
 See [`WORLD_PULSE_ARCHITECTURE.md`](./WORLD_PULSE_ARCHITECTURE.md) for the
 typed global aggregate checkpoint, milestone, event-count, and universal
 shared-world unlock boundary kept separate from individual progress.
+See [`STAGE_TIMELINE_ARCHITECTURE.md`](./STAGE_TIMELINE_ARCHITECTURE.md) for
+the typed free Origin and signed Journey/Ascendant stage reference timeline,
+with points-plus-UTC eligibility and no pay-to-evolve semantics.
