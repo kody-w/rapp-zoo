@@ -19,6 +19,38 @@ PREMIUM_FAMILY_IDS = GENESIS_FAMILY_IDS[FREE_COMPANION_FAMILY_COUNT:]
 GENERATION_POLICY_SCHEMA = "rapp-rapter-generation-policy/1"
 MUTATION_POLICY_SCHEMA = "rapp-rapter-mutation-policy/1"
 _GENERATION_ID = re.compile(r"^generation-[0-9]{4}$")
+GENERATION_POLICY_KEYS = {
+    "schema",
+    "kind",
+    "issuer",
+    "generation_id",
+    "eligible_after_utc",
+    "created_utc",
+    "previous_policy_hash",
+    "canonical_family_count",
+    "free_companion_family_ids",
+    "premium_family_caps",
+    "retroactive_rewrite",
+    "policy_id",
+    "policy_hash",
+    "signature",
+}
+MUTATION_POLICY_KEYS = {
+    "schema",
+    "kind",
+    "issuer",
+    "family_id",
+    "generation_id",
+    "eligible_after_utc",
+    "created_utc",
+    "current_core_head",
+    "previous_policy_hash",
+    "mutation_mode",
+    "retroactive_rewrite",
+    "policy_id",
+    "policy_hash",
+    "signature",
+}
 
 
 def family_class(family_id: str) -> str:
@@ -160,14 +192,101 @@ def build_mutation_policy(
     return {**payload, "signature": signer.sign(payload)}
 
 
+def validate_generation_policy(policy: Any, verifier) -> dict[str, Any]:
+    if (
+        not isinstance(policy, dict)
+        or set(policy) != GENERATION_POLICY_KEYS
+        or policy.get("schema") != GENERATION_POLICY_SCHEMA
+        or policy.get("kind") != "body.pulse"
+    ):
+        raise CreditError("Generation policy shape is invalid.")
+    if not _GENERATION_ID.fullmatch(policy.get("generation_id", "")):
+        raise CreditError("generation_id is invalid.")
+    _utc(policy.get("eligible_after_utc"), "eligible_after_utc")
+    _utc(policy.get("created_utc"), "created_utc")
+    if policy.get("previous_policy_hash") is not None:
+        validate_sha256(policy["previous_policy_hash"], "previous_policy_hash")
+    if policy.get("canonical_family_count") != GENESIS_FAMILY_COUNT:
+        raise CreditError("Generation policy family count is invalid.")
+    if policy.get("free_companion_family_ids") != list(FREE_COMPANION_FAMILY_IDS):
+        raise CreditError("Generation policy free Companion families are invalid.")
+    caps = policy.get("premium_family_caps")
+    if not isinstance(caps, dict) or set(caps) != set(PREMIUM_FAMILY_IDS):
+        raise CreditError("Generation policy premium family caps are invalid.")
+    for value in caps.values():
+        if not isinstance(value, dict) or set(value) != {
+            "birth_cap",
+            "exclusive_rental_cap",
+        }:
+            raise CreditError("Generation policy cap shape is invalid.")
+        _cap(value["birth_cap"], "birth_cap")
+        _cap(value["exclusive_rental_cap"], "exclusive_rental_cap")
+    if policy.get("retroactive_rewrite") is not False:
+        raise CreditError("Generation policy cannot rewrite prior records.")
+    hash_payload = {
+        key: value
+        for key, value in policy.items()
+        if key not in {"policy_id", "policy_hash", "signature"}
+    }
+    expected_hash = _policy_hash(hash_payload)
+    if (
+        policy.get("policy_hash") != expected_hash
+        or policy.get("policy_id") != f"generation-policy:{expected_hash}"
+    ):
+        raise CreditError("Generation policy content address is invalid.")
+    payload = {
+        key: value
+        for key, value in policy.items()
+        if key != "signature"
+    }
+    if not verifier.verify(payload, policy.get("signature")):
+        raise CreditError("Generation policy signature is invalid.")
+    return policy
+
+
 def mutation_status(
     policy: dict[str, Any],
     *,
     evaluated_utc: str,
     compute_available: bool,
+    verifier,
 ) -> dict[str, Any]:
-    if policy.get("schema") != MUTATION_POLICY_SCHEMA:
+    if (
+        not isinstance(policy, dict)
+        or set(policy) != MUTATION_POLICY_KEYS
+        or policy.get("schema") != MUTATION_POLICY_SCHEMA
+    ):
         raise CreditError("Mutation policy schema is invalid.")
+    payload = {
+        key: value
+        for key, value in policy.items()
+        if key != "signature"
+    }
+    if not verifier.verify(payload, policy.get("signature")):
+        raise CreditError("Mutation policy signature is invalid.")
+    hash_payload = {
+        key: value
+        for key, value in policy.items()
+        if key not in {"policy_id", "policy_hash", "signature"}
+    }
+    expected_hash = _policy_hash(hash_payload)
+    if (
+        policy.get("policy_hash") != expected_hash
+        or policy.get("policy_id") != f"mutation-policy:{expected_hash}"
+    ):
+        raise CreditError("Mutation policy content address is invalid.")
+    family_class(policy.get("family_id"))
+    if not _GENERATION_ID.fullmatch(policy.get("generation_id", "")):
+        raise CreditError("generation_id is invalid.")
+    _utc(policy.get("eligible_after_utc"), "eligible_after_utc")
+    _utc(policy.get("created_utc"), "created_utc")
+    validate_sha256(policy.get("current_core_head"), "current_core_head")
+    if policy.get("previous_policy_hash") is not None:
+        validate_sha256(policy["previous_policy_hash"], "previous_policy_hash")
+    if policy.get("mutation_mode") != "next-verified-ai-turn-successor":
+        raise CreditError("Mutation policy mode is invalid.")
+    if policy.get("retroactive_rewrite") is not False:
+        raise CreditError("Mutation policy cannot rewrite old bytes.")
     eligible = datetime.fromisoformat(_utc(
         policy.get("eligible_after_utc"),
         "eligible_after_utc",

@@ -106,6 +106,13 @@ per-generation birth and exclusive-rental caps. Signed mutation policies carry
 only a later verified AI turn can append a successor. Offline or unavailable
 compute leaves the mutation pending and never rewrites old bytes.
 
+Rapter Growth Points are local game progression only: non-transferable,
+non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
+category, positive points, observation time, attester/source, and an evidence
+hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
+and current core head; accepted evolution appends a `body.pulse` with an
+immutable BTC/USD reference snapshot, never a payment or yield.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

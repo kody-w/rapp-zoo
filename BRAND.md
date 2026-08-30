@@ -69,6 +69,8 @@ Supporting lines:
 - Renting is access, not ownership; buying remains permanent and offline.
 - Family names, bodies, type systems, capture mechanics, and trade dress remain
   original to Rapterbox.
+- Rapter Growth Points are earned through bounded opt-in positive activity;
+  they are never sold, transferred, redeemed, or deducted below zero.
 
 ## Positioning
 

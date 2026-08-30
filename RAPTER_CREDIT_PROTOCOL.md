@@ -365,6 +365,39 @@ Family identifiers and commerce rules are original and neutral. This protocol
 does not define names, shapes, elemental types, capture mechanics, or trade
 dress from another creature franchise.
 
+### 11.2 Rapter Growth Points
+
+Rapter Growth Points are non-transferable, non-purchasable, non-redeemable game
+points earned from bounded, opt-in, micro-positive events. Points are never
+negative and are constrained by per-event, per-category, and total daily caps.
+Equivalent accessible interactions can earn within the same limits.
+
+Detailed health or activity data remains local. A private
+`rapp-rapter-growth-receipt/1` carried by `memory.save` contains only the
+organism identity, category, positive points, observed UTC, attester, source,
+evidence hash, content address, and signature. Reusing the same content-addressed
+event ID is idempotent and cannot add points twice.
+
+A signed `rapp-rapter-growth-stage-policy/1` binds:
+
+- the organism and current core head;
+- `stage_id` and `generation_id`;
+- the required point threshold;
+- `eligible_after_utc`;
+- an exact rational BTC fraction;
+- `pay_to_evolve: false` and `retroactive_rewrite: false`.
+
+Crossing the UTC boundary does not mutate a frame. It marks the stage
+`mutation_due`. If compute is offline or unavailable, the transition remains
+pending. Once threshold, time, current-head, signature, and compute checks pass,
+the next verified AI turn may author a successor.
+
+The accepted aggregate `rapp-rapter-evolution/1` uses `body.pulse`, links the
+prior and successor core heads, hashes the counted receipt set, and snapshots
+BTC/USD evidence. It burns the signed fraction, integer sats, raw quote hash,
+and fiat reference into the immutable event. BTC is reference and provenance,
+not payment, redemption value, or yield.
+
 ---
 
 ## 12. Offline behavior

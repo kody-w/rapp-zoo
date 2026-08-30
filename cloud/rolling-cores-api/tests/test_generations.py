@@ -14,6 +14,7 @@ from credits.generations import (
     companion_family_for_account,
     family_class,
     mutation_status,
+    validate_generation_policy,
 )
 
 
@@ -28,6 +29,9 @@ class Signer:
             "key_id": "https://issuer.example/key/v1",
             "value": base64.urlsafe_b64encode(digest + digest).rstrip(b"=").decode(),
         }
+
+    def verify(self, payload, signature):
+        return signature["value"] == self.sign(payload)["value"]
 
 
 def test_genesis_family_supply_split_is_exact_and_neutral():
@@ -69,6 +73,7 @@ def test_generation_policy_signs_all_premium_family_caps():
     assert policy["free_companion_family_ids"] == list(FREE_COMPANION_FAMILY_IDS)
     assert policy["retroactive_rewrite"] is False
     assert policy["signature"]["algorithm"] == "ES256"
+    assert validate_generation_policy(policy, Signer()) == policy
 
 
 def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
@@ -86,6 +91,7 @@ def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
         policy,
         evaluated_utc=(NOW + timedelta(seconds=1)).isoformat(timespec="seconds"),
         compute_available=False,
+        verifier=Signer(),
     )
     assert pending["mutation_due"] is True
     assert pending["authoring_allowed"] is False
@@ -97,6 +103,7 @@ def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
         policy,
         evaluated_utc=(NOW + timedelta(seconds=1)).isoformat(timespec="seconds"),
         compute_available=True,
+        verifier=Signer(),
     )
     assert ready["state"] == "ready-for-next-verified-turn"
     assert ready["successor_required"] is True
@@ -117,11 +124,13 @@ def test_crossing_utc_only_marks_mutation_due():
         policy,
         evaluated_utc=NOW.isoformat(timespec="seconds"),
         compute_available=True,
+        verifier=Signer(),
     )
     after = mutation_status(
         policy,
         evaluated_utc=(NOW + timedelta(days=1)).isoformat(timespec="seconds"),
         compute_available=True,
+        verifier=Signer(),
     )
     assert before["mutation_due"] is False
     assert after["mutation_due"] is True

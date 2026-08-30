@@ -286,6 +286,26 @@ Mutation policies are also signed and carry `generation_id`,
 `mutation_due`; it never changes historical bytes, and offline/no-compute state
 remains pending until a verified AI successor turn is available.
 
+## Growth Points and stage evolution
+
+`credits/growth.py` defines the local-only typed interfaces for Growth Points:
+
+- signed private `memory.save` receipts with category, positive points,
+  observed UTC, attester/source, and evidence hash;
+- deterministic content-addressed IDs and replay refusal;
+- per-event, per-category, and total daily caps;
+- equal-cap accessibility alternatives;
+- signed stage policies requiring a point threshold, `eligible_after_utc`, and
+  the current core head;
+- signed aggregate `body.pulse` evolution events.
+
+Crossing a stage time only marks `mutation_due`. No bytes change until a
+verified AI turn authors and validates a successor. Offline/no-compute state
+remains pending. Accepted evolution snapshots a fresh BTC/USD quote and burns
+the policy fraction, sats, quote hash, and fiat reference into the event. The
+BTC amount is provenance only—not payment, redemption, investment yield, or a
+promise of return.
+
 ## Cost controls and next ledger boundary
 
 Current controls are a fixed model allowlist, 64 KiB body limit, bounded message
