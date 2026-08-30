@@ -7,10 +7,10 @@ import {
 } from "@/growth/stage-timeline";
 
 function timeline(): StarterStageTimeline {
-  const familyId = "genesis-family-001";
+  const lineageId = "first-edition-001";
   return {
     schema: "rapp-starter-stage-timeline/1",
-    familyId,
+    lineageId,
     stages: [
       {
         stage: "origin",
@@ -29,7 +29,7 @@ function timeline(): StarterStageTimeline {
         eligibleAfterUtc: "2026-09-01T00:00:00.000Z",
         freeOrigin: false,
         officialReference: {
-          familyId,
+          lineageId,
           issuerReferenceSats: 23_438,
           btcUsdCentsPerBtc: 6_400_000,
           fiatReferenceCents: 1_500,
@@ -50,7 +50,7 @@ function timeline(): StarterStageTimeline {
         eligibleAfterUtc: "2026-10-01T00:00:00.000Z",
         freeOrigin: false,
         officialReference: {
-          familyId,
+          lineageId,
           issuerReferenceSats: 54_688,
           btcUsdCentsPerBtc: 6_400_000,
           fiatReferenceCents: 3_500,

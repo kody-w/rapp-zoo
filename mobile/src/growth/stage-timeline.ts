@@ -1,7 +1,7 @@
 export type StarterStageName = "origin" | "journey" | "ascendant";
 
 export type OfficialStageReference = {
-  familyId: string;
+  lineageId: string;
   issuerReferenceSats: number;
   btcUsdCentsPerBtc: number;
   fiatReferenceCents: number;
@@ -26,7 +26,7 @@ export type StarterStageMilestone = {
 
 export type StarterStageTimeline = {
   schema: "rapp-starter-stage-timeline/1";
-  familyId: string;
+  lineageId: string;
   stages: [
     StarterStageMilestone,
     StarterStageMilestone,
@@ -133,7 +133,7 @@ export function assertStarterStageTimeline(
     if (
       milestone.freeOrigin ||
       !reference ||
-      reference.familyId !== timeline.familyId ||
+      reference.lineageId !== timeline.lineageId ||
       !referenceNumbersValid ||
       !Number.isSafeInteger(reference.fiatReferenceCents) ||
       reference.fiatReferenceCents < 1 ||

@@ -1,38 +1,54 @@
-# Genesis Family interface
+# First Edition / First Dimension interface
 
-This document records the signed family and generation contract without
-delaying the integration-ready Expo handoff. The typed interfaces live in
-`src/genesis/types.ts`, with tested presentation rules in
-`src/genesis/status.ts`.
+This document replaces the earlier family-count proposal without delaying the
+integration-ready Expo handoff. The authoritative typed contracts live in
+`src/genesis/types.ts`, with tested invariants in `src/genesis/status.ts`.
 
-## Canonical catalog
+## Canonical First Edition
 
-- Exactly **151 canonical Genesis Families**.
-- Family indexes **1–3** are free Companion Families.
-- Each Companion Family allows exactly one account-bound, non-transferable
-  instance per account and is outside the scarce premium series.
-- Family indexes **4–151** are the 148 premium families.
-- Every premium family carries issuer-signed positive supply and simultaneous
-  lease caps.
+- Exactly **251 unique Originals**.
+- Edition: **First Edition**.
+- Dimension: **First Dimension**.
+- At catalog publication all 251 titles are issuer-held.
+- Transferred title count is exactly zero.
+- All 251 Originals are undiscovered.
+- Each catalog entry references the shared authored shadow Holo and sealed
+  authored full Holo. The client must never invent fallback morphology,
+  silhouettes, creature names, type charts, or capture mechanics.
 
-Family identifiers and display names must come from the signed canonical
-catalog. The app must not generate creature names, elemental/type charts,
-capture mechanics, or body silhouettes.
+An exact Original title may transfer only after rights acceptance, verified
+commerce settlement, verified owner identity, and signed registry readiness.
+No client purchase-success flag can transfer title.
 
-## Generation and mutation timing
+## Offspring and player dimensions
 
-Generation status comes from signed `eligible_after_utc` evidence. The UI may
-display `Generation N` and `mutation_due`, but eligibility is not a mutation.
-A mutation is shown only after a verified successor Rolling Core exists.
+Player-owned offspring are separate issuances derived from an Original line.
+Every offspring has:
 
-If compute is unavailable, offline, or budget-exhausted when mutation becomes
-due, the truthful state is **Mutation due · Pending / Sleeping**. Old frames
-remain immutable and inspectable; no placeholder frame, silhouette, or fake
-evolution is generated.
+- a distinct organism RAPPID;
+- a separate signed capsule;
+- a separate rights grant;
+- no ownership claim over the parent Original title.
+
+Different owners may therefore grow different First Dimension instances from
+the same Original line without merging identities, rights, or immutable frame
+histories.
+
+## Companion origins
+
+The three already-canonical free Companion origins remain one-per-account,
+account-bound, and non-transferable. They sit outside the scarce premium
+inventory of 251 Original titles and do not change the Original counts.
+
+## Generation evidence
+
+Generation and `mutation_due` remain derived from signed
+`eligible_after_utc`. Due is not mutated. Without a verified successor, the UI
+must show pending/sleeping when compute is unavailable and retain every prior
+frame immutably.
 
 ## Deferred UI boundary
 
-The immediate integration ships these interfaces and tests only. A later UI
-patch should consume a verified 151-family catalog and signed generation
-evidence without changing permanent Capsule/Credit ownership or the separate
-Companion, rental, and Sovereign entitlement contracts.
+The immediate integration ships types and tests only. Future UI must consume
+the signed catalog and shared authored shadow/full-Holo references; it must not
+manufacture placeholder bodies or transfer rights before the commerce gates.

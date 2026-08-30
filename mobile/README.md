@@ -388,8 +388,9 @@ See [`ENTITLEMENT_ARCHITECTURE.md`](./ENTITLEMENT_ARCHITECTURE.md) for the
 typed Free Companion, premium rental, permanent ownership, and Sovereign
 application boundary intentionally deferred from this immediate handoff.
 See [`GENESIS_FAMILY_ARCHITECTURE.md`](./GENESIS_FAMILY_ARCHITECTURE.md) for
-the typed 151-family catalog and signed generation/mutation eligibility
-boundary, also intentionally deferred from the immediate UI handoff.
+the typed 251-title First Edition / First Dimension catalog, Original title
+transfer gates, separate offspring rights, shared authored Holo references,
+and signed generation eligibility boundary.
 See [`GROWTH_POINTS_ARCHITECTURE.md`](./GROWTH_POINTS_ARCHITECTURE.md) for
 non-monetary Growth Points, signed mutation timing, accessibility-safe
 micro-events, and the disabled-by-default preview HealthKit adapter.

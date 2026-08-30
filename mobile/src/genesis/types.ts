@@ -1,49 +1,86 @@
-export type CompanionGenesisFamily = {
-  familyClass: "companion";
-  familyIndex: 1 | 2 | 3;
-  familyId: string;
-  canonical: true;
+export type AuthoredHoloAssetReference = {
+  assetKind: "authored-shadow-holo" | "authored-full-holo";
+  holoId: string;
+  sourceFrameHash: string;
+  authored: true;
+  fallbackGenerated: false;
+  visibility: "published-shadow" | "sealed-until-discovery";
+};
+
+export type FirstEditionOriginal = {
+  originalOrdinal: number;
+  originalId: string;
+  originalRappid: string;
+  edition: "first-edition";
+  dimension: "first-dimension";
+  titleStatus: "issuer-held";
+  discoveryStatus: "undiscovered";
+  rightsStatus: "issuer-reserved";
+  shadowHolo: AuthoredHoloAssetReference;
+  fullHolo: AuthoredHoloAssetReference;
+  signatureVerified: boolean;
+};
+
+export type CompanionOriginReference = {
+  companionOrdinal: 1 | 2 | 3;
+  originId: string;
   accountInstanceCap: 1;
   transferable: false;
-  scarcePremiumSeries: false;
+  outsidePremiumOriginalInventory: true;
+};
+
+export type FirstEditionCatalog = {
+  schema: "rapp-first-edition-catalog/1";
+  edition: "first-edition";
+  dimension: "first-dimension";
+  originalTitleCount: 251;
+  issuerHeldCount: 251;
+  transferredCount: 0;
+  undiscoveredCount: 251;
+  publishedUtc: string;
+  originals: FirstEditionOriginal[];
+  companionOrigins: [
+    CompanionOriginReference,
+    CompanionOriginReference,
+    CompanionOriginReference,
+  ];
   signatureVerified: boolean;
 };
 
-export type PremiumGenesisFamily = {
-  familyClass: "premium";
-  familyIndex: number;
-  familyId: string;
-  canonical: true;
-  signedSupplyCap: number;
-  signedLeaseCap: number;
-  supplyCapRecordHash: string;
-  leaseCapRecordHash: string;
-  scarcePremiumSeries: true;
+export type OriginalTitleTransferGates = {
+  rightsTermsAccepted: boolean;
+  commerceSettlementVerified: boolean;
+  ownerIdentityVerified: boolean;
+  signedRegistryReady: boolean;
+};
+
+export type OriginalTitleTransfer = {
+  schema: "rapp-first-edition-title-transfer/1";
+  originalId: string;
+  originalRappid: string;
+  fromIssuer: true;
+  buyerOwnerHash: string;
+  rightsGrantId: string;
+  settlementReferenceHash: string;
+  signedRegistryEventId: string;
+  gates: OriginalTitleTransferGates;
   signatureVerified: boolean;
 };
 
-export type GenesisFamily =
-  | CompanionGenesisFamily
-  | PremiumGenesisFamily;
-
-export type GenesisFamilyCatalog = {
-  schema: "rapp-genesis-family-catalog/1";
-  canonicalFamilyCount: 151;
-  companionFamilyCount: 3;
-  premiumFamilyCount: 148;
-  families: GenesisFamily[];
+export type OffspringIssuance = {
+  schema: "rapp-first-dimension-offspring/1";
+  parentOriginalId: string;
+  parentOriginalRappid: string;
+  offspringRappid: string;
+  offspringCapsuleId: string;
+  offspringRightsGrantId: string;
+  ownsOriginalTitle: false;
   signatureVerified: boolean;
 };
 
-export type MutationComputeStatus =
-  | "available"
-  | "unavailable"
-  | "offline"
-  | "budget-exhausted";
-
-export type GenerationEvidence = {
-  schema: "rapp-generation-evidence/1";
-  organismRappid: string;
+export type DimensionGenerationEvidence = {
+  schema: "rapp-dimension-generation-evidence/1";
+  instanceRappid: string;
   generation: number;
   currentCoreId: string;
   immutableAncestorCoreIds: readonly string[];
@@ -51,10 +88,10 @@ export type GenerationEvidence = {
   eligibilityRecordHash: string;
   eligibilitySignatureVerified: boolean;
   verifiedSuccessorCoreId: string | null;
-  computeStatus: MutationComputeStatus;
+  computeStatus: "available" | "unavailable" | "offline" | "budget-exhausted";
 };
 
-export type GenerationPresentation = {
+export type DimensionGenerationPresentation = {
   generationLabel: string;
   mutationDue: boolean;
   mutationOccurred: boolean;

@@ -7,9 +7,9 @@ integration-ready Expo handoff. The model and presentation helper live in
 The starter timeline has three ordered stages:
 
 1. **Origin** — free.
-2. **Journey** — a family-specific signed issuer reference expected to be
+2. **Journey** — an Original-lineage-specific signed issuer reference expected to be
    around USD $15 at its recorded BTC quote.
-3. **Ascendant** — a family-specific signed issuer reference expected to be
+3. **Ascendant** — an Original-lineage-specific signed issuer reference expected to be
    around USD $35 at its recorded BTC quote.
 
 Journey and Ascendant references render as integer sats plus the signed quote
@@ -22,6 +22,6 @@ Stage eligibility requires both the signed Growth Point threshold and signed
 pretend a mutation occurred; a verified successor Rolling Core remains
 required under the separate generation contract.
 
-Family-specific signed schedules remain authoritative. Future UI must not
+Original-lineage-specific signed schedules remain authoritative. Future UI must not
 replace them with universal prices, invented creature names, type charts,
 capture mechanics, or silhouettes.
