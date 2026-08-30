@@ -13,14 +13,10 @@ from .domain import (
     hash_reference,
     validate_sha256,
 )
+from .generations import ORIGINAL_IDS, original_rappid
 from .signing import RegistrySigner
 
 
-SPECIES_COUNT = 251
-SPECIES_IDS = tuple(
-    f"first-dimension-{index:03d}"
-    for index in range(1, SPECIES_COUNT + 1)
-)
 JOB_STATES = {
     "requested",
     "accepted",
@@ -274,19 +270,24 @@ class DisabledEvolutionSponsorshipVerifier:
         )
 
 
-def source_species(species_id: str) -> dict[str, Any]:
-    if species_id not in SPECIES_IDS:
-        raise CreditError("RapterWorks species id is not canonical.")
-    digest = hashlib.sha256(
-        f"rappterbox-first-edition\0{species_id}".encode(),
-    ).hexdigest()
+def source_original(original_id: str) -> dict[str, Any]:
+    if original_id not in ORIGINAL_IDS:
+        raise CreditError("RapterWorks Original id is not canonical.")
     return {
-        "schema": "rapp-rapterworks-species/1",
+        "schema": "rapp-rapterworks-original/1",
         "edition": "first-edition",
         "dimension": "first-dimension",
-        "species_id": species_id,
-        "source_rappid": f"rappid:@rapterbox/{species_id}:{digest}",
+        "original_id": original_id,
+        "original_rappid": original_rappid(original_id),
         "title_owner": "rappterbox",
+        "ownership_state": "issuer-held",
+        "transfer_count": 0,
+        "discovery_state": "undiscovered",
+        "title_transfer_requirements": [
+            "verified-output-rights",
+            "verified-commerce-settlement",
+        ],
+        "offspring_identity_rule": "distinct-rappid-and-rights",
         "mutable": False,
     }
 
@@ -311,7 +312,7 @@ class InMemoryOwnerInstanceRegistry:
         self,
         *,
         sale: VerifiedShopifySale,
-        species_id: str,
+        original_id: str,
         issue_credit: OfficialInstanceIssuer,
         build_capsule: Callable[[dict[str, Any]], dict[str, Any]],
     ) -> tuple[dict[str, Any], bool]:
@@ -325,7 +326,7 @@ class InMemoryOwnerInstanceRegistry:
         with self.lock:
             if sale_hash in self.sales:
                 return self.sales[sale_hash], False
-            species = source_species(species_id)
+            original = source_original(original_id)
             instance_tail = hashlib.sha256(
                 b"rapp/1:rappid\n" + uuid.uuid4().bytes,
             ).hexdigest()
@@ -334,18 +335,20 @@ class InMemoryOwnerInstanceRegistry:
                 bounded_text(sale.account_reference, "account reference", 512),
             )
             instance = {
-                "schema": "rapp-rapterworks-player-instance/1",
-                "source_species_id": species_id,
-                "source_species_rappid": species["source_rappid"],
-                "instance_rappid": (
-                    f"rappid:@player-{account_hash[:12]}/{species_id}:{instance_tail}"
+                "schema": "rapp-rapterworks-offspring-instance/1",
+                "source_original_id": original_id,
+                "source_original_rappid": original["original_rappid"],
+                "offspring_rappid": (
+                    f"rappid:@player-{account_hash[:12]}/{original_id}:{instance_tail}"
                 ),
                 "dimension_branch": f"dimension:{instance_tail}",
                 "shopify_sale_hash": sale_hash,
                 "title_transferable": True,
-                "source_species_mutated": False,
+                "rights_profile": "offspring-distinct-from-original",
+                "source_original_title_transferred": False,
+                "source_original_mutated": False,
             }
-            if instance["instance_rappid"] in self.instance_ids:
+            if instance["offspring_rappid"] in self.instance_ids:
                 raise CreditError("Player instance identity collision.")
             credit = issue_credit.issue(sale, instance)
             capsule = build_capsule({**instance, "credit": credit})
@@ -354,7 +357,7 @@ class InMemoryOwnerInstanceRegistry:
                 "credit": credit,
                 "capsule": capsule,
             }
-            self.instance_ids.add(instance["instance_rappid"])
+            self.instance_ids.add(instance["offspring_rappid"])
             self.sales[sale_hash] = result
             return result, True
 
@@ -742,7 +745,7 @@ MAX_MINOR_AMOUNT = 9_223_372_036_854_775_807
 TIP_SPLIT_FIELDS = (
     ("rapterbox", "rapterbox_basis_points"),
 )
-EVOLUTION_TARGETS = {"owner-instance", "species-candidate"}
+EVOLUTION_TARGETS = {"owner-instance", "original-candidate"}
 
 
 def build_tip_policy(
@@ -2291,7 +2294,7 @@ def bounded_quality_evidence(
             "compute-units",
             "iteration-priority",
             "premium-review",
-            "species-candidate-work",
+            "original-candidate-work",
             "rapterbox-merchant-receipts",
         ],
         "tip_influenced_fields": [
@@ -2304,7 +2307,7 @@ def bounded_quality_evidence(
             "compute-units",
             "iteration-priority",
             "premium-review",
-            "species-candidate-work",
+            "original-candidate-work",
         ],
         "money_did_not_influence": [
             "unweighted-technical-test-score",

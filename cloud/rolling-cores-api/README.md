@@ -253,15 +253,16 @@ or claw back plaintext that an authorized recipient previously decrypted.
 Bytecode obfuscation and passwords embedded in URLs or clients are never
 treated as access control.
 
-## Free Companion and premium rentals
+## Free Companion offspring and Original rentals
 
 The subscription layer is distinct from permanent ownership:
 
 - every verified account receives at most one active free Companion;
 - the Companion is account-bound, non-transferable, non-resellable, and outside
-  premium-series issuance and supply counters;
-- premium Rapters can be leased only while Rapterbox remains the title owner;
-- one premium Credit can have only one active lessee;
+  the 251-Original title supply;
+- an issuer-held Original can be leased only while Rapterbox remains the title
+  owner;
+- one Original Credit can have only one active lessee;
 - an owned/sold Rapter cannot also be leased;
 - signed `body.pulse` events record lease start, renewal, cancellation, grace,
   expiry, refund, recovery, purchase conversion, and ownership transfer;
@@ -277,14 +278,21 @@ The deployed account-token, billing-webhook, subscription-recovery, and worker
 adapters remain disabled. No endpoint trusts client-declared subscription,
 refund, balance, buyer, or payment success.
 
-The typed commerce model fixes the Genesis catalog at 151 neutral Family IDs:
-3 free Companion Families and 148 premium Families. Free account assignment is
-deterministic and does not consume premium supply. Premium generation policies
-are signed and include exact per-Family birth and exclusive-rental caps.
-Mutation policies are also signed and carry `generation_id`,
-`eligible_after_utc`, and the current core head. Crossing UTC marks
-`mutation_due`; it never changes historical bytes, and offline/no-compute state
-remains pending until a verified AI successor turn is available.
+The typed commerce model fixes launch at exactly 251 First Edition / First
+Dimension Originals. The signed catalog publishes 251 issuer-held, 0
+transferred, and 251 undiscovered. Exact Original title may transfer only after
+rights and commerce gates. The free account Companion is separately issued
+offspring with a distinct RAPPID and rights record and does not consume
+Original supply. Signed offspring generation policies define per-source-
+Original birth and exclusive-rental caps without affecting Original title.
+Mutation policies bind one offspring RAPPID, source Original, `generation_id`,
+`eligible_after_utc`, and current head. Crossing UTC marks `mutation_due`; it
+never changes historical bytes or Original title.
+
+The deployed catalog-publication, Original-title-transfer, and offspring-
+issuance write adapters remain disabled. Public health exposes this fail-closed
+state; deployment and smoke validation do not publish a catalog record,
+transfer title, or issue offspring.
 
 ## Growth Points and stage evolution
 
@@ -297,7 +305,7 @@ remains pending until a verified AI successor turn is available.
 - equal-cap accessibility alternatives;
 - signed stage policies requiring a point threshold, `eligible_after_utc`, and
   the current core head;
-- signed Family evolution schedules with Origin → Journey targets around
+- signed source-Original evolution schedules with Origin → Journey targets around
   `15_000_000` USD micros and Journey → Ascendant targets around `35_000_000`
   USD micros;
 - signed aggregate `body.pulse` evolution events.
@@ -330,9 +338,10 @@ redeemable, investment, or yield value.
 ## RapterWorks typed interfaces
 
 `credits/rapterworks.py` defines the proof-first job and owner-instance
-interfaces for the 251 Rapterbox-owned First Edition / First Dimension species.
-A verified Shopify sale creates a unique player RAPPID, Credit, Capsule, and
-dimension branch without changing the source species.
+interfaces for the 251 Rapterbox-owned First Edition / First Dimension
+Originals. A verified Shopify sale can issue a distinct offspring RAPPID,
+rights record, Credit, Capsule, and dimension branch without transferring or
+changing the source Original.
 
 Public job acceptance initially requires the Rapterbox-operated DOGG and its
 verified conformance record, while private local mutation remains unrestricted.
@@ -366,7 +375,7 @@ specified units are delivered. Signed refund and chargeback events expose
 reversal and tax-adjustment state.
 
 Raw sponsorship may materially buy owner-instance evolution work or sponsor
-species-level canonical candidate work. Rapterbox remains the canon-acceptance
+Original-level canonical candidate work. Rapterbox remains the canon-acceptance
 authority; payment cannot guarantee a predetermined canonical mutation or
 rewrite a rating, test result, or prior event. Sponsorship is a creative
 transformation service, not equity or a guaranteed return.

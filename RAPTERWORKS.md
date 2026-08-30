@@ -1,28 +1,30 @@
 # RapterWorks
 
-## Proof-first jobs for original Rapter species
+## Proof-first jobs for First Dimension Originals
 
 RapterWorks is the work and service lane for the 251 canonical
-Rapterbox-owned **First Edition / First Dimension** Holo species.
+Rapterbox-owned **First Edition / First Dimension Originals**. At catalog
+publication all 251 are issuer-held, 0 have transferred, and all 251 are
+undiscovered.
 
-These are neutral Rapter species identifiers, not names, shapes, types,
-capture mechanics, or trade dress borrowed from another creature franchise.
+Exact Original title may transfer later only after output-rights and commerce
+gates. Catalog publication or offspring issuance does not transfer it.
 
-## Owner instances
+## Offspring owner instances
 
-A verified Shopify sale may hatch one unique player instance from a source
-species:
+A verified Shopify sale may issue one unique offspring from a source Original:
 
 ```text
-immutable Rapterbox source species
-  -> unique player RAPPID
+immutable Rapterbox Original
+  -> unique offspring RAPPID and rights
   -> unique Rapter Credit
   -> signed local Rolling Core Capsule
   -> unique dimension branch
-  -> transferable permanent title
+  -> offspring title under its own rights
 ```
 
-The source species is never transferred or mutated by the sale. Shopify
+The source Original is never transferred or mutated by offspring issuance.
+Shopify
 verification and Credit issuance happen server-side. The Shopify Admin token
 must remain in Key Vault or equivalent server-side secret storage and never
 enter source, clients, frames, manifests, URLs, or logs.
@@ -118,7 +120,7 @@ receipts, and the patronage lens.
 **EVOLUTION SPONSORSHIP** is a separate paid Shopify line item and ledger, even
 when it appears beside TIP on the same post-job screen. Buying additional
 evolution work is an intentional RapterWorks service. The verified line item
-declares whether it targets an owner instance or a species-level canonical
+declares whether it targets an owner instance or an Original-level canonical
 candidate, a content-addressed target reference, the selected creative lens,
 and exact purchased units. The signed policy publishes exact currency-minor
 unit costs and influence multipliers. The sponsorship event discloses:
@@ -131,7 +133,7 @@ unit costs and influence multipliers. The sponsorship event discloses:
 - subtotal, tax, total, Shopify line-item hash, and payment-reference hash.
 
 Owner-instance sponsorship may directly increase iteration and
-market-perceived quality/alpha for that instance. Species-level pooled
+market-perceived quality/alpha for that instance. Original-level pooled
 patronage may fund canonical candidate frames, experiments, and review, but
 Rapterbox remains the sole canon-acceptance authority. Sponsorship buys
 creative transformation services and evaluation effort, not equity, a

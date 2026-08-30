@@ -607,6 +607,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 app_dir = Path(os.environ["APP_DIR"])
+health = json.loads((app_dir / ".deploy" / "health.json").read_text())
 completion = json.loads((app_dir / ".deploy" / "completion.json").read_text())
 provider_test = json.loads((app_dir / ".deploy" / "provider-test.json").read_text())
 direct_breath = json.loads((app_dir / ".deploy" / "direct-breath-status.json").read_text())
@@ -628,12 +629,25 @@ if subscription.get("free_companions_per_verified_account") != 1:
     raise SystemExit("Subscription policy did not enforce one free Companion.")
 if subscription.get("exclusive_active_lessee") is not True:
     raise SystemExit("Subscription policy did not enforce exclusive leasing.")
+launch_catalog = health.get("launch_catalog", {})
 if (
-    subscription.get("canonical_genesis_families") != 151
-    or subscription.get("free_companion_families") != 3
-    or subscription.get("premium_families") != 148
+    launch_catalog.get("canonical_originals") != 251
+    or launch_catalog.get("issuer_held_originals") != 251
+    or launch_catalog.get("transferred_originals") != 0
+    or launch_catalog.get("undiscovered_originals") != 251
+    or launch_catalog.get("catalog_publication_write_adapter_configured") is not False
+    or launch_catalog.get("original_title_transfer_write_adapter_configured") is not False
+    or launch_catalog.get("offspring_issuance_write_adapter_configured") is not False
 ):
-    raise SystemExit("Subscription policy did not expose the canonical family split.")
+    raise SystemExit("Health metadata did not expose the canonical launch inventory.")
+if (
+    subscription.get("canonical_originals") != 251
+    or subscription.get("issuer_held_originals_at_publication") != 251
+    or subscription.get("transferred_originals_at_publication") != 0
+    or subscription.get("undiscovered_originals_at_publication") != 251
+    or subscription.get("free_companion_identity") != "separately-issued-offspring"
+):
+    raise SystemExit("Subscription policy did not expose the Original launch model.")
 choice = completion["choices"][0]
 message = choice.get("message", {})
 content = message.get("content")
@@ -668,7 +682,8 @@ evidence = f"""# Deployment evidence
 - Return/listing without scoped owner token: HTTP {os.environ["RETURN_NO_OWNER_STATUS"]}/{os.environ["LISTING_NO_OWNER_STATUS"]} (refused)
 - Artifact delivery policy: HTTP {os.environ["ARTIFACT_STATUS"]}, commit pin required, entitlement adapter disabled
 - Artifact release without Function/scoped token: HTTP {os.environ["UNAUTH_ARTIFACT_STATUS"]}/{os.environ["ARTIFACT_NO_TOKEN_STATUS"]} (refused)
-- Subscription policy: HTTP {os.environ["SUBSCRIPTION_POLICY_STATUS"]}, 151 families (3 free / 148 premium), one free Companion/account, exclusive premium lessee
+- Launch catalog: 251 First Edition / First Dimension Originals, 251 issuer-held, 0 transferred, 251 undiscovered; catalog, title-transfer, and offspring-issuance write adapters disabled
+- Subscription policy: HTTP {os.environ["SUBSCRIPTION_POLICY_STATUS"]}, one separately issued free Companion offspring/account, exclusive premium lessee
 - Companion claim without Function/account token: HTTP {os.environ["UNAUTH_COMPANION_STATUS"]}/{os.environ["COMPANION_NO_ACCOUNT_STATUS"]} (refused)
 - Lease Capsule access without Function token: HTTP {os.environ["UNAUTH_LEASE_CAPSULE_STATUS"]} (refused)
 - Client-declared payment success: HTTP {os.environ["UNTRUSTED_PAYMENT_STATUS"]} (rejected)

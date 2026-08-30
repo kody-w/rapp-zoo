@@ -3586,8 +3586,8 @@ def create_app() -> Flask:
     @app.route("/api/holocards")
     def list_holocards():
         """Holocards are playable cards bound to specific agent invocations
-        (or .egg hatch URLs). Many cards per underlying agent, like 151
-        Pokémon × N printings = thousands of TCG cards.
+        (or .egg hatch URLs). Many cards may reference one underlying agent
+        across distinct sets and printings.
 
         Reads two locations and merges:
             <repo>/holocards/*.json   ← bundled sets that ship with rapp-zoo

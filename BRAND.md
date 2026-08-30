@@ -58,8 +58,10 @@ verified core intact.
 Supporting lines:
 
 - Every verified account gets one free, account-bound Companion.
-- The canonical Genesis catalog has 151 original Rapter Families: the first 3
-  are free Companion Families and the remaining 148 are premium.
+- Canonical launch is 251 First Edition / First Dimension Originals: all 251
+  issuer-held, 0 transferred, and all undiscovered at publication.
+- A free Companion is separately issued offspring with its own RAPPID and
+  rights; it does not consume or transfer Original title.
 - Premium Rapters can be rented without changing Rapterbox title.
 - One purchase. One Rapter. One official Credit.
 - Its birth value is fixed in sats.
@@ -68,8 +70,7 @@ Supporting lines:
 - Its local capsule is yours while the official Credit is yours.
 - No subscription is required to open an organism you own.
 - Renting is access, not ownership; buying remains permanent and offline.
-- Family names, bodies, type systems, capture mechanics, and trade dress remain
-  original to Rapterbox.
+- Original and offspring names, bodies, and rights remain original to Rapterbox.
 - Rapter Growth Points are earned through bounded opt-in positive activity;
   they are never sold, transferred, redeemed, or deducted below zero.
 - World Pulse combines privacy-safe Growth Point totals into shared story and
@@ -79,7 +80,7 @@ Supporting lines:
 - TIPS preserve full patronage and economic evidence but confer no deliverable.
 - EVOLUTION SPONSORSHIP is a separate paid creative service that can buy more
   instance mutation frames, compute, iteration, selected-lens weight, and
-  premium review, while species sponsorship may fund canonical candidate work.
+  premium review, while Original sponsorship may fund canonical candidate work.
 - Public reports separate unweighted technical test quality from the
   patronage and sponsorship views. Money cannot rewrite ratings or history,
   buy Rapterbox canon acceptance, or guarantee returns.

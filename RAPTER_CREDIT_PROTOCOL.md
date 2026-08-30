@@ -316,11 +316,12 @@ entitlement:
 
 - it is account-bound;
 - it is not transferable or resellable;
-- it does not consume a scarce premium-series issuance index;
+- it is separately issued offspring with a distinct RAPPID and rights record;
+- it does not consume or transfer any of the 251 Original titles;
 - repeated claim or recovery requests return the same entitlement.
 
-Rapterbox may rent premium Rapters while retaining title. A premium Credit can
-have at most one active lessee, and a Credit whose official ownership state is
+Rapterbox may rent issuer-held Originals while retaining title. An Original
+Credit can have at most one active lessee, and a Credit whose official ownership state is
 sold/owned cannot simultaneously be leased. Lease start, renewal,
 cancellation, expiration, refund, recovery, purchase conversion, and resulting
 ownership transfer are signed append-only `body.pulse` events.
@@ -338,32 +339,34 @@ Subscription billing webhooks and recovery are idempotent. Account identity,
 billing status, refund status, buyer identity, and settlement success come only
 from server-verified adapters, never client claims.
 
-### 11.1 Genesis Families and generations
+### 11.1 First Dimension Originals and offspring generations
 
-The canonical Genesis catalog has exactly 151 neutral Family identifiers:
+The canonical launch catalog has exactly 251 **First Edition / First
+Dimension Originals**. The signed publication state is exact:
 
-- `genesis-family-001` through `genesis-family-003` are free Companion
-  Families;
-- `genesis-family-004` through `genesis-family-151` are premium Families.
+- 251 issuer-held by Rapterbox;
+- 0 transferred;
+- 0 discovered and 251 undiscovered.
 
-Each verified account receives one deterministic Companion instance from the
-three free Families. It remains account-bound and does not consume a premium
-birth or rental cap.
+An Original's exact title may transfer later only after verified output-rights
+acceptance and verified commerce settlement. Catalog publication, Companion
+issuance, rentals, and offspring generation do not transfer Original title.
 
-Every premium generation has a signed `rapp-rapter-generation-policy/1` with a
-`generation_id`, an `eligible_after_utc`, the previous policy hash, and exact
-per-Family birth and exclusive-rental caps. New generations append policy
-records; they do not rewrite an older schedule, Credit, Capsule, or core frame.
+Each verified account may receive one separately issued Companion offspring.
+Every offspring has a distinct RAPPID and rights record, remains account-bound
+when issued as the free Companion, and does not consume or alter Original
+title supply.
 
-A signed `rapp-rapter-mutation-policy/1` can mark an existing Family eligible
-for mutation. Crossing `eligible_after_utc` changes only the derived
-`mutation_due` status. The next verified AI turn may author a successor against
-the current core head. Offline or unavailable compute leaves the mutation
-pending with all old bytes unchanged.
+Every offspring generation has a signed
+`rapp-rapter-offspring-generation-policy/1` with a `generation_id`, an
+`eligible_after_utc`, the previous policy hash, and exact per-source-Original
+offspring birth and exclusive-rental caps. New policies append; they do not
+rewrite the launch catalog, an Original title, Credit, Capsule, or core frame.
 
-Family identifiers and commerce rules are original and neutral. This protocol
-does not define names, shapes, elemental types, capture mechanics, or trade
-dress from another creature franchise.
+A signed `rapp-rapter-offspring-mutation-policy/1` can mark a distinct offspring
+RAPPID eligible for mutation against its current head. Crossing
+`eligible_after_utc` changes only `mutation_due`. Offline or unavailable compute
+leaves the successor pending with old bytes and Original title unchanged.
 
 ### 11.2 Rapter Growth Points
 
@@ -378,23 +381,24 @@ organism identity, category, positive points, observed UTC, attester, source,
 evidence hash, content address, and signature. Reusing the same content-addressed
 event ID is idempotent and cannot add points twice.
 
-A signed `rapp-rapter-growth-stage-policy/1` binds:
+A signed `rapp-rapter-growth-stage-policy/2` binds:
 
 - the organism and current core head;
 - `stage_id` and `generation_id`;
 - the required point threshold;
 - `eligible_after_utc`;
-- the signed Family evolution schedule and transition target;
+- the signed source-Original evolution schedule and transition target;
 - `pay_to_evolve: false` and `retroactive_rewrite: false`.
 
-Each starter Companion Family has two progressive transition targets in its
-signed `rapp-rapter-evolution-schedule/1`:
+Each starter Companion offspring has two progressive transition targets in its
+signed `rapp-rapter-evolution-schedule/2`, keyed by source Original:
 
 - Origin → Journey, initially around `15_000_000` USD micros;
 - Journey → Ascendant, initially around `35_000_000` USD micros.
 
-Exact targets may vary by Family. They are issuer stage references, not client
-prices, and a later schedule appends rather than changing an earlier target.
+Exact targets may vary by source Original. They are issuer stage references,
+not client prices, and a later schedule appends rather than changing an earlier
+target.
 
 Crossing the UTC boundary does not mutate a frame. It marks the stage
 `mutation_due`. If compute is offline or unavailable, the transition remains

@@ -10,6 +10,7 @@ import azure.functions as func
 import httpx
 
 from azure_auth import get_azure_credential
+from credits.generations import ORIGINAL_COUNT
 from http_responses import error_response, json_response
 
 
@@ -287,6 +288,20 @@ def health_payload() -> dict[str, Any]:
         "credit_registry": {
             "official_records_require_signature": True,
             "purchase_verifier": os.environ.get("PURCHASE_VERIFIER_MODE", "disabled"),
+        },
+        "launch_catalog": {
+            "schema": "rapp-rapter-original-catalog-status/1",
+            "edition": "first-edition",
+            "dimension": "first-dimension",
+            "canonical_originals": ORIGINAL_COUNT,
+            "issuer_held_originals": ORIGINAL_COUNT,
+            "transferred_originals": 0,
+            "undiscovered_originals": ORIGINAL_COUNT,
+            "original_title_transfer_requires_rights_and_commerce": True,
+            "offspring_distinct_rappid_and_rights": True,
+            "catalog_publication_write_adapter_configured": False,
+            "original_title_transfer_write_adapter_configured": False,
+            "offspring_issuance_write_adapter_configured": False,
         },
     }
 

@@ -1,6 +1,6 @@
 # Deployment evidence
 
-- Verified: 2026-08-30T05:11:17+00:00
+- Verified: 2026-08-30T05:35:10+00:00
 - Function app: `rappter-rolling-cores-3d0e6986`
 - Endpoint: `https://rappter-rolling-cores-3d0e6986.azurewebsites.net`
 - Credit table: `rapprolling3d0e6986` / `RapterCreditRegistry`
@@ -27,7 +27,9 @@
 - Return/listing without scoped owner token: HTTP 403/403 (refused)
 - Artifact delivery policy: HTTP 200, commit pin required, entitlement adapter disabled
 - Artifact release without Function/scoped token: HTTP 401/403 (refused)
-- Subscription policy: HTTP 200, 151 families (3 free / 148 premium), one free Companion/account, exclusive premium lessee
+- Launch catalog: 251 First Edition / First Dimension Originals, 251 issuer-held, 0 transferred, 251 undiscovered; catalog, title-transfer, and offspring-issuance write adapters disabled
+- Final catalog smoke used only anonymous reads and unauthorized write attempts; no secret was rotated and 0 records were issued
+- Subscription policy: HTTP 200, one separately issued free Companion offspring/account, exclusive premium lessee
 - Companion claim without Function/account token: HTTP 401/403 (refused)
 - Lease Capsule access without Function token: HTTP 401 (refused)
 - Client-declared payment success: HTTP 400 (rejected)

@@ -4,21 +4,24 @@ from datetime import datetime, timedelta, timezone
 
 from credits.domain import canonical_json
 from credits.generations import (
-    FREE_COMPANION_FAMILY_IDS,
-    GENESIS_FAMILY_COUNT,
-    GENESIS_FAMILY_IDS,
-    PREMIUM_FAMILY_COUNT,
-    PREMIUM_FAMILY_IDS,
+    ORIGINAL_COUNT,
+    ORIGINAL_IDS,
     build_generation_policy,
     build_mutation_policy,
-    companion_family_for_account,
-    family_class,
+    build_original_catalog,
+    companion_source_original_for_account,
     mutation_status,
     validate_generation_policy,
+    validate_original_catalog,
+    validate_original_id,
 )
 
 
 NOW = datetime(2026, 8, 29, 20, 0, 0, tzinfo=timezone.utc)
+OFFSPRING_RAPPID = (
+    "rappid:@companion-aaaaaaaaaaaa/first-dimension-001:"
+    + "a" * 64
+)
 
 
 class Signer:
@@ -34,52 +37,72 @@ class Signer:
         return signature["value"] == self.sign(payload)["value"]
 
 
-def test_genesis_family_supply_split_is_exact_and_neutral():
-    assert GENESIS_FAMILY_COUNT == 151
-    assert len(GENESIS_FAMILY_IDS) == 151
-    assert len(FREE_COMPANION_FAMILY_IDS) == 3
-    assert len(PREMIUM_FAMILY_IDS) == PREMIUM_FAMILY_COUNT == 148
-    assert all(family_class(value) == "free-companion" for value in FREE_COMPANION_FAMILY_IDS)
-    assert all(family_class(value) == "premium" for value in PREMIUM_FAMILY_IDS)
-    assert len(set(GENESIS_FAMILY_IDS)) == 151
+def test_launch_catalog_has_251_issuer_held_undiscovered_originals():
+    assert ORIGINAL_COUNT == 251
+    assert len(ORIGINAL_IDS) == 251
+    assert len(set(ORIGINAL_IDS)) == 251
+    catalog = build_original_catalog(
+        issuer="rappterbox",
+        published_utc=NOW.isoformat(timespec="seconds"),
+        signer=Signer(),
+    )
+    assert catalog["canonical_original_count"] == 251
+    assert catalog["issuer_held_count"] == 251
+    assert catalog["transferred_count"] == 0
+    assert catalog["discovered_count"] == 0
+    assert catalog["undiscovered_count"] == 251
+    assert all(
+        record["title_owner"] == "rappterbox"
+        and record["original_rappid"].startswith("rappid:@rapterbox/")
+        and record["ownership_state"] == "issuer-held"
+        and record["transfer_count"] == 0
+        and record["discovery_state"] == "undiscovered"
+        for record in catalog["originals"]
+    )
+    assert catalog["offspring_identity_rule"] == "distinct-rappid-and-rights"
+    assert validate_original_catalog(catalog, Signer()) == catalog
 
 
-def test_free_companion_family_assignment_is_deterministic_and_one_of_three():
+def test_companion_source_original_assignment_is_deterministic():
     account_hash = "a" * 64
-    first = companion_family_for_account(account_hash)
-    assert first in FREE_COMPANION_FAMILY_IDS
-    assert companion_family_for_account(account_hash) == first
+    first = companion_source_original_for_account(account_hash)
+    assert first in ORIGINAL_IDS
+    assert companion_source_original_for_account(account_hash) == first
+    assert validate_original_id(first) == first
 
 
-def test_generation_policy_signs_all_premium_family_caps():
+def test_generation_policy_caps_offspring_without_consuming_original_titles():
     caps = {
-        family_id: {
-            "birth_cap": 100,
+        original_id: {
+            "offspring_birth_cap": 100,
             "exclusive_rental_cap": 10,
         }
-        for family_id in PREMIUM_FAMILY_IDS
+        for original_id in ORIGINAL_IDS
     }
     policy = build_generation_policy(
         issuer="rappterbox",
         generation_id="generation-0001",
         eligible_after_utc=(NOW + timedelta(days=1)).isoformat(timespec="seconds"),
-        family_caps=caps,
+        offspring_caps=caps,
         previous_policy_hash=None,
         created_utc=NOW.isoformat(timespec="seconds"),
         signer=Signer(),
     )
-    assert policy["canonical_family_count"] == 151
-    assert len(policy["premium_family_caps"]) == 148
-    assert policy["free_companion_family_ids"] == list(FREE_COMPANION_FAMILY_IDS)
+    assert policy["canonical_original_count"] == 251
+    assert len(policy["source_original_caps"]) == 251
+    assert policy["original_title_supply_affected"] is False
+    assert policy["offspring_distinct_rappid_required"] is True
+    assert policy["offspring_distinct_rights_required"] is True
     assert policy["retroactive_rewrite"] is False
     assert policy["signature"]["algorithm"] == "ES256"
     assert validate_generation_policy(policy, Signer()) == policy
 
 
-def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
+def test_mutation_due_never_rewrites_original_or_old_bytes():
     policy = build_mutation_policy(
         issuer="rappterbox",
-        family_id=PREMIUM_FAMILY_IDS[0],
+        organism_rappid=OFFSPRING_RAPPID,
+        source_original_id=ORIGINAL_IDS[0],
         generation_id="generation-0002",
         eligible_after_utc=NOW.isoformat(timespec="seconds"),
         current_core_head="b" * 64,
@@ -97,6 +120,7 @@ def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
     assert pending["authoring_allowed"] is False
     assert pending["state"] == "pending-no-compute"
     assert pending["old_bytes_mutated"] is False
+    assert pending["original_title_affected"] is False
     assert pending["current_core_head"] == "b" * 64
 
     ready = mutation_status(
@@ -109,10 +133,11 @@ def test_mutation_due_never_rewrites_old_bytes_and_waits_for_compute():
     assert ready["successor_required"] is True
 
 
-def test_crossing_utc_only_marks_mutation_due():
+def test_crossing_utc_only_marks_offspring_mutation_due():
     policy = build_mutation_policy(
         issuer="rappterbox",
-        family_id=FREE_COMPANION_FAMILY_IDS[0],
+        organism_rappid=OFFSPRING_RAPPID,
+        source_original_id=ORIGINAL_IDS[1],
         generation_id="generation-0002",
         eligible_after_utc=(NOW + timedelta(days=1)).isoformat(timespec="seconds"),
         current_core_head="d" * 64,

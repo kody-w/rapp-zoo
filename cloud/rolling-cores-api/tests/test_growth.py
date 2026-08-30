@@ -16,7 +16,7 @@ from credits.growth import (
     stage_status,
     validate_evolution_schedule,
 )
-from credits.generations import FREE_COMPANION_FAMILY_IDS
+from credits.generations import ORIGINAL_IDS
 from credits.quotes import BtcUsdQuote
 
 
@@ -58,7 +58,7 @@ def evolution_schedule(
 ):
     return build_companion_evolution_schedule(
         issuer="rappterbox",
-        family_id=FREE_COMPANION_FAMILY_IDS[0],
+        source_original_id=ORIGINAL_IDS[0],
         generation_id="generation-0002",
         origin_to_journey={
             "required_points": 4,
@@ -105,13 +105,13 @@ def test_growth_points_are_positive_local_game_points_only():
         receipt(1, points=-1)
 
 
-def test_companion_evolution_schedule_has_two_signed_family_specific_targets():
+def test_companion_evolution_schedule_has_two_signed_original_specific_targets():
     schedule = evolution_schedule(
         origin_target=14_500_000,
         ascendant_target=36_000_000,
     )
     assert validate_evolution_schedule(schedule, Signer()) == schedule
-    assert schedule["family_id"] == FREE_COMPANION_FAMILY_IDS[0]
+    assert schedule["source_original_id"] == ORIGINAL_IDS[0]
     assert list(schedule["transitions"]) == [
         "origin-to-journey",
         "journey-to-ascendant",
@@ -171,6 +171,7 @@ def test_stage_requires_signed_threshold_time_and_current_head():
     )
     assert due_offline["mutation_due"] is True
     assert due_offline["state"] == "pending-no-compute"
+    assert due_offline["source_original_id"] == ORIGINAL_IDS[0]
     assert due_offline["old_bytes_mutated"] is False
 
 
@@ -193,6 +194,7 @@ def test_accepted_transition_burns_immutable_btc_reference_not_payment():
     )
     assert event["kind"] == "body.pulse"
     assert event["generation_id"] == "generation-0002"
+    assert event["source_original_id"] == ORIGINAL_IDS[0]
     assert event["previous_core_head"] == "b" * 64
     assert event["successor_core_head"] == "c" * 64
     assert sats_for_usd_target(15_000_000, 60_000_000_000) == 25_000

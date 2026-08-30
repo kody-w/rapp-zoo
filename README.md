@@ -91,24 +91,26 @@ master key, plaintext key, URL password, or bytecode-obfuscation scheme is
 placed in clients, frames, source, or logs. Revocation stops future key release
 but cannot erase a copy that was previously decrypted.
 
-Every verified account can claim exactly one free account-bound Companion,
-outside scarce premium issuance and unavailable for transfer or resale.
-Rapterbox-owned premium Rapters may also be rented to one active lessee at a
+Every verified account can claim exactly one free account-bound Companion
+offspring, outside Original title supply and unavailable for transfer or
+resale. Rapterbox-owned Rapters may also be rented to one active lessee at a
 time. Signed lease start, renewal, cancellation, expiration, refund, recovery,
 purchase-conversion, and transfer events preserve the immutable birth value.
 Expired lease copies become unowned/verifiable after sync; permanent purchases
 remain offline-capable and never require a subscription.
 
-The typed Genesis catalog contains 151 neutral Rapter Family identifiers. The
-first 3 are free Companion Families; the remaining 148 use signed
-per-generation birth and exclusive-rental caps. Signed mutation policies carry
-`generation_id` and `eligible_after_utc`. Crossing UTC marks `mutation_due`;
-only a later verified AI turn can append a successor. Offline or unavailable
-compute leaves the mutation pending and never rewrites old bytes.
+The canonical launch catalog contains exactly 251 First Edition / First
+Dimension Originals. At publication all 251 are issuer-held, none have
+transferred, and all are undiscovered. Exact Original title may transfer only
+after rights and commerce gates. Separately issued offspring use distinct
+RAPPIDs and rights and do not consume or transfer Original title. Signed
+offspring generation and mutation policies carry `generation_id`,
+`eligible_after_utc`, source Original, and the current head. Crossing UTC marks
+`mutation_due`; only a later verified AI turn can append a successor.
 
 [`RAPTERWORKS.md`](./RAPTERWORKS.md) defines proof-first jobs and Shopify-backed
-owner-instance hatching for the 251 Rapterbox-owned First Edition / First
-Dimension species.
+offspring issuance from the 251 Rapterbox-owned First Edition / First Dimension
+Originals.
 
 Rapter Growth Points are local game progression only: non-transferable,
 non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
@@ -116,9 +118,10 @@ category, positive points, observation time, attester/source, and an evidence
 hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
 and current core head; accepted evolution appends a `body.pulse` with an
 immutable BTC/USD reference snapshot, never a payment or yield. Starter
-Companion schedules define Family-specific Origin → Journey and Journey →
-Ascendant reference targets around $15 and $35; the current quote converts the
-signed USD-micro target to integer sats without changing birth valuation.
+Companion schedules define source-Original-specific Origin → Journey and
+Journey → Ascendant reference targets around $15 and $35; the current quote
+converts the signed USD-micro target to integer sats without changing birth
+valuation or Original title.
 
 Verified accounts—including free Companion accounts—may contribute capped,
 privacy-safe Growth Point attestations to World Pulse. Detailed receipts stay

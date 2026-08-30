@@ -217,13 +217,22 @@ def test_free_companion_is_idempotent_one_per_verified_account_and_outside_suppl
     assert second_account["entitlement_id"] != first["entitlement_id"]
     assert first["transferable"] is False
     assert first["resellable"] is False
-    assert first["premium_series"] is False
-    assert first["family_id"].startswith("genesis-family-00")
+    assert first["source_original_id"].startswith("first-dimension-")
+    assert first["generation_id"] == "generation-0001"
+    assert first["offspring_rappid"].startswith("rappid:@companion-")
+    assert first["rights_id"].startswith("offspring-rights:")
+    assert first["rights_profile"] == "account-bound-companion-offspring"
+    assert first["original_title_transferred"] is False
+    assert first["uses_original_supply"] is False
     assert credits.issued_count == issued_before
     status = subscription_service.service_status()
-    assert status["canonical_genesis_families"] == 151
-    assert status["free_companion_families"] == 3
-    assert status["premium_families"] == 148
+    assert status["canonical_originals"] == 251
+    assert status["issuer_held_originals_at_publication"] == 251
+    assert status["transferred_originals_at_publication"] == 0
+    assert status["undiscovered_originals_at_publication"] == 251
+    assert status["free_companion_identity"] == "separately-issued-offspring"
+    assert status["free_companion_uses_original_supply"] is False
+    assert status["offspring_distinct_rappid_and_rights"] is True
 
 
 def test_owned_rapter_cannot_lease_and_active_lease_cannot_double_assign():

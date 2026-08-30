@@ -5,9 +5,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from credits.domain import CreditError, canonical_json
+from credits.generations import ORIGINAL_COUNT, ORIGINAL_IDS
 from credits.rapterworks import (
-    SPECIES_COUNT,
-    SPECIES_IDS,
     InMemoryOwnerInstanceRegistry,
     InMemoryEvolutionSponsorshipLedger,
     InMemoryRapterWorksLedger,
@@ -21,7 +20,7 @@ from credits.rapterworks import (
     bounded_quality_evidence,
     build_evolution_sponsorship_policy,
     build_tip_policy,
-    source_species,
+    source_original,
 )
 
 
@@ -49,7 +48,7 @@ class CreditIssuer:
         self.calls += 1
         return {
             "credit_id": "rcredit:" + hashlib.sha256(
-                f"{sale.sale_id}\0{instance['instance_rappid']}".encode(),
+                f"{sale.sale_id}\0{instance['offspring_rappid']}".encode(),
             ).hexdigest(),
             "transferable": True,
         }
@@ -192,15 +191,22 @@ def transition(ledger, job_id, action, fields=None):
     )[0][0]
 
 
-def test_first_dimension_catalog_has_251_immutable_rapterbox_species():
-    assert SPECIES_COUNT == 251
-    assert len(SPECIES_IDS) == 251
-    assert len(set(SPECIES_IDS)) == 251
-    species = source_species(SPECIES_IDS[0])
-    assert species["edition"] == "first-edition"
-    assert species["dimension"] == "first-dimension"
-    assert species["title_owner"] == "rappterbox"
-    assert species["mutable"] is False
+def test_first_dimension_catalog_has_251_issuer_held_undiscovered_originals():
+    assert ORIGINAL_COUNT == 251
+    assert len(ORIGINAL_IDS) == 251
+    assert len(set(ORIGINAL_IDS)) == 251
+    original = source_original(ORIGINAL_IDS[0])
+    assert original["edition"] == "first-edition"
+    assert original["dimension"] == "first-dimension"
+    assert original["title_owner"] == "rappterbox"
+    assert original["ownership_state"] == "issuer-held"
+    assert original["transfer_count"] == 0
+    assert original["discovery_state"] == "undiscovered"
+    assert original["title_transfer_requirements"] == [
+        "verified-output-rights",
+        "verified-commerce-settlement",
+    ]
+    assert original["mutable"] is False
 
 
 def test_verified_shopify_sale_hatches_one_unique_idempotent_player_instance():
@@ -212,20 +218,20 @@ def test_verified_shopify_sale_hatches_one_unique_idempotent_player_instance():
         product_id="premium-rapter",
         purchased_utc=NOW.isoformat(timespec="seconds"),
     )
-    source_before = source_species(SPECIES_IDS[10])
+    source_before = source_original(ORIGINAL_IDS[10])
     first, created = registry.hatch(
         sale=sale,
-        species_id=SPECIES_IDS[10],
+        original_id=ORIGINAL_IDS[10],
         issue_credit=issuer,
         build_capsule=lambda instance: {
             "capsule_id": "capsule:" + hashlib.sha256(
-                instance["instance_rappid"].encode(),
+                instance["offspring_rappid"].encode(),
             ).hexdigest(),
         },
     )
     repeated, repeated_created = registry.hatch(
         sale=sale,
-        species_id=SPECIES_IDS[10],
+        original_id=ORIGINAL_IDS[10],
         issue_credit=issuer,
         build_capsule=lambda _instance: pytest.fail("duplicate sale rebuilt capsule"),
     )
@@ -233,11 +239,13 @@ def test_verified_shopify_sale_hatches_one_unique_idempotent_player_instance():
     assert repeated_created is False
     assert repeated == first
     assert issuer.calls == 1
-    assert first["instance_rappid"] != source_before["source_rappid"]
+    assert first["offspring_rappid"] != source_before["original_rappid"]
     assert first["dimension_branch"].startswith("dimension:")
     assert first["credit"]["transferable"] is True
-    assert first["source_species_mutated"] is False
-    assert source_species(SPECIES_IDS[10]) == source_before
+    assert first["rights_profile"] == "offspring-distinct-from-original"
+    assert first["source_original_title_transferred"] is False
+    assert first["source_original_mutated"] is False
+    assert source_original(ORIGINAL_IDS[10]) == source_before
 
 
 def test_public_dogg_conformance_is_required_but_private_mutation_remains_free():

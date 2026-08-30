@@ -23,16 +23,14 @@ from .domain import (
 )
 from .lifecycle import INVENTORY_OWNER_HASH
 from .generations import (
-    FREE_COMPANION_FAMILY_COUNT,
-    GENESIS_FAMILY_COUNT,
-    PREMIUM_FAMILY_COUNT,
-    companion_family_for_account,
+    ORIGINAL_COUNT,
+    companion_source_original_for_account,
 )
 from .repository import PARTITION, CreditRepository
 from .signing import RegistrySigner
 
 
-COMPANION_SCHEMA = "rapp-rapter-companion-grant/1"
+COMPANION_SCHEMA = "rapp-rapter-companion-grant/2"
 LEASE_START_SCHEMA = "rapp-rapter-credit-lease-start/1"
 LEASE_RENEW_SCHEMA = "rapp-rapter-credit-lease-renew/1"
 LEASE_CANCEL_SCHEMA = "rapp-rapter-credit-lease-cancel/1"
@@ -512,16 +510,22 @@ class SubscriptionService:
 
     def service_status(self) -> dict[str, Any]:
         return {
-            "schema": "rappter-subscription-service-status/1",
+            "schema": "rappter-subscription-service-status/2",
             "free_companions_per_verified_account": 1,
-            "canonical_genesis_families": GENESIS_FAMILY_COUNT,
-            "free_companion_families": FREE_COMPANION_FAMILY_COUNT,
-            "premium_families": PREMIUM_FAMILY_COUNT,
+            "canonical_originals": ORIGINAL_COUNT,
+            "original_edition": "first-edition",
+            "original_dimension": "first-dimension",
+            "issuer_held_originals_at_publication": ORIGINAL_COUNT,
+            "transferred_originals_at_publication": 0,
+            "undiscovered_originals_at_publication": ORIGINAL_COUNT,
+            "free_companion_identity": "separately-issued-offspring",
             "free_companion_transferable": False,
             "free_companion_resellable": False,
-            "free_companion_uses_premium_supply": False,
+            "free_companion_uses_original_supply": False,
+            "original_title_transfer_requires_rights_and_commerce": True,
+            "offspring_distinct_rappid_and_rights": True,
             "exclusive_active_lessee": True,
-            "premium_title_owner": "rappterbox",
+            "original_title_owner_at_publication": "rappterbox",
             "expired_local_copy_status": "unowned-stale-lease-copy",
             "account_verifier_configured": self.account_verifier.configured,
             "billing_webhook_configured": self.webhook_verifier.configured,
@@ -532,9 +536,12 @@ class SubscriptionService:
     def claim_companion(self, token: str | None) -> tuple[dict[str, Any], bool]:
         claims = self._claims(token)
         account_hash = _account_hash(claims.account_reference)
-        family_id = companion_family_for_account(account_hash)
+        source_original_id = companion_source_original_for_account(account_hash)
         entitlement_id = "companion:" + hashlib.sha256(
             f"free-companion\0{account_hash}".encode(),
+        ).hexdigest()
+        offspring_digest = hashlib.sha256(
+            f"free-companion-offspring\0{account_hash}\0{source_original_id}".encode(),
         ).hexdigest()
         payload = {
             "schema": COMPANION_SCHEMA,
@@ -546,13 +553,21 @@ class SubscriptionService:
             "parent_event_id": None,
             "occurred_utc": self.now().isoformat(timespec="seconds"),
             "entitlement_id": entitlement_id,
-            "family_id": family_id,
+            "source_original_id": source_original_id,
+            "generation_id": "generation-0001",
+            "offspring_rappid": (
+                f"rappid:@companion-{account_hash[:12]}/"
+                f"{source_original_id}:{offspring_digest}"
+            ),
+            "rights_id": f"offspring-rights:{offspring_digest}",
+            "rights_profile": "account-bound-companion-offspring",
             "account_hash": account_hash,
             "state": "active",
             "transferable": False,
             "resellable": False,
-            "premium_series": False,
-            "supply_rule": "one-active-free-companion-per-account",
+            "original_title_transferred": False,
+            "uses_original_supply": False,
+            "supply_rule": "one-active-free-offspring-companion-per-account",
         }
         event_hash = hashlib.sha256(canonical_json({
             key: item

@@ -56,6 +56,20 @@ def test_health_and_models_are_openai_shaped():
     assert body(health)["model"] == "gpt-5.4"
     assert body(health)["credit_registry"]["official_records_require_signature"] is True
     assert body(health)["wild_breathing"]["breath_eligible"] is False
+    assert body(health)["launch_catalog"] == {
+        "schema": "rapp-rapter-original-catalog-status/1",
+        "edition": "first-edition",
+        "dimension": "first-dimension",
+        "canonical_originals": 251,
+        "issuer_held_originals": 251,
+        "transferred_originals": 0,
+        "undiscovered_originals": 251,
+        "original_title_transfer_requires_rights_and_commerce": True,
+        "offspring_distinct_rappid_and_rights": True,
+        "catalog_publication_write_adapter_configured": False,
+        "original_title_transfer_write_adapter_configured": False,
+        "offspring_issuance_write_adapter_configured": False,
+    }
     models = function_app.openai_models(request("GET", "models"))
     assert models.status_code == 200
     assert body(models)["data"][0]["id"] == "gpt-5.4"

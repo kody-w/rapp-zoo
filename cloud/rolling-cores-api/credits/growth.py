@@ -11,15 +11,15 @@ from .domain import (
     validate_organism_rappid,
     validate_sha256,
 )
-from .generations import FREE_COMPANION_FAMILY_IDS
+from .generations import ORIGINAL_IDS
 from .quotes import BtcUsdQuote, validate_fresh_quote
 from .signing import RegistrySigner
 
 
 GROWTH_RECEIPT_SCHEMA = "rapp-rapter-growth-receipt/1"
-EVOLUTION_SCHEDULE_SCHEMA = "rapp-rapter-evolution-schedule/1"
-STAGE_POLICY_SCHEMA = "rapp-rapter-growth-stage-policy/1"
-EVOLUTION_SCHEMA = "rapp-rapter-evolution/1"
+EVOLUTION_SCHEDULE_SCHEMA = "rapp-rapter-evolution-schedule/2"
+STAGE_POLICY_SCHEMA = "rapp-rapter-growth-stage-policy/2"
+EVOLUTION_SCHEMA = "rapp-rapter-evolution/2"
 TRANSITIONS = ("origin-to-journey", "journey-to-ascendant")
 GROWTH_CATEGORIES = (
     "care",
@@ -52,7 +52,7 @@ STAGE_POLICY_KEYS = {
     "issuer",
     "organism_rappid",
     "stage_id",
-    "family_id",
+    "source_original_id",
     "generation_id",
     "transition_id",
     "required_points",
@@ -284,7 +284,7 @@ def sats_for_usd_target(target_usd_micros: int, btc_usd_micros: int) -> int:
 def build_companion_evolution_schedule(
     *,
     issuer: str,
-    family_id: str,
+    source_original_id: str,
     generation_id: str,
     origin_to_journey: dict[str, Any],
     journey_to_ascendant: dict[str, Any],
@@ -292,8 +292,8 @@ def build_companion_evolution_schedule(
     created_utc: str,
     signer: RegistrySigner,
 ) -> dict[str, Any]:
-    if family_id not in FREE_COMPANION_FAMILY_IDS:
-        raise CreditError("Starter evolution schedules require a free Companion Family.")
+    if source_original_id not in ORIGINAL_IDS:
+        raise CreditError("Companion evolution source Original is not canonical.")
     transitions = {
         "origin-to-journey": _transition(
             origin_to_journey,
@@ -317,7 +317,7 @@ def build_companion_evolution_schedule(
         "schema": EVOLUTION_SCHEDULE_SCHEMA,
         "kind": "body.pulse",
         "issuer": bounded_text(issuer, "issuer", 128),
-        "family_id": family_id,
+        "source_original_id": source_original_id,
         "generation_id": bounded_text(generation_id, "generation_id", 128),
         "transitions": transitions,
         "previous_schedule_hash": previous_schedule_hash,
@@ -367,7 +367,7 @@ def validate_evolution_schedule(policy: Any, verifier: GrowthReceiptVerifier) ->
         "schema",
         "kind",
         "issuer",
-        "family_id",
+        "source_original_id",
         "generation_id",
         "transitions",
         "previous_schedule_hash",
@@ -379,8 +379,8 @@ def validate_evolution_schedule(policy: Any, verifier: GrowthReceiptVerifier) ->
     }
     if set(policy) != expected_keys or policy.get("kind") != "body.pulse":
         raise CreditError("Evolution schedule shape is invalid.")
-    if policy.get("family_id") not in FREE_COMPANION_FAMILY_IDS:
-        raise CreditError("Evolution schedule Family is not a free Companion Family.")
+    if policy.get("source_original_id") not in ORIGINAL_IDS:
+        raise CreditError("Evolution schedule source Original is not canonical.")
     if set(policy.get("transitions", {})) != set(TRANSITIONS):
         raise CreditError("Evolution schedule must contain both progressive transitions.")
     _transition(
@@ -444,7 +444,7 @@ def build_stage_policy(
         "issuer": bounded_text(issuer, "issuer", 128),
         "organism_rappid": organism_rappid,
         "stage_id": bounded_text(stage_id, "stage_id", 128),
-        "family_id": schedule["family_id"],
+        "source_original_id": schedule["source_original_id"],
         "generation_id": schedule["generation_id"],
         "transition_id": transition_id,
         "required_points": transition["required_points"],
@@ -486,8 +486,9 @@ def stage_status(
     )
     mutation_due = points_met and eligible and head_matches
     return {
-        "schema": "rapp-rapter-growth-stage-status/1",
+        "schema": "rapp-rapter-growth-stage-status/2",
         "stage_id": policy["stage_id"],
+        "source_original_id": policy["source_original_id"],
         "generation_id": policy["generation_id"],
         "point_total": point_total,
         "required_points": policy["required_points"],
@@ -521,8 +522,8 @@ def validate_stage_policy(
         raise CreditError("Stage policy must use body.pulse.")
     validate_organism_rappid(policy.get("organism_rappid"))
     bounded_text(policy.get("stage_id"), "stage_id", 128)
-    if policy.get("family_id") not in FREE_COMPANION_FAMILY_IDS:
-        raise CreditError("Stage policy Family is not a free Companion Family.")
+    if policy.get("source_original_id") not in ORIGINAL_IDS:
+        raise CreditError("Stage policy source Original is not canonical.")
     bounded_text(policy.get("generation_id"), "generation_id", 128)
     if policy.get("transition_id") not in TRANSITIONS:
         raise CreditError("Stage policy transition is invalid.")
@@ -629,7 +630,7 @@ def build_evolution_event(
         "organism_rappid": policy["organism_rappid"],
         "stage_id": policy["stage_id"],
         "generation_id": policy["generation_id"],
-        "family_id": policy["family_id"],
+        "source_original_id": policy["source_original_id"],
         "transition_id": policy["transition_id"],
         "stage_policy_id": policy["record_id"],
         "evolution_schedule_id": policy["evolution_schedule_id"],
