@@ -58,9 +58,11 @@ corrected
   -> redelivered
 ```
 
-Acceptance into the official market/job lane requires a verified public DOGG
-conformance record. This does not restrict private mutation: owners remain free
-to modify and run private local copies without public-market claims.
+At launch, acceptance into the official market/job lane requires the
+Rapterbox-operated public DOGG and its verified conformance record. Future
+third-party DOGGs remain disabled pending the commercial controls below. This
+does not restrict private mutation: owners remain free to modify and run
+private local copies without public-market claims.
 
 ## Full and free delivery
 
@@ -91,41 +93,42 @@ commission, artifact access, title, and future service:
   references are hashed before entering a signed event;
 - each delivered job has one idempotent tip signal, and a verified payment
   reference cannot be replayed for another job;
-- owner-instance tips follow a signed owner/operator/dealer/compute-reserve/
-  species-R&D basis-point policy;
+- TIP is its own Shopify line-item kind and append-only ledger;
+- Rapterbox is the merchant of record and receives the launch TIP allocation;
+- TIP confers no frame, compute, review, delivery, entitlement, or future work;
 - rating is neither conditioned on nor incentivized by tipping.
 
 Each signed tip event reports two explicit views:
 
 - **Raw economic evidence** preserves the full verified amount and currency,
-  owner/operator/dealer payouts, compute reserve, species R&D allocation,
-  premium review, evolution-service allocation, payment-reference hash, and
-  patronage linkage. Amounts are validated for storage but never clipped or
-  replaced by a capped proxy.
+  Shopify line-item hash, payment-reference hash, patronage linkage, and
+  market-alpha signal. Amounts are validated for storage but never clipped or
+  replaced by a capped proxy. This evidence does not create a deliverable.
 - **Normalized quality evidence** caps only the tip component used beside
   independent rating, repeat work, completion, disputes, and cost evidence.
 
 Signed cohort and patronage snapshots preserve lifetime volume, largest tip,
 median tip, tip velocity, repeat tipping, full per-job patronage history, unique
 payer count, largest-payer share, and payer-concentration HHI. Raw economic
-evidence may materially inform demand and market alpha, owner/operator/dealer
-payouts, compute reserves, species R&D, and the patronage lens.
+evidence may materially inform demand and market alpha, Rapterbox merchant
+receipts, and the patronage lens.
 
 ### Patronage-weighted evolution
 
-Buying additional evolution work is an intentional RapterWorks service. Each
-positive tip declares whether it targets an owner instance or a species-level
-canonical candidate, a content-addressed target reference, and the selected
-creative lens. The signed policy publishes exact currency-minor conversion
-costs and multipliers. The signed tip event then discloses:
+**EVOLUTION SPONSORSHIP** is a separate paid Shopify line item and ledger, even
+when it appears beside TIP on the same post-job screen. Buying additional
+evolution work is an intentional RapterWorks service. The verified line item
+declares whether it targets an owner instance or a species-level canonical
+candidate, a content-addressed target reference, the selected creative lens,
+and exact purchased units. The signed policy publishes exact currency-minor
+unit costs and influence multipliers. The sponsorship event discloses:
 
 - additional mutation frames;
 - compute units and faster-iteration units;
 - premium-review units;
 - the uncapped selected-lens weight;
 - the uncapped market-alpha signal;
-- the exact owner/operator/dealer, compute, R&D, review, and evolution
-  allocations, including deterministic rounding remainders.
+- subtotal, tax, total, Shopify line-item hash, and payment-reference hash.
 
 Owner-instance sponsorship may directly increase iteration and
 market-perceived quality/alpha for that instance. Species-level pooled
@@ -134,12 +137,29 @@ Rapterbox remains the sole canon-acceptance authority. Sponsorship buys
 creative transformation services and evaluation effort, not equity, a
 security, guaranteed returns, or a predetermined canonical result.
 
+Sponsorship consideration is recorded as deferred revenue/liability. Partial
+delivery may append proof and reduce outstanding units, but no revenue is
+recognized until every purchased frame, compute unit, iteration unit, and
+premium-review unit is delivered. The signed lifecycle separately exposes
+`tax_state`, `refund_state`, and `chargeback_state`; verified full refunds and
+chargebacks append immutable reversal events.
+
 Every public quality report presents two views side by side. The unweighted
 technical test score is the exact test pass rate and consumes no patronage
-input. The patronage-weighted view exposes the raw tip, selected lens, target,
-purchased service units, and normalized tip component. Money may influence the
-weighted market/evolution view, but it never rewrites ratings, test results, or
-history.
+input. The patronage view exposes the raw benefit-free tip and its normalized
+quality component. The separate sponsorship view exposes selected lens, target,
+purchased and delivered service units, deferred liability, and recognized
+revenue. Money may influence the market/evolution view, but it never rewrites
+ratings, test results, or history.
+
+## Launch commercial controls
+
+Initial commercial jobs are Rapterbox-operated only, with Rapterbox as merchant
+of record and no third-party dealer or operator payouts. A server verifier must
+confirm the customer's accepted output-rights terms before a commercial job
+can be created. Third-party operation remains disabled until signed commercial
+agreements, identity and tax onboarding, indemnity, warranty, refund, and
+chargeback controls are all implemented.
 
 ## Regression fixtures
 
@@ -159,9 +179,11 @@ Production enablement still requires:
 2. official Credit and Capsule issuance adapters;
 3. public DOGG conformance verification;
 4. server-side Shopify Draft Order creation and payment verification;
-5. server-side post-service tip payment verification and signed split-policy
-   publication; and
-6. durable idempotent job/event persistence.
+5. separate server-side TIP and EVOLUTION SPONSORSHIP Shopify verification;
+6. signed TIP and sponsorship policy publication;
+7. tax, refund, and chargeback adapters for sponsorship liabilities;
+8. verified output-rights acceptance; and
+9. durable idempotent job, tip, sponsorship, and accounting persistence.
 
 Until configured, no client assertion can create a sale, payment, public-market
 listing, official job result, or verified tip.

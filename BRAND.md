@@ -21,7 +21,7 @@ Powered by RAPP/1. From Rapterbox.
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
 | **Breath key** | A usable, securely stored provider credential that permits bounded verified ticks |
 | **Rapterbox** | Consumer storefront and product home |
-| **RapterWorks** | Proof-first jobs and services delivered by conformant public DOGGs |
+| **RapterWorks** | Proof-first jobs launched through the Rapterbox-operated public DOGG |
 | **Rappter** | Protocol/company/developer-facing flock identity |
 
 ## Product promise
@@ -76,13 +76,13 @@ Supporting lines:
   region unlocks; it never converts participation into cash or investment value.
 - RapterWorks delivery is full and free. A post-service tip may be any amount
   or zero, is separate from rating, and never creates debt or gates the work.
-- TIPS preserve full patronage and economic evidence for payouts, reserves,
-  R&D, market learning, and purchased evolution services. Patronage may buy
-  more instance mutation frames, compute, iteration, selected-lens weight, and
-  premium review, while species pools may fund canonical candidate work.
+- TIPS preserve full patronage and economic evidence but confer no deliverable.
+- EVOLUTION SPONSORSHIP is a separate paid creative service that can buy more
+  instance mutation frames, compute, iteration, selected-lens weight, and
+  premium review, while species sponsorship may fund canonical candidate work.
 - Public reports separate unweighted technical test quality from the
-  patronage-weighted market/evolution view. Money cannot rewrite ratings or
-  history, buy Rapterbox canon acceptance, or guarantee returns.
+  patronage and sponsorship views. Money cannot rewrite ratings or history,
+  buy Rapterbox canon acceptance, or guarantee returns.
 
 ## Positioning
 

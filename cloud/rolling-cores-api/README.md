@@ -334,45 +334,64 @@ interfaces for the 251 Rapterbox-owned First Edition / First Dimension species.
 A verified Shopify sale creates a unique player RAPPID, Credit, Capsule, and
 dimension branch without changing the source species.
 
-Public job acceptance requires DOGG conformance, while private local mutation
-remains unrestricted. The signed state machine covers request, acceptance or
-refusal, work, proof, supervisor approval or revision, full-and-free delivery,
-optional commission, rating, immutable regression fixtures, correction, and
-redelivery. Shopify Draft Orders and payment links can be created only after
-delivery, never gate the artifact, and never create debt.
+Public job acceptance initially requires the Rapterbox-operated DOGG and its
+verified conformance record, while private local mutation remains unrestricted.
+The signed state machine covers request, acceptance or refusal, work, proof,
+supervisor approval or revision, full-and-free delivery, optional commission,
+rating, immutable regression fixtures, correction, and redelivery. Shopify
+Draft Orders and payment links can be created only after delivery, never gate
+the artifact, and never create debt.
 
-The same module defines independent post-service TIPS. A signed split policy
-fixes owner/operator/dealer, compute-reserve, and species-R&D basis points for
-owner instances. One idempotent tip/no-tip signal is accepted per delivered
-job; positive tips require a server-verified payment, payment references are
-hashed, and reused payments are refused. Rating remains independent, zero tip
-creates no debt, and artifact access is always full and unconditional.
+The same module defines separate post-service TIP and EVOLUTION SPONSORSHIP
+lanes. They may appear together in the UI but must be distinct Shopify line
+items, payment proofs, schemas, idempotency domains, and ledgers.
+
+TIP is benefit-free. One idempotent tip/no-tip signal is accepted per delivered
+job; positive tips require a server-verified TIP line item, payment and
+line-item references are hashed, and replay is refused. Rapterbox is merchant
+of record, receives the complete launch allocation, and provides no frame,
+compute, review, entitlement, or future-work consideration in exchange.
 
 Every signed signal contains both a lossless raw economic view and a separate
-capped quality component. The raw view preserves the full verified amount,
-currency, exact allocation, evolution target, selected lens, purchased
-mutation frames, compute, iteration, premium review, species-candidate pool,
-and market-alpha signal. It is never clipped to the quality ceiling.
+capped quality component. The raw TIP view preserves the full verified amount,
+currency, patronage history, concentration, velocity, and market-alpha signal.
+It is never clipped to the quality ceiling, but it confers no deliverable.
 
-The signed policy publishes the exact allocation basis points, service unit
-costs, lens-weight multiplier, and market-alpha multiplier. Raw patronage can
-therefore materially buy or sponsor owner-instance evolution work and
-species-level candidate work. Rapterbox remains the canon-acceptance authority;
-payment cannot guarantee a predetermined canonical mutation or rewrite a
-rating, test result, or prior event. Evolution sponsorship is a creative
+EVOLUTION SPONSORSHIP is the paid service lane. Its signed policy publishes
+exact frame, compute, iteration, and premium-review unit costs plus lens-weight
+and market-alpha multipliers. The verified Shopify line item fixes the target,
+selected lens, quantities, subtotal, tax, and total. Consideration remains
+deferred revenue/liability through partial work and is recognized only when all
+specified units are delivered. Signed refund and chargeback events expose
+reversal and tax-adjustment state.
+
+Raw sponsorship may materially buy owner-instance evolution work or sponsor
+species-level canonical candidate work. Rapterbox remains the canon-acceptance
+authority; payment cannot guarantee a predetermined canonical mutation or
+rewrite a rating, test result, or prior event. Sponsorship is a creative
 transformation service, not equity or a guaranteed return.
 
-Signed cohort and patronage reports preserve lifetime volume, largest and
+Signed TIP cohort and patronage reports preserve lifetime volume, largest and
 median tips, velocity, repeat tipping, per-job history, unique payer count,
-largest-payer share, concentration HHI, target mix, selected-lens weights, and
-purchased service units. Signed quality reports show an unweighted technical
-test pass-rate beside the disclosed patronage-weighted view, making exactly
-what money influenced visible rather than blending it into technical quality.
+largest-payer share, and concentration HHI. The separate sponsorship ledger
+preserves target, selected-lens weight, purchased and delivered units, tax,
+refund, chargeback, deferred-liability, and recognized-revenue state. Signed
+quality reports show an unweighted technical test pass-rate beside separate
+TIP-patronage and sponsorship views, making exactly what money influenced
+visible rather than blending it into technical quality.
 
-The Shopify Admin token, commission verification, tip verification, signed tip
-allocation policy, and durable job/tip/patronage persistence remain server-side adapter
-concerns. No job, point, tip, or commission represents a real-money future,
-transferable currency, guaranteed work value, or convertible balance.
+At launch, commercial jobs are Rapterbox-operated and Rapterbox is merchant of
+record. Job creation requires server-verified acceptance of the applicable
+output-rights terms. Third-party dealer/operator payouts remain disabled until
+commercial agreements, identity and tax onboarding, indemnity, warranty,
+refund, and chargeback controls are implemented.
+
+The Shopify Admin token, commission verification, TIP verification,
+EVOLUTION SPONSORSHIP verification, signed policies, output-rights acceptance,
+and durable job/tip/sponsorship/accounting persistence remain server-side
+adapter concerns. No job, point, tip, sponsorship, or commission represents a
+real-money future, transferable currency, equity interest, guaranteed work
+value, or convertible balance.
 
 ## Cost controls and next ledger boundary
 

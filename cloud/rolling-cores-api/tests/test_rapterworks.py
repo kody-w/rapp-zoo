@@ -9,13 +9,18 @@ from credits.rapterworks import (
     SPECIES_COUNT,
     SPECIES_IDS,
     InMemoryOwnerInstanceRegistry,
+    InMemoryEvolutionSponsorshipLedger,
     InMemoryRapterWorksLedger,
     InMemoryTipLedger,
     VerifiedCommissionPayment,
+    VerifiedEvolutionSponsorshipPayment,
+    VerifiedOutputRightsAcceptance,
     VerifiedShopifySale,
+    VerifiedSponsorshipAdjustment,
     VerifiedTipPayment,
     bounded_quality_evidence,
-    build_tip_split_policy,
+    build_evolution_sponsorship_policy,
+    build_tip_policy,
     source_species,
 )
 
@@ -59,7 +64,7 @@ class DoggVerifier:
     def verify(self, dogg_id, conformance_hash):
         return (
             self.accepted
-            and dogg_id == "public-dogg-1"
+            and dogg_id == "rappterbox"
             and conformance_hash == "d" * 64
         )
 
@@ -104,8 +109,77 @@ class TipVerifier:
                 self.payment_reference
                 or f"tip-payment-{job_id}-{self.amount_minor}"
             ),
+            shopify_line_item_reference=f"tip-line-{job_id}-{self.amount_minor}",
+            shopify_line_item_kind="tip",
             amount_minor=self.amount_minor,
             currency="USD",
+        )
+
+
+class RightsVerifier:
+    configured = True
+
+    def verify(self, proof, account_reference):
+        assert proof == "accepted-output-rights"
+        return VerifiedOutputRightsAcceptance(
+            account_reference=account_reference,
+            terms_version="rapterworks-output-rights/1",
+            terms_hash="b" * 64,
+            accepted_utc=NOW.isoformat(timespec="seconds"),
+        )
+
+
+class MissingRightsVerifier:
+    configured = False
+
+    def verify(self, proof, account_reference):
+        del proof, account_reference
+        raise CreditError("Output-rights acceptance verification is not configured.")
+
+
+class SponsorshipVerifier:
+    configured = True
+
+    def __init__(self):
+        self.purchase = VerifiedEvolutionSponsorshipPayment(
+            payment_reference="sponsorship-payment-1",
+            shopify_line_item_reference="sponsorship-line-1",
+            shopify_line_item_kind="evolution-sponsorship",
+            account_reference="account-1",
+            currency="USD",
+            subtotal_minor=1_100,
+            tax_minor=88,
+            total_minor=1_188,
+            evolution_target="owner-instance",
+            evolution_target_reference_hash="6" * 64,
+            selected_lens="motion",
+            mutation_frames=2,
+            compute_units=3,
+            iteration_units=4,
+            premium_review_units=1,
+        )
+
+    def verify_purchase(self, proof, job_id):
+        assert proof == "verified-sponsorship"
+        assert job_id
+        return self.purchase
+
+    def verify_refund(self, proof, sponsorship_id):
+        assert proof == "verified-refund"
+        assert sponsorship_id
+        return VerifiedSponsorshipAdjustment(
+            reference="sponsorship-refund-1",
+            amount_minor=self.purchase.total_minor,
+            currency=self.purchase.currency,
+        )
+
+    def verify_chargeback(self, proof, sponsorship_id):
+        assert proof == "verified-chargeback"
+        assert sponsorship_id
+        return VerifiedSponsorshipAdjustment(
+            reference="sponsorship-chargeback-1",
+            amount_minor=self.purchase.total_minor,
+            currency=self.purchase.currency,
         )
 
 
@@ -172,6 +246,7 @@ def test_public_dogg_conformance_is_required_but_private_mutation_remains_free()
         signer=Signer(),
         dogg_verifier=DoggVerifier(False),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     request, _ = rejected.request_job(
@@ -179,13 +254,58 @@ def test_public_dogg_conformance_is_required_but_private_mutation_remains_free()
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     with pytest.raises(CreditError, match="DOGG conformance"):
         transition(rejected, request["job_id"], "accept", {
-            "dogg_id": "public-dogg-1",
+            "dogg_id": "rappterbox",
             "conformance_hash": "d" * 64,
         })
     assert rejected.state(request["job_id"])["private_mutation_allowed"] is True
+
+
+def test_launch_jobs_require_verified_output_rights_and_rapterbox_operation():
+    blocked = InMemoryRapterWorksLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        dogg_verifier=DoggVerifier(),
+        commission_adapter=CommissionAdapter(),
+        output_rights_verifier=MissingRightsVerifier(),
+        now=lambda: NOW,
+    )
+    with pytest.raises(CreditError, match="Output-rights"):
+        blocked.request_job(
+            operation_id="blocked-rights",
+            account_reference="account-1",
+            category="artifact-build",
+            request_evidence_hash="a" * 64,
+            output_rights_acceptance_proof="missing",
+        )
+    ledger = InMemoryRapterWorksLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        dogg_verifier=DoggVerifier(),
+        commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
+        now=lambda: NOW,
+    )
+    requested, _ = ledger.request_job(
+        operation_id="launch-controls",
+        account_reference="account-1",
+        category="artifact-build",
+        request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
+    )
+    with pytest.raises(CreditError, match="Rapterbox-operated only"):
+        transition(ledger, requested["job_id"], "accept", {
+            "dogg_id": "third-party-dealer",
+            "conformance_hash": "d" * 64,
+        })
+    state = ledger.state(requested["job_id"])
+    assert state["merchant_of_record"] == "rappterbox"
+    assert state["operator"] == "rappterbox"
+    assert state["third_party_payouts_enabled"] is False
+    assert state["output_rights_terms_hash"] == "b" * 64
 
 
 def test_job_delivers_full_and_free_before_optional_commission():
@@ -195,6 +315,7 @@ def test_job_delivers_full_and_free_before_optional_commission():
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=commission,
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, created = ledger.request_job(
@@ -202,12 +323,14 @@ def test_job_delivers_full_and_free_before_optional_commission():
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     repeated, repeated_created = ledger.request_job(
         operation_id="request-1",
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     assert created is True
     assert repeated_created is False
@@ -223,7 +346,7 @@ def test_job_delivers_full_and_free_before_optional_commission():
         operation_id="accept-idempotent",
         action="accept",
         fields={
-            "dogg_id": "public-dogg-1",
+            "dogg_id": "rappterbox",
             "conformance_hash": "d" * 64,
         },
     )
@@ -232,7 +355,7 @@ def test_job_delivers_full_and_free_before_optional_commission():
         operation_id="accept-idempotent",
         action="accept",
         fields={
-            "dogg_id": "public-dogg-1",
+            "dogg_id": "rappterbox",
             "conformance_hash": "d" * 64,
         },
     )
@@ -257,6 +380,8 @@ def test_job_delivers_full_and_free_before_optional_commission():
     })
     assert offered["optional"] is True
     assert offered["artifact_access_gated"] is False
+    assert offered["merchant_of_record"] == "rappterbox"
+    assert offered["third_party_payouts_enabled"] is False
     assert offered["payment_url"].startswith("https://shop.example.test/pay/")
     paid = transition(
         ledger,
@@ -275,6 +400,7 @@ def test_low_rating_creates_immutable_regression_then_correction_and_redelivery(
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, _ = ledger.request_job(
@@ -282,10 +408,11 @@ def test_low_rating_creates_immutable_regression_then_correction_and_redelivery(
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     job_id = requested["job_id"]
     transition(ledger, job_id, "accept", {
-        "dogg_id": "public-dogg-1",
+        "dogg_id": "rappterbox",
         "conformance_hash": "d" * 64,
     })
     transition(ledger, job_id, "start")
@@ -343,6 +470,7 @@ def test_optional_commission_can_be_declined_or_ignored(action, state):
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, _ = ledger.request_job(
@@ -350,10 +478,11 @@ def test_optional_commission_can_be_declined_or_ignored(action, state):
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     job_id = requested["job_id"]
     transition(ledger, job_id, "accept", {
-        "dogg_id": "public-dogg-1",
+        "dogg_id": "rappterbox",
         "conformance_hash": "d" * 64,
     })
     transition(ledger, job_id, "start")
@@ -375,6 +504,7 @@ def test_refused_job_can_close_without_artifact_or_debt():
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, _ = ledger.request_job(
@@ -382,6 +512,7 @@ def test_refused_job_can_close_without_artifact_or_debt():
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     refused = transition(ledger, requested["job_id"], "refuse")
     assert refused["state"] == "refused"
@@ -396,6 +527,7 @@ def delivered_job(operation_id="tip-job", account_reference="account-1"):
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, _ = ledger.request_job(
@@ -403,10 +535,11 @@ def delivered_job(operation_id="tip-job", account_reference="account-1"):
         account_reference=account_reference,
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     job_id = requested["job_id"]
     transition(ledger, job_id, "accept", {
-        "dogg_id": "public-dogg-1",
+        "dogg_id": "rappterbox",
         "conformance_hash": "d" * 64,
     })
     transition(ledger, job_id, "start")
@@ -417,26 +550,24 @@ def delivered_job(operation_id="tip-job", account_reference="account-1"):
 
 
 def tip_policy():
-    return build_tip_split_policy(
+    return build_tip_policy(
         issuer="rappterbox",
-        operator_reference_hash="1" * 64,
-        dealer_reference_hash="2" * 64,
-        compute_reserve_reference_hash="3" * 64,
-        species_rnd_reference_hash="4" * 64,
-        premium_review_reference_hash="8" * 64,
-        evolution_service_reference_hash="9" * 64,
-        owner_basis_points=2000,
-        operator_basis_points=2000,
-        dealer_basis_points=1000,
-        compute_reserve_basis_points=1500,
-        species_rnd_basis_points=1000,
-        premium_review_basis_points=1000,
-        evolution_sponsorship_basis_points=1500,
+        rapterbox_reference_hash="1" * 64,
+        rapterbox_basis_points=10_000,
         quality_tip_ratio_cap_basis_points=2000,
+        market_alpha_micros_per_minor=5,
+        created_utc=NOW.isoformat(timespec="seconds"),
+        signer=Signer(),
+    )
+
+
+def sponsorship_policy():
+    return build_evolution_sponsorship_policy(
+        issuer="rappterbox",
         mutation_frame_cost_minor=100,
-        compute_unit_cost_minor=50,
-        iteration_unit_cost_minor=25,
-        premium_review_cost_minor=200,
+        compute_unit_cost_minor=100,
+        iteration_unit_cost_minor=50,
+        premium_review_cost_minor=400,
         selected_lens_weight_micros_per_minor=10,
         market_alpha_micros_per_minor=5,
         created_utc=NOW.isoformat(timespec="seconds"),
@@ -451,7 +582,7 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
         issuer="rappterbox",
         signer=Signer(),
         payment_verifier=verifier,
-        split_policy=tip_policy(),
+        tip_policy=tip_policy(),
         now=lambda: NOW,
     )
     event, created = tips.record(
@@ -464,9 +595,6 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="5" * 64,
-        selected_lens="motion",
     )
     repeated, repeated_created = tips.record(
         job=job,
@@ -478,9 +606,6 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="5" * 64,
-        selected_lens="motion",
     )
     assert created is True
     assert repeated_created is False
@@ -490,25 +615,16 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
     assert event["amount_minor"] == 1_000_000
     assert event["suggested_tip_ratio_basis_points"] == 2000
     assert event["quality_tip_signal_ppm"] == 1_000_000
-    assert event["owner_amount_minor"] == 200_000
-    assert event["operator_amount_minor"] == 200_000
-    assert event["dealer_amount_minor"] == 100_000
-    assert event["compute_reserve_amount_minor"] == 150_000
-    assert event["species_rnd_amount_minor"] == 100_000
-    assert event["premium_review_amount_minor"] == 100_000
-    assert event["evolution_sponsorship_amount_minor"] == 150_000
+    assert event["rapterbox_amount_minor"] == 1_000_000
     assert event["raw_economic_view"]["amount_minor"] == 1_000_000
     assert event["raw_economic_view"]["market_evaluation_influence"] is True
-    assert event["selected_lens_weight_micros"] == 1_500_000
     assert event["market_alpha_signal_micros"] == 5_000_000
-    assert event["purchased_mutation_frames"] == 1500
-    assert event["purchased_compute_units"] == 3000
-    assert event["purchased_iteration_units"] == 6000
-    assert event["purchased_premium_review_units"] == 500
-    assert event["species_candidate_sponsorship_minor"] == 100_000
-    assert event["species_candidate_mutation_frames"] == 1000
-    assert event["raw_economic_view"]["canonical_mutation_guaranteed"] is False
-    assert event["raw_economic_view"]["canon_acceptance_authority"] == "rappterbox"
+    assert event["shopify_line_item_kind"] == "tip"
+    assert event["ledger_id"] == "rapterworks-tips"
+    assert event["benefit_free"] is True
+    assert event["deliverable_conferred"] is False
+    assert event["evolution_sponsorship_included"] is False
+    assert event["third_party_payouts_enabled"] is False
     assert event["normalized_quality_view"] == {
         "tip_ratio_basis_points": 2000,
         "tip_signal_ppm": 1_000_000,
@@ -534,7 +650,7 @@ def test_zero_tip_is_valid_and_does_not_call_payment_or_create_debt():
         issuer="rappterbox",
         signer=Signer(),
         payment_verifier=verifier,
-        split_policy=tip_policy(),
+        tip_policy=tip_policy(),
         now=lambda: NOW,
     )
     event, _ = tips.record(
@@ -547,16 +663,13 @@ def test_zero_tip_is_valid_and_does_not_call_payment_or_create_debt():
         reference_cost_minor=1_000,
         payment_proof=None,
         cohort_id="artifact-build-2026-08",
-        evolution_target="none",
-        evolution_target_reference_hash=None,
-        selected_lens=None,
     )
     assert event["tipped"] is False
     assert event["amount_minor"] == 0
     assert event["payment_reference_hash"] is None
     assert event["debt_created"] is False
-    assert event["evolution_target"] == "none"
-    assert event["purchased_mutation_frames"] == 0
+    assert event["deliverable_conferred"] is False
+    assert event["evolution_sponsorship_included"] is False
     assert event["market_alpha_signal_micros"] == 0
     assert event["raw_economic_view"]["demand_market_alpha_influence"] is False
     assert verifier.calls == 0
@@ -568,6 +681,7 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
         signer=Signer(),
         dogg_verifier=DoggVerifier(),
         commission_adapter=CommissionAdapter(),
+        output_rights_verifier=RightsVerifier(),
         now=lambda: NOW,
     )
     requested, _ = ledger.request_job(
@@ -575,13 +689,14 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
         account_reference="account-1",
         category="artifact-build",
         request_evidence_hash="a" * 64,
+        output_rights_acceptance_proof="accepted-output-rights",
     )
     verifier = TipVerifier(100, "shared-tip-payment")
     tips = InMemoryTipLedger(
         issuer="rappterbox",
         signer=Signer(),
         payment_verifier=verifier,
-        split_policy=tip_policy(),
+        tip_policy=tip_policy(),
         now=lambda: NOW,
     )
     with pytest.raises(CreditError, match="delivery"):
@@ -595,9 +710,6 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
-            evolution_target="owner-instance",
-            evolution_target_reference_hash="5" * 64,
-            selected_lens="motion",
         )
     delivered = delivered_job()
     tips.record(
@@ -610,9 +722,6 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="5" * 64,
-        selected_lens="motion",
     )
     with pytest.raises(CreditError, match="already has"):
         tips.record(
@@ -625,9 +734,6 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
-            evolution_target="owner-instance",
-            evolution_target_reference_hash="5" * 64,
-            selected_lens="motion",
         )
     second_job = delivered_job("second-tip-job", "account-2")
     with pytest.raises(CreditError, match="already been recorded"):
@@ -641,20 +747,155 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
             reference_cost_minor=1_000,
             payment_proof="verified-tip",
             cohort_id="artifact-build-2026-08",
-            evolution_target="owner-instance",
-            evolution_target_reference_hash="5" * 64,
-            selected_lens="motion",
         )
     tampered = dict(tip_policy())
-    tampered["operator_basis_points"] = 6000
-    with pytest.raises(CreditError, match="total 10000"):
+    tampered["rapterbox_basis_points"] = 9999
+    with pytest.raises(CreditError, match="only to Rapterbox"):
         InMemoryTipLedger(
             issuer="rappterbox",
             signer=Signer(),
             payment_verifier=verifier,
-            split_policy=tampered,
+            tip_policy=tampered,
             now=lambda: NOW,
         )
+
+
+def test_evolution_sponsorship_is_separate_deferred_revenue_until_delivery():
+    job = delivered_job()
+    verifier = SponsorshipVerifier()
+    ledger = InMemoryEvolutionSponsorshipLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        verifier=verifier,
+        policy=sponsorship_policy(),
+        now=lambda: NOW,
+    )
+    purchased, created = ledger.purchase(
+        job=job,
+        operation_id="sponsor-1",
+        payment_proof="verified-sponsorship",
+    )
+    repeated, repeated_created = ledger.purchase(
+        job=job,
+        operation_id="sponsor-1",
+        payment_proof="verified-sponsorship",
+    )
+    assert created is True
+    assert repeated_created is False
+    assert repeated == purchased
+    assert purchased["shopify_line_item_kind"] == "evolution-sponsorship"
+    assert purchased["ledger_id"] == "rapterworks-evolution-sponsorships"
+    assert purchased["merchant_of_record"] == "rappterbox"
+    assert purchased["operator"] == "rappterbox"
+    assert purchased["third_party_payouts_enabled"] is False
+    assert purchased["subtotal_minor"] == 1_100
+    assert purchased["tax_minor"] == 88
+    assert purchased["total_minor"] == 1_188
+    assert purchased["recognized_revenue_minor"] == 0
+    assert purchased["deferred_revenue_liability_minor"] == 1_100
+    assert purchased["tax_state"] == "collected-pending-remittance"
+    assert purchased["refund_state"] == "eligible"
+    assert purchased["chargeback_state"] == "none"
+    assert purchased["selected_lens_weight_micros"] == 11_000
+    assert purchased["market_alpha_signal_micros"] == 5_500
+    assert purchased["output_rights_terms_hash"] == "b" * 64
+    assert purchased["canon_acceptance_authority"] == "rappterbox"
+    assert purchased["canonical_mutation_guaranteed"] is False
+    sponsorship_id = purchased["sponsorship_id"]
+    partial, _ = ledger.deliver(
+        sponsorship_id=sponsorship_id,
+        operation_id="partial-delivery",
+        delivery_evidence_hash="c" * 64,
+        mutation_frames=1,
+        compute_units=1,
+        iteration_units=0,
+        premium_review_units=0,
+    )
+    assert partial["status"] == "partially-delivered-deferred"
+    assert partial["recognized_revenue_minor"] == 0
+    assert partial["deferred_revenue_liability_minor"] == 1_100
+    assert partial["refund_state"] == "post-delivery-policy-review"
+    completed, _ = ledger.deliver(
+        sponsorship_id=sponsorship_id,
+        operation_id="final-delivery",
+        delivery_evidence_hash="d" * 64,
+        mutation_frames=1,
+        compute_units=2,
+        iteration_units=4,
+        premium_review_units=1,
+    )
+    assert completed["status"] == "delivered-recognized"
+    assert completed["recognized_revenue_minor"] == 1_100
+    assert completed["deferred_revenue_liability_minor"] == 0
+    assert not any(completed["outstanding_units"].values())
+    original_purchase, original_created = ledger.purchase(
+        job=job,
+        operation_id="sponsor-1",
+        payment_proof="verified-sponsorship",
+    )
+    assert original_created is False
+    assert original_purchase["status"] == "paid-deferred"
+    assert original_purchase["deferred_revenue_liability_minor"] == 1_100
+
+
+def test_sponsorship_refund_and_chargeback_are_verified_accounting_states():
+    job = delivered_job()
+    refund_ledger = InMemoryEvolutionSponsorshipLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        verifier=SponsorshipVerifier(),
+        policy=sponsorship_policy(),
+        now=lambda: NOW,
+    )
+    purchased, _ = refund_ledger.purchase(
+        job=job,
+        operation_id="refund-purchase",
+        payment_proof="verified-sponsorship",
+    )
+    refunded, _ = refund_ledger.refund(
+        sponsorship_id=purchased["sponsorship_id"],
+        operation_id="refund-1",
+        refund_proof="verified-refund",
+    )
+    assert refunded["status"] == "refunded"
+    assert refunded["refund_state"] == "refunded"
+    assert refunded["tax_state"] == "refund-adjustment-pending"
+    assert refunded["deferred_revenue_liability_minor"] == 0
+    assert not any(refunded["outstanding_units"].values())
+    assert refunded["cancelled_units"] == refunded["purchased_units"]
+
+    chargeback_ledger = InMemoryEvolutionSponsorshipLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        verifier=SponsorshipVerifier(),
+        policy=sponsorship_policy(),
+        now=lambda: NOW,
+    )
+    purchased, _ = chargeback_ledger.purchase(
+        job=job,
+        operation_id="chargeback-purchase",
+        payment_proof="verified-sponsorship",
+    )
+    chargeback_ledger.deliver(
+        sponsorship_id=purchased["sponsorship_id"],
+        operation_id="chargeback-delivery",
+        delivery_evidence_hash="e" * 64,
+        mutation_frames=2,
+        compute_units=3,
+        iteration_units=4,
+        premium_review_units=1,
+    )
+    charged_back, _ = chargeback_ledger.chargeback(
+        sponsorship_id=purchased["sponsorship_id"],
+        operation_id="chargeback-1",
+        chargeback_proof="verified-chargeback",
+    )
+    assert charged_back["status"] == "charged-back"
+    assert charged_back["chargeback_state"] == "charged-back"
+    assert charged_back["tax_state"] == "chargeback-adjustment-pending"
+    assert charged_back["refund_state"] == "chargeback-closed"
+    assert charged_back["recognized_revenue_reversal_minor"] == 1_100
+    assert charged_back["recognized_revenue_minor"] == 0
 
 
 def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
@@ -665,7 +906,7 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         issuer="rappterbox",
         signer=Signer(),
         payment_verifier=TipVerifier(whale_amount),
-        split_policy=tip_policy(),
+        tip_policy=tip_policy(),
         now=lambda: current_time[0],
     )
     whale, _ = tips.record(
@@ -678,28 +919,14 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="5" * 64,
-        selected_lens="motion",
     )
     assert whale["amount_minor"] == whale_amount
-    assert sum(
-        whale[field]
-        for field in (
-            "owner_amount_minor",
-            "operator_amount_minor",
-            "dealer_amount_minor",
-            "compute_reserve_amount_minor",
-            "species_rnd_amount_minor",
-            "premium_review_amount_minor",
-            "evolution_sponsorship_amount_minor",
-        )
-    ) == whale_amount
+    assert whale["rapterbox_amount_minor"] == whale_amount
     assert whale["raw_economic_view"]["amount_minor"] == whale_amount
     assert whale["normalized_quality_view"]["tip_signal_ppm"] == 1_000_000
     tips.payment_verifier = TipVerifier(100)
     small_job = delivered_job("tip-job-small", "account-2")
-    small, _ = tips.record(
+    tips.record(
         job=small_job,
         operation_id="tip-small",
         account_reference="account-2",
@@ -709,9 +936,6 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="5" * 64,
-        selected_lens="motion",
     )
     no_tip_job = delivered_job("tip-job-none", "account-3")
     tips.record(
@@ -724,14 +948,11 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof=None,
         cohort_id="artifact-build-2026-08",
-        evolution_target="none",
-        evolution_target_reference_hash=None,
-        selected_lens=None,
     )
     current_time[0] = NOW + timedelta(days=1)
     tips.payment_verifier = TipVerifier(500)
     repeat_job = delivered_job("tip-job-repeat", "account-1")
-    repeat, _ = tips.record(
+    tips.record(
         job=repeat_job,
         operation_id="tip-repeat",
         account_reference="account-1",
@@ -741,14 +962,7 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
-        evolution_target="species-candidate",
-        evolution_target_reference_hash="6" * 64,
-        selected_lens="memory",
     )
-    assert repeat["species_candidate_sponsorship_minor"] == 125
-    assert repeat["species_candidate_mutation_frames"] == 1
-    assert repeat["raw_economic_view"]["canon_acceptance_authority"] == "rappterbox"
-    assert repeat["raw_economic_view"]["canonical_mutation_guaranteed"] is False
     tips.payment_verifier = TipVerifier(999)
     other_job = delivered_job("tip-job-other", "account-4")
     tips.record(
@@ -761,9 +975,6 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
         reference_cost_minor=1_000,
         payment_proof="verified-tip",
         cohort_id="different-cohort",
-        evolution_target="owner-instance",
-        evolution_target_reference_hash="7" * 64,
-        selected_lens="utility",
     )
     cohort = tips.cohort(
         cohort_id="artifact-build-2026-08",
@@ -790,25 +1001,11 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
     assert cohort["tip_velocity_minor_per_day"] == (lifetime_volume + 1) // 2
     assert cohort["tip_rate_ppm"] == 750_000
     assert cohort["raw_economic_view"]["demand_market_alpha_influence"] is True
-    assert cohort["owner_instance_sponsorship_minor"] == (
-        whale["evolution_sponsorship_amount_minor"]
-        + small["evolution_sponsorship_amount_minor"]
+    assert cohort["allocation_totals_minor"]["rapterbox_amount_minor"] == (
+        lifetime_volume
     )
-    assert cohort["species_candidate_target_sponsorship_minor"] == (
-        repeat["evolution_sponsorship_amount_minor"]
-    )
-    assert cohort["species_candidate_pool_minor"] == sum(
-        event["species_candidate_sponsorship_minor"]
-        for event in (whale, small, repeat)
-    )
-    assert cohort["selected_lens_weights_micros"] == {
-        "motion": (
-            whale["selected_lens_weight_micros"]
-            + small["selected_lens_weight_micros"]
-        ),
-        "memory": repeat["selected_lens_weight_micros"],
-    }
-    assert cohort["canon_acceptance_authority"] == "rappterbox"
+    assert cohort["benefit_free"] is True
+    assert cohort["deliverable_conferred"] is False
     assert cohort["normalized_quality_view"]["raw_volume_used_directly"] is False
     assert Signer().verify(
         {key: value for key, value in cohort.items() if key != "signature"},
@@ -821,27 +1018,40 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
     assert patronage["repeat_tip_count"] == 1
     assert patronage["repeat_tipping"] is True
     assert patronage["tip_velocity_minor_per_day"] == largest_payer_volume
-    assert patronage["selected_lens_weights_micros"] == {
-        "memory": repeat["selected_lens_weight_micros"],
-        "motion": whale["selected_lens_weight_micros"],
-    }
-    assert patronage["canon_acceptance_authority"] == "rappterbox"
+    assert patronage["benefit_free"] is True
+    assert patronage["deliverable_conferred"] is False
     assert [entry["amount_minor"] for entry in patronage["history"]] == [
         whale_amount,
         500,
-    ]
-    assert [entry["evolution_target"] for entry in patronage["history"]] == [
-        "owner-instance",
-        "species-candidate",
     ]
     assert Signer().verify(
         {key: value for key, value in patronage.items() if key != "signature"},
         patronage["signature"],
     )
+    sponsorships = InMemoryEvolutionSponsorshipLedger(
+        issuer="rappterbox",
+        signer=Signer(),
+        verifier=SponsorshipVerifier(),
+        policy=sponsorship_policy(),
+        now=lambda: NOW,
+    )
+    sponsorship, _ = sponsorships.purchase(
+        job=job,
+        operation_id="quality-sponsorship",
+        payment_proof="verified-sponsorship",
+    )
+    assert whale["ledger_id"] == "rapterworks-tips"
+    assert sponsorship["ledger_id"] == "rapterworks-evolution-sponsorships"
+    assert whale["shopify_line_item_reference_hash"] != (
+        sponsorship["shopify_line_item_reference_hash"]
+    )
+    assert whale["deliverable_conferred"] is False
+    assert sponsorship["deferred_revenue_liability_minor"] == 1_100
     evidence = bounded_quality_evidence(
         issuer="rappterbox",
         signer=Signer(),
         tip_event=whale,
+        sponsorship_event=sponsorship,
         cohort=cohort,
         rating=1,
         repeat_count=2,
@@ -856,10 +1066,18 @@ def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
     assert evidence["rating_ppm"] == 200_000
     assert evidence["normalized_tip_component_ppm"] == 1_000_000
     assert evidence["patronage_weighted_view"]["raw_tip_amount_minor"] == whale_amount
-    assert evidence["patronage_weighted_view"]["selected_lens"] == "motion"
-    assert evidence["patronage_weighted_view"]["market_alpha_signal_micros"] == (
+    assert evidence["patronage_weighted_view"]["tip_market_alpha_signal_micros"] == (
         whale_amount * 5
     )
+    assert evidence["evolution_sponsorship_view"]["selected_lens"] == "motion"
+    assert evidence["evolution_sponsorship_view"]["purchased_units"] == {
+        "mutation_frames": 2,
+        "compute_units": 3,
+        "iteration_units": 4,
+        "premium_review_units": 1,
+    }
+    assert evidence["tip_conferred_deliverable"] is False
+    assert evidence["tip_and_sponsorship_separate_line_items"] is True
     assert evidence["raw_tip_amount_used_in_unweighted_technical_score"] is False
     assert evidence["raw_tip_amount_used_in_patronage_weighted_view"] is True
     assert evidence["rating_overridden_by_tip"] is False
