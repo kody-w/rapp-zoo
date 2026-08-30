@@ -19,7 +19,9 @@ Powered by RAPP/1. From Rapterbox.
 | **SHAPEE** | The Rapter's optional seeded key-tooth side-profile tile |
 | **Growl** | The Rapter's original completed MIDI piano identity |
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
+| **Breath key** | A usable, securely stored provider credential that permits bounded verified ticks |
 | **Rapterbox** | Consumer storefront and product home |
+| **RapterWorks** | Proof-first jobs launched through the Rapterbox-operated public DOGG |
 | **Rappter** | Protocol/company/developer-facing flock identity |
 
 ## Product promise
@@ -42,6 +44,11 @@ An owned Rapter can be opened offline, exported, backed up, AirDropped, and
 re-imported into the phone's Holo Zoo. Managed compute is optional and sold
 separately from the organism.
 
+A breath key is eligibility, not a fake heartbeat. Breathing is explicit,
+bounded, and stops when credentials or prepaid compute are unavailable,
+revoked, paused, offline, or exhausted. The Rapter then sleeps with its last
+verified core intact.
+
 ## The offer
 
 > **Meet Rapters for free. Buy the one you value. Own its Rolling Core locally.
@@ -50,12 +57,33 @@ separately from the organism.
 
 Supporting lines:
 
+- Every verified account gets one free, account-bound Companion.
+- Canonical launch is 251 First Edition / First Dimension Originals: all 251
+  issuer-held, 0 transferred, and all undiscovered at publication.
+- A free Companion is separately issued offspring with its own RAPPID and
+  rights; it does not consume or transfer Original title.
+- Premium Rapters can be rented without changing Rapterbox title.
 - One purchase. One Rapter. One official Credit.
 - Its birth value is fixed in sats.
 - Its memories stay immutable.
 - Its body keeps growing.
 - Its local capsule is yours while the official Credit is yours.
 - No subscription is required to open an organism you own.
+- Renting is access, not ownership; buying remains permanent and offline.
+- Original and offspring names, bodies, and rights remain original to Rapterbox.
+- Rapter Growth Points are earned through bounded opt-in positive activity;
+  they are never sold, transferred, redeemed, or deducted below zero.
+- World Pulse combines privacy-safe Growth Point totals into shared story and
+  region unlocks; it never converts participation into cash or investment value.
+- RapterWorks delivery is full and free. A post-service tip may be any amount
+  or zero, is separate from rating, and never creates debt or gates the work.
+- TIPS preserve full patronage and economic evidence but confer no deliverable.
+- EVOLUTION SPONSORSHIP is a separate paid creative service that can buy more
+  instance mutation frames, compute, iteration, selected-lens weight, and
+  premium review, while Original sponsorship may fund canonical candidate work.
+- Public reports separate unweighted technical test quality from the
+  patronage and sponsorship views. Money cannot rewrite ratings or history,
+  buy Rapterbox canon acceptance, or guarantee returns.
 
 ## Positioning
 

@@ -1658,6 +1658,23 @@ const desktopBridge = window.rappZooDesktop;
 let copilotBusy = false;
 let copilotAssistant = null;
 
+function renderBreathingStatus(status) {
+  const breathing = status?.breathing || {};
+  const eligibility = status?.eligibility || {};
+  const running = breathing.state === 'running';
+  const label = running
+    ? `Breathing ${breathing.successful_ticks || 0}/${breathing.limits?.max_ticks || 0}`
+    : eligibility.eligible
+      ? `Breathing ${breathing.state || 'paused'}`
+      : 'Breath key unavailable';
+  $('breathing-status').textContent = label;
+  $('breathing-status').title = (
+    eligibility.reason_codes || [breathing.pause_reason]
+  ).filter(Boolean).join(', ');
+  $('breathing-start').disabled = !eligibility.eligible || running;
+  $('breathing-pause').disabled = !running;
+}
+
 function copilotMessage(kind, text) {
   const node = document.createElement('div');
   node.className = 'copilot-message ' + kind;
@@ -1709,6 +1726,28 @@ if (desktopBridge) {
     $('copilot-status').textContent = 'Brainstem unavailable';
     $('copilot-status').title = error.message;
     $('copilot-send').disabled = true;
+  });
+  desktopBridge.breathingStatus().then(renderBreathingStatus).catch(() => {
+    renderBreathingStatus(null);
+  });
+  desktopBridge.onBreathingState(renderBreathingStatus);
+  $('breathing-start').addEventListener('click', async () => {
+    try {
+      renderBreathingStatus(await desktopBridge.startBreathing({
+        interval_seconds: 300,
+        max_ticks: 6,
+        max_output_tokens_per_tick: 512,
+        max_total_output_tokens: 3072,
+        max_session_seconds: 3600,
+      }));
+    } catch (error) {
+      toast(`Breathing did not start: ${error.message}`, 'err');
+      renderBreathingStatus(await desktopBridge.breathingStatus());
+    }
+  });
+  $('breathing-pause').addEventListener('click', async () => {
+    await desktopBridge.pauseBreathing();
+    renderBreathingStatus(await desktopBridge.breathingStatus());
   });
   desktopBridge.onState((state) => {
     const status = state.brainstem || {};
