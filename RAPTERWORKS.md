@@ -79,6 +79,27 @@ The complete artifact is delivered before any commission is offered.
 No RapterWorks point, entitlement, job state, or future work promise is a
 real-money future, security, transferable currency, or redeemable balance.
 
+## Independent post-service tips
+
+After full-and-free delivery, the customer may record a tip of any verified
+amount or explicitly record no tip. A tip is independent of rating,
+commission, artifact access, title, and future service:
+
+- zero is a complete and valid outcome and creates no debt;
+- the artifact cannot be gated, degraded, revoked, or delayed by tip status;
+- positive amounts require server-side payment verification, while raw payment
+  references are hashed before entering a signed event;
+- each delivered job has one idempotent tip signal, and a verified payment
+  reference cannot be replayed for another job;
+- owner-instance tips follow a signed operator/dealer basis-point policy;
+- rating is neither conditioned on nor incentivized by tipping.
+
+Privacy-safe cohort records may publish tip rate, median tip by currency, and a
+capped normalized suggested-tip ratio. Raw tip dollars and outlier spending
+must not directly set a quality score, market price, autonomy promotion, or
+canonical mutation. They are bounded context alongside independent rating,
+repeat work, completion, disputes, and cost evidence.
+
 ## Regression fixtures
 
 A low rating opens `regression_open` and creates an immutable regression
@@ -97,7 +118,9 @@ Production enablement still requires:
 2. official Credit and Capsule issuance adapters;
 3. public DOGG conformance verification;
 4. server-side Shopify Draft Order creation and payment verification;
-5. durable idempotent job/event persistence.
+5. server-side post-service tip payment verification and signed split-policy
+   publication; and
+6. durable idempotent job/event persistence.
 
 Until configured, no client assertion can create a sale, payment, public-market
-listing, or official job result.
+listing, official job result, or verified tip.

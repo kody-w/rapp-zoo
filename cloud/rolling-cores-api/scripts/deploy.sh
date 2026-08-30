@@ -46,4 +46,16 @@ az functionapp deployment source config-zip \
   --timeout 900 \
   --output none
 
+FUNCTION_APP_ID="$(
+  az functionapp show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$FUNCTION_APP" \
+    --query id \
+    --output tsv
+)"
+az rest \
+  --method post \
+  --url "https://management.azure.com${FUNCTION_APP_ID}/syncfunctiontriggers?api-version=2022-03-01" \
+  --output none
+
 printf 'Deployed https://%s.azurewebsites.net\n' "$FUNCTION_APP"

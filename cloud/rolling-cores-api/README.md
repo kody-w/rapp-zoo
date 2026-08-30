@@ -341,9 +341,20 @@ optional commission, rating, immutable regression fixtures, correction, and
 redelivery. Shopify Draft Orders and payment links can be created only after
 delivery, never gate the artifact, and never create debt.
 
-The Shopify Admin token and payment verification remain server-side adapter
-concerns. No job or point represents a real-money future, transferable
-currency, guaranteed work value, or convertible balance.
+The same module defines independent post-service TIPS. A signed split policy
+fixes operator/dealer basis points for owner instances and caps the normalized
+suggested-tip ratio. One idempotent tip/no-tip signal is accepted per delivered
+job; positive tips require a server-verified payment, payment references are
+hashed, and reused payments are refused. Signed cohort telemetry records
+currency-scoped median tip and tip rate. Rating remains independent, zero tip
+creates no debt, and artifact access is always full and unconditional. Raw tip
+amounts and outlier spend cannot directly determine quality, market price,
+autonomy promotion, or canonical mutation.
+
+The Shopify Admin token, commission verification, tip verification, signed tip
+split policy, and durable job/tip persistence remain server-side adapter
+concerns. No job, point, tip, or commission represents a real-money future,
+transferable currency, guaranteed work value, or convertible balance.
 
 ## Cost controls and next ledger boundary
 

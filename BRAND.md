@@ -74,6 +74,8 @@ Supporting lines:
   they are never sold, transferred, redeemed, or deducted below zero.
 - World Pulse combines privacy-safe Growth Point totals into shared story and
   region unlocks; it never converts participation into cash or investment value.
+- RapterWorks delivery is full and free. A post-service tip may be any amount
+  or zero, is separate from rating, and never creates debt or gates the work.
 
 ## Positioning
 

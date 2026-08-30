@@ -130,13 +130,6 @@ for function_name in wild_breathing_status wild_breathing_start wild_breathing_p
     --key-value="$WILD_TEST_KEY" \
     --output none
 done
-WILD_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/wild-breathing-status.json" \
-    --write-out '%{http_code}' \
-    --header "x-functions-key: $WILD_TEST_KEY" \
-    "$ENDPOINT/v1/breathing/status" || true
-)"
 cat >"$STATE_DIR/wild-breathing-start.json" <<'JSON'
 {
   "organism_rappid": "rappid:@smoke/rapter:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -150,26 +143,42 @@ cat >"$STATE_DIR/wild-breathing-start.json" <<'JSON'
   "acknowledge_metered_compute": true
 }
 JSON
-WILD_START_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/wild-breathing-start-response.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $WILD_TEST_KEY" \
-    --data-binary "@$STATE_DIR/wild-breathing-start.json" \
-    "$ENDPOINT/v1/breathing/start" || true
-)"
-WILD_PAUSE_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/wild-breathing-pause.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $WILD_TEST_KEY" \
-    --data '{"organism_rappid":"rappid:@smoke/rapter:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' \
-    "$ENDPOINT/v1/breathing/pause" || true
-)"
+WILD_STATUS="000"
+WILD_START_STATUS="000"
+WILD_PAUSE_STATUS="000"
+for _ in $(seq 1 6); do
+  WILD_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/wild-breathing-status.json" \
+      --write-out '%{http_code}' \
+      --header "x-functions-key: $WILD_TEST_KEY" \
+      "$ENDPOINT/v1/breathing/status" || true
+  )"
+  WILD_START_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/wild-breathing-start-response.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $WILD_TEST_KEY" \
+      --data-binary "@$STATE_DIR/wild-breathing-start.json" \
+      "$ENDPOINT/v1/breathing/start" || true
+  )"
+  WILD_PAUSE_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/wild-breathing-pause.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $WILD_TEST_KEY" \
+      --data '{"organism_rappid":"rappid:@smoke/rapter:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' \
+      "$ENDPOINT/v1/breathing/pause" || true
+  )"
+  if [[ "$WILD_STATUS" == "200" && "$WILD_START_STATUS" == "403" && "$WILD_PAUSE_STATUS" == "200" ]]; then
+    break
+  fi
+  sleep 5
+done
 unset WILD_TEST_KEY
 for function_name in wild_breathing_status wild_breathing_start wild_breathing_pause; do
   az functionapp function keys delete \
@@ -224,26 +233,34 @@ for function_name in credit_return resale_listing; do
     --key-value="$LIFECYCLE_TEST_KEY" \
     --output none
 done
-RETURN_NO_OWNER_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/return-no-owner.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $LIFECYCLE_TEST_KEY" \
-    --data '{"operation_id":"smoke-return","credit_id":"rcredit:0000000000000000000000000000000000000000000000000000000000000000","refund_proof":"not-a-real-receipt"}' \
-    "$ENDPOINT/v1/credits/return" || true
-)"
-LISTING_NO_OWNER_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/listing-no-owner.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $LIFECYCLE_TEST_KEY" \
-    --data '{"operation_id":"smoke-listing","credit_id":"rcredit:0000000000000000000000000000000000000000000000000000000000000000","ask_price_sats":100}' \
-    "$ENDPOINT/v1/resale/listings" || true
-)"
+RETURN_NO_OWNER_STATUS="000"
+LISTING_NO_OWNER_STATUS="000"
+for _ in $(seq 1 6); do
+  RETURN_NO_OWNER_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/return-no-owner.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $LIFECYCLE_TEST_KEY" \
+      --data '{"operation_id":"smoke-return","credit_id":"rcredit:0000000000000000000000000000000000000000000000000000000000000000","refund_proof":"not-a-real-receipt"}' \
+      "$ENDPOINT/v1/credits/return" || true
+  )"
+  LISTING_NO_OWNER_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/listing-no-owner.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $LIFECYCLE_TEST_KEY" \
+      --data '{"operation_id":"smoke-listing","credit_id":"rcredit:0000000000000000000000000000000000000000000000000000000000000000","ask_price_sats":100}' \
+      "$ENDPOINT/v1/resale/listings" || true
+  )"
+  if [[ "$RETURN_NO_OWNER_STATUS" == "403" && "$LISTING_NO_OWNER_STATUS" == "403" ]]; then
+    break
+  fi
+  sleep 5
+done
 unset LIFECYCLE_TEST_KEY
 for function_name in credit_return resale_listing; do
   az functionapp function keys delete \
@@ -287,16 +304,21 @@ az functionapp function keys set \
   --key-name private-artifact-test \
   --key-value="$ARTIFACT_TEST_KEY" \
   --output none
-ARTIFACT_NO_TOKEN_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/artifact-no-token.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $ARTIFACT_TEST_KEY" \
-    --data '{}' \
-    "$ENDPOINT/v1/artifacts/release-key" || true
-)"
+ARTIFACT_NO_TOKEN_STATUS="000"
+for _ in $(seq 1 6); do
+  ARTIFACT_NO_TOKEN_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/artifact-no-token.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $ARTIFACT_TEST_KEY" \
+      --data '{}' \
+      "$ENDPOINT/v1/artifacts/release-key" || true
+  )"
+  if [[ "$ARTIFACT_NO_TOKEN_STATUS" == "403" ]]; then break; fi
+  sleep 5
+done
 unset ARTIFACT_TEST_KEY
 az functionapp function keys delete \
   --resource-group "$RESOURCE_GROUP" \
@@ -346,15 +368,20 @@ az functionapp function keys set \
   --key-name private-subscription-test \
   --key-value="$SUBSCRIPTION_TEST_KEY" \
   --output none
-COMPANION_NO_ACCOUNT_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/companion-no-account.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header "x-functions-key: $SUBSCRIPTION_TEST_KEY" \
-    --data '{}' \
-    "$ENDPOINT/v1/companions/claim" || true
-)"
+COMPANION_NO_ACCOUNT_STATUS="000"
+for _ in $(seq 1 6); do
+  COMPANION_NO_ACCOUNT_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/companion-no-account.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header "x-functions-key: $SUBSCRIPTION_TEST_KEY" \
+      --data '{}' \
+      "$ENDPOINT/v1/companions/claim" || true
+  )"
+  if [[ "$COMPANION_NO_ACCOUNT_STATUS" == "403" ]]; then break; fi
+  sleep 5
+done
 unset SUBSCRIPTION_TEST_KEY
 az functionapp function keys delete \
   --resource-group "$RESOURCE_GROUP" \
@@ -393,16 +420,21 @@ cat >"$STATE_DIR/untrusted-purchase.json" <<'JSON'
   "payment_success": true
 }
 JSON
-UNTRUSTED_PAYMENT_STATUS="$(
-  curl --silent --show-error \
-    --output "$STATE_DIR/untrusted-purchase-response.json" \
-    --write-out '%{http_code}' \
-    --request POST \
-    --header 'content-type: application/json' \
-    --header "x-functions-key: $PURCHASE_KEY" \
-    --data-binary "@$STATE_DIR/untrusted-purchase.json" \
-    "$ENDPOINT/v1/purchases/redeem" || true
-)"
+UNTRUSTED_PAYMENT_STATUS="000"
+for _ in $(seq 1 6); do
+  UNTRUSTED_PAYMENT_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/untrusted-purchase-response.json" \
+      --write-out '%{http_code}' \
+      --request POST \
+      --header 'content-type: application/json' \
+      --header "x-functions-key: $PURCHASE_KEY" \
+      --data-binary "@$STATE_DIR/untrusted-purchase.json" \
+      "$ENDPOINT/v1/purchases/redeem" || true
+  )"
+  if [[ "$UNTRUSTED_PAYMENT_STATUS" == "400" ]]; then break; fi
+  sleep 5
+done
 unset PURCHASE_KEY
 az functionapp function keys delete \
   --resource-group "$RESOURCE_GROUP" \
@@ -442,6 +474,25 @@ FUNCTION_KEY="$(
 )"
 if [[ -z "$FUNCTION_KEY" ]]; then
   printf 'Could not retrieve the function-scoped private-test key.\n' >&2
+  exit 1
+fi
+
+MODEL_AUTH_STATUS="000"
+for _ in $(seq 1 12); do
+  MODEL_AUTH_STATUS="$(
+    curl --silent --show-error \
+      --output "$STATE_DIR/authenticated-models.json" \
+      --write-out '%{http_code}' \
+      --header "x-functions-key: $FUNCTION_KEY" \
+      "$ENDPOINT/v1/models" || true
+  )"
+  if [[ "$MODEL_AUTH_STATUS" == "200" ]]; then break; fi
+  sleep 5
+done
+if [[ "$MODEL_AUTH_STATUS" != "200" ]]; then
+  unset FUNCTION_KEY
+  printf 'Function-scoped model key did not become active (HTTP %s).\n' \
+    "$MODEL_AUTH_STATUS" >&2
   exit 1
 fi
 
