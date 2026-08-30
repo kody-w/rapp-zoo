@@ -1,6 +1,6 @@
 import base64
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -421,9 +421,14 @@ def tip_policy():
         issuer="rappterbox",
         operator_reference_hash="1" * 64,
         dealer_reference_hash="2" * 64,
-        operator_basis_points=7000,
-        dealer_basis_points=3000,
-        suggested_tip_ratio_cap_basis_points=2000,
+        compute_reserve_reference_hash="3" * 64,
+        species_rnd_reference_hash="4" * 64,
+        owner_basis_points=3000,
+        operator_basis_points=2500,
+        dealer_basis_points=2000,
+        compute_reserve_basis_points=1500,
+        species_rnd_basis_points=1000,
+        quality_tip_ratio_cap_basis_points=2000,
         created_utc=NOW.isoformat(timespec="seconds"),
         signer=Signer(),
     )
@@ -468,9 +473,28 @@ def test_tip_is_post_delivery_optional_idempotent_and_never_gates_artifact():
     assert event["tipped"] is True
     assert event["amount_minor"] == 1_000_000
     assert event["suggested_tip_ratio_basis_points"] == 2000
-    assert event["suggested_tip_signal_ppm"] == 1_000_000
-    assert event["operator_amount_minor"] == 700_000
-    assert event["dealer_amount_minor"] == 300_000
+    assert event["quality_tip_signal_ppm"] == 1_000_000
+    assert event["owner_amount_minor"] == 300_000
+    assert event["operator_amount_minor"] == 250_000
+    assert event["dealer_amount_minor"] == 200_000
+    assert event["compute_reserve_amount_minor"] == 150_000
+    assert event["species_rnd_amount_minor"] == 100_000
+    assert event["raw_economic_view"]["amount_minor"] == 1_000_000
+    assert event["raw_economic_view"]["market_evaluation_eligible"] is True
+    assert event["raw_economic_view"]["candidate_experiment_sponsorship_minor"] == 250_000
+    assert event["raw_economic_view"]["canonical_mutation_guaranteed"] is False
+    assert event["normalized_quality_view"] == {
+        "tip_ratio_basis_points": 2000,
+        "tip_signal_ppm": 1_000_000,
+        "ratio_cap_basis_points": 2000,
+        "raw_amount_used_directly": False,
+        "rating_override_allowed": False,
+    }
+    assert "payment_proof" not in event
+    assert Signer().verify(
+        {key: value for key, value in event.items() if key != "signature"},
+        event["signature"],
+    )
     assert event["rating_included"] is False
     assert event["rating_incentivized"] is False
     assert event["artifact_access_gated"] is False
@@ -588,14 +612,16 @@ def test_tip_requires_delivery_and_rejects_reused_payment_or_tampered_policy():
         )
 
 
-def test_cohort_signal_bounds_whale_spend_and_keeps_rating_independent():
+def test_raw_economics_preserve_whale_patronage_while_quality_stays_bounded():
+    whale_amount = 9_000_000_000_000_000_000
+    current_time = [NOW]
     job = delivered_job()
     tips = InMemoryTipLedger(
         issuer="rappterbox",
         signer=Signer(),
-        payment_verifier=TipVerifier(1_000_000),
+        payment_verifier=TipVerifier(whale_amount),
         split_policy=tip_policy(),
-        now=lambda: NOW,
+        now=lambda: current_time[0],
     )
     whale, _ = tips.record(
         job=job,
@@ -608,6 +634,19 @@ def test_cohort_signal_bounds_whale_spend_and_keeps_rating_independent():
         payment_proof="verified-tip",
         cohort_id="artifact-build-2026-08",
     )
+    assert whale["amount_minor"] == whale_amount
+    assert sum(
+        whale[field]
+        for field in (
+            "owner_amount_minor",
+            "operator_amount_minor",
+            "dealer_amount_minor",
+            "compute_reserve_amount_minor",
+            "species_rnd_amount_minor",
+        )
+    ) == whale_amount
+    assert whale["raw_economic_view"]["amount_minor"] == whale_amount
+    assert whale["normalized_quality_view"]["tip_signal_ppm"] == 1_000_000
     tips.payment_verifier = TipVerifier(100)
     small_job = delivered_job("tip-job-small", "account-2")
     tips.record(
@@ -633,6 +672,20 @@ def test_cohort_signal_bounds_whale_spend_and_keeps_rating_independent():
         payment_proof=None,
         cohort_id="artifact-build-2026-08",
     )
+    current_time[0] = NOW + timedelta(days=1)
+    tips.payment_verifier = TipVerifier(500)
+    repeat_job = delivered_job("tip-job-repeat", "account-1")
+    tips.record(
+        job=repeat_job,
+        operation_id="tip-repeat",
+        account_reference="account-1",
+        tipped=True,
+        currency="USD",
+        suggested_tip_minor=500,
+        reference_cost_minor=1_000,
+        payment_proof="verified-tip",
+        cohort_id="artifact-build-2026-08",
+    )
     tips.payment_verifier = TipVerifier(999)
     other_job = delivered_job("tip-job-other", "account-4")
     tips.record(
@@ -649,23 +702,64 @@ def test_cohort_signal_bounds_whale_spend_and_keeps_rating_independent():
     cohort = tips.cohort(
         cohort_id="artifact-build-2026-08",
         currency="USD",
-        completed_job_count=3,
+        completed_job_count=4,
+        window_start_utc=NOW.isoformat(timespec="seconds"),
+        window_end_utc=(NOW + timedelta(days=2)).isoformat(timespec="seconds"),
     )
-    assert cohort["median_tip_minor"] == 500_050
-    assert cohort["tip_rate_ppm"] == 666_666
+    lifetime_volume = whale_amount + 600
+    largest_payer_volume = whale_amount + 500
+    assert cohort["lifetime_tip_volume_minor"] == lifetime_volume
+    assert cohort["largest_tip_minor"] == whale_amount
+    assert cohort["median_tip_minor"] == 500
+    assert cohort["unique_payer_count"] == 2
+    assert cohort["repeat_tipper_count"] == 1
+    assert cohort["largest_payer_volume_minor"] == largest_payer_volume
+    assert cohort["largest_payer_share_ppm"] == (
+        largest_payer_volume * 1_000_000 + lifetime_volume // 2
+    ) // lifetime_volume
+    assert cohort["payer_concentration_hhi_ppm"] == (
+        (largest_payer_volume**2 + 100**2) * 1_000_000
+        + lifetime_volume**2 // 2
+    ) // (lifetime_volume**2)
+    assert cohort["tip_velocity_minor_per_day"] == (lifetime_volume + 1) // 2
+    assert cohort["tip_rate_ppm"] == 750_000
+    assert cohort["raw_economic_view"]["demand_market_alpha_eligible"] is True
+    assert cohort["normalized_quality_view"]["raw_volume_used_directly"] is False
+    assert Signer().verify(
+        {key: value for key, value in cohort.items() if key != "signature"},
+        cohort["signature"],
+    )
+    patronage = tips.patronage(account_reference="account-1", currency="USD")
+    assert patronage["lifetime_tip_volume_minor"] == largest_payer_volume
+    assert patronage["largest_tip_minor"] == whale_amount
+    assert patronage["tip_count"] == 2
+    assert patronage["repeat_tip_count"] == 1
+    assert patronage["repeat_tipping"] is True
+    assert patronage["tip_velocity_minor_per_day"] == largest_payer_volume
+    assert [entry["amount_minor"] for entry in patronage["history"]] == [
+        whale_amount,
+        500,
+    ]
+    assert Signer().verify(
+        {key: value for key, value in patronage.items() if key != "signature"},
+        patronage["signature"],
+    )
     evidence = bounded_quality_evidence(
         tip_event=whale,
         cohort=cohort,
-        rating=4,
+        rating=1,
         repeat_count=2,
         completed=True,
         dispute_count=1,
         cost_ratio_ppm=500_000,
     )
-    assert evidence["rating_ppm"] == 800_000
+    assert evidence["rating_ppm"] == 200_000
+    assert evidence["normalized_tip_component_ppm"] == 1_000_000
     assert evidence["raw_tip_amount_used_directly"] is False
-    assert evidence["whale_spend_used_directly"] is False
-    assert evidence["market_price_influence"] is False
-    assert evidence["autonomy_promotion"] is False
-    assert evidence["canonical_mutation_influence"] is False
+    assert evidence["payer_concentration_used_directly"] is False
+    assert evidence["lifetime_volume_used_directly"] is False
+    assert evidence["largest_tip_used_directly"] is False
+    assert evidence["tip_velocity_used_directly"] is False
+    assert evidence["rating_overridden_by_tip"] is False
+    assert evidence["canonical_mutation_guaranteed"] is False
     assert "amount_minor" not in evidence

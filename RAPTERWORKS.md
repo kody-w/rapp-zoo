@@ -91,14 +91,27 @@ commission, artifact access, title, and future service:
   references are hashed before entering a signed event;
 - each delivered job has one idempotent tip signal, and a verified payment
   reference cannot be replayed for another job;
-- owner-instance tips follow a signed operator/dealer basis-point policy;
+- owner-instance tips follow a signed owner/operator/dealer/compute-reserve/
+  species-R&D basis-point policy;
 - rating is neither conditioned on nor incentivized by tipping.
 
-Privacy-safe cohort records may publish tip rate, median tip by currency, and a
-capped normalized suggested-tip ratio. Raw tip dollars and outlier spending
-must not directly set a quality score, market price, autonomy promotion, or
-canonical mutation. They are bounded context alongside independent rating,
-repeat work, completion, disputes, and cost evidence.
+Each signed tip event reports two explicit views:
+
+- **Raw economic evidence** preserves the full verified amount and currency,
+  owner/operator/dealer payouts, compute reserve, species R&D allocation,
+  payment-reference hash, and patronage linkage. Amounts are validated for
+  storage but never clipped or replaced by a capped proxy.
+- **Normalized quality evidence** caps only the tip component used beside
+  independent rating, repeat work, completion, disputes, and cost evidence.
+
+Signed cohort and patronage snapshots preserve lifetime volume, largest tip,
+median tip, tip velocity, repeat tipping, full per-job patronage history, unique
+payer count, largest-payer share, and payer-concentration HHI. Raw economic
+evidence may materially inform demand and market alpha, owner/operator/dealer
+payouts, compute reserves, species R&D, and the patronage lens. A large tip may
+sponsor additional candidate mutations, experiments, or market evaluation. It
+cannot rewrite a bad rating, certify correctness, or guarantee that a
+predetermined candidate becomes the canonical mutation.
 
 ## Regression fixtures
 

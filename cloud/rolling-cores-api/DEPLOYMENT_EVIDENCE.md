@@ -1,6 +1,6 @@
 # Deployment evidence
 
-- Verified: 2026-08-30T04:09:23+00:00
+- Verified: 2026-08-30T04:32:01+00:00
 - Function app: `rappter-rolling-cores-3d0e6986`
 - Endpoint: `https://rappter-rolling-cores-3d0e6986.azurewebsites.net`
 - Credit table: `rapprolling3d0e6986` / `RapterCreditRegistry`

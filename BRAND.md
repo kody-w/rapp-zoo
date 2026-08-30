@@ -76,6 +76,9 @@ Supporting lines:
   region unlocks; it never converts participation into cash or investment value.
 - RapterWorks delivery is full and free. A post-service tip may be any amount
   or zero, is separate from rating, and never creates debt or gates the work.
+- TIPS preserve full patronage and economic evidence for payouts, reserves,
+  R&D, and market learning; only their quality component is capped, and money
+  cannot rewrite a bad rating or guarantee a canonical mutation.
 
 ## Positioning
 

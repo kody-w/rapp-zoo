@@ -582,46 +582,81 @@ class InMemoryRapterWorksLedger:
         )
 
 
+MAX_MINOR_AMOUNT = 9_223_372_036_854_775_807
+TIP_SPLIT_FIELDS = (
+    ("owner", "owner_basis_points"),
+    ("operator", "operator_basis_points"),
+    ("dealer", "dealer_basis_points"),
+    ("compute_reserve", "compute_reserve_basis_points"),
+    ("species_rnd", "species_rnd_basis_points"),
+)
+
+
 def build_tip_split_policy(
     *,
     issuer: str,
     operator_reference_hash: str,
     dealer_reference_hash: str,
+    compute_reserve_reference_hash: str,
+    species_rnd_reference_hash: str,
+    owner_basis_points: int,
     operator_basis_points: int,
     dealer_basis_points: int,
-    suggested_tip_ratio_cap_basis_points: int,
+    compute_reserve_basis_points: int,
+    species_rnd_basis_points: int,
+    quality_tip_ratio_cap_basis_points: int,
     created_utc: str,
     signer: RegistrySigner,
 ) -> dict[str, Any]:
     issuer = bounded_text(issuer, "issuer", 128)
-    validate_sha256(operator_reference_hash, "operator_reference_hash")
-    validate_sha256(dealer_reference_hash, "dealer_reference_hash")
     for value, label in (
-        (operator_basis_points, "operator_basis_points"),
-        (dealer_basis_points, "dealer_basis_points"),
-        (
-            suggested_tip_ratio_cap_basis_points,
-            "suggested_tip_ratio_cap_basis_points",
-        ),
+        (operator_reference_hash, "operator_reference_hash"),
+        (dealer_reference_hash, "dealer_reference_hash"),
+        (compute_reserve_reference_hash, "compute_reserve_reference_hash"),
+        (species_rnd_reference_hash, "species_rnd_reference_hash"),
     ):
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            raise CreditError(f"{label} must be a nonnegative integer.")
-    if operator_basis_points + dealer_basis_points != 10_000:
-        raise CreditError("Operator and dealer basis points must total 10000.")
-    if not 1 <= suggested_tip_ratio_cap_basis_points <= 10_000:
-        raise CreditError("Suggested-tip ratio cap must be from 1 to 10000 basis points.")
-    base = {
-        "schema": "rapp-rapterworks-tip-split-policy/1",
-        "kind": "body.pulse",
-        "issuer": issuer,
-        "operator_reference_hash": operator_reference_hash,
-        "dealer_reference_hash": dealer_reference_hash,
+        validate_sha256(value, label)
+    split = {
+        "owner_basis_points": owner_basis_points,
         "operator_basis_points": operator_basis_points,
         "dealer_basis_points": dealer_basis_points,
-        "suggested_tip_ratio_cap_basis_points": suggested_tip_ratio_cap_basis_points,
+        "compute_reserve_basis_points": compute_reserve_basis_points,
+        "species_rnd_basis_points": species_rnd_basis_points,
+    }
+    for label, value in split.items():
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+            or value > 10_000
+        ):
+            raise CreditError(f"{label} must be an integer from 0 through 10000.")
+    if sum(split.values()) != 10_000:
+        raise CreditError("Tip allocation basis points must total 10000.")
+    if (
+        isinstance(quality_tip_ratio_cap_basis_points, bool)
+        or not isinstance(quality_tip_ratio_cap_basis_points, int)
+        or not 1 <= quality_tip_ratio_cap_basis_points <= 10_000
+    ):
+        raise CreditError("Quality tip ratio cap must be from 1 to 10000 basis points.")
+    base = {
+        "schema": "rapp-rapterworks-tip-split-policy/2",
+        "kind": "body.pulse",
+        "issuer": issuer,
+        "owner_recipient": "delivered-job-account",
+        "operator_reference_hash": operator_reference_hash,
+        "dealer_reference_hash": dealer_reference_hash,
+        "compute_reserve_reference_hash": compute_reserve_reference_hash,
+        "species_rnd_reference_hash": species_rnd_reference_hash,
+        **split,
+        "quality_tip_ratio_cap_basis_points": quality_tip_ratio_cap_basis_points,
         "owner_instance_policy": True,
+        "raw_economic_signal_preserved": True,
+        "quality_component_capped": True,
         "artifact_access_gated": False,
         "debt_created": False,
+        "rating_override_allowed": False,
+        "canonical_mutation_guaranteed": False,
         "created_utc": _utc(created_utc, "created_utc"),
     }
     policy_hash = hashlib.sha256(canonical_json(base)).hexdigest()
@@ -635,20 +670,30 @@ def build_tip_split_policy(
 
 def validate_tip_split_policy(
     value: Any,
-    verifier,
+    verifier: RegistrySigner,
 ) -> dict[str, Any]:
     expected = {
         "schema",
         "kind",
         "issuer",
+        "owner_recipient",
         "operator_reference_hash",
         "dealer_reference_hash",
+        "compute_reserve_reference_hash",
+        "species_rnd_reference_hash",
+        "owner_basis_points",
         "operator_basis_points",
         "dealer_basis_points",
-        "suggested_tip_ratio_cap_basis_points",
+        "compute_reserve_basis_points",
+        "species_rnd_basis_points",
+        "quality_tip_ratio_cap_basis_points",
         "owner_instance_policy",
+        "raw_economic_signal_preserved",
+        "quality_component_capped",
         "artifact_access_gated",
         "debt_created",
+        "rating_override_allowed",
+        "canonical_mutation_guaranteed",
         "created_utc",
         "policy_id",
         "policy_hash",
@@ -657,20 +702,22 @@ def validate_tip_split_policy(
     if (
         not isinstance(value, dict)
         or set(value) != expected
-        or value.get("schema") != "rapp-rapterworks-tip-split-policy/1"
+        or value.get("schema") != "rapp-rapterworks-tip-split-policy/2"
         or value.get("kind") != "body.pulse"
+        or value.get("owner_recipient") != "delivered-job-account"
     ):
         raise CreditError("Tip split policy has an invalid shape.")
     bounded_text(value["issuer"], "issuer", 128)
     if _utc(value["created_utc"], "created_utc") != value["created_utc"]:
         raise CreditError("Tip split policy created_utc must be canonical UTC.")
-    validate_sha256(value["operator_reference_hash"], "operator_reference_hash")
-    validate_sha256(value["dealer_reference_hash"], "dealer_reference_hash")
     for field in (
-        "operator_basis_points",
-        "dealer_basis_points",
-        "suggested_tip_ratio_cap_basis_points",
+        "operator_reference_hash",
+        "dealer_reference_hash",
+        "compute_reserve_reference_hash",
+        "species_rnd_reference_hash",
     ):
+        validate_sha256(value[field], field)
+    for _, field in TIP_SPLIT_FIELDS:
         amount = value[field]
         if (
             isinstance(amount, bool)
@@ -679,16 +726,21 @@ def validate_tip_split_policy(
             or amount > 10_000
         ):
             raise CreditError(f"{field} must be an integer from 0 through 10000.")
-    if value["operator_basis_points"] + value["dealer_basis_points"] != 10_000:
-        raise CreditError("Tip split policy basis points must total 10000.")
-    if value["suggested_tip_ratio_cap_basis_points"] < 1:
-        raise CreditError("Suggested-tip ratio cap must be positive.")
+    if sum(value[field] for _, field in TIP_SPLIT_FIELDS) != 10_000:
+        raise CreditError("Tip allocation basis points must total 10000.")
+    cap = value["quality_tip_ratio_cap_basis_points"]
+    if isinstance(cap, bool) or not isinstance(cap, int) or not 1 <= cap <= 10_000:
+        raise CreditError("Quality tip ratio cap must be from 1 to 10000 basis points.")
     if (
         value["owner_instance_policy"] is not True
+        or value["raw_economic_signal_preserved"] is not True
+        or value["quality_component_capped"] is not True
         or value["artifact_access_gated"] is not False
         or value["debt_created"] is not False
+        or value["rating_override_allowed"] is not False
+        or value["canonical_mutation_guaranteed"] is not False
     ):
-        raise CreditError("Tip split policy cannot gate artifacts or create debt.")
+        raise CreditError("Tip split policy violates economic or quality guardrails.")
     hash_payload = {
         key: item
         for key, item in value.items()
@@ -710,6 +762,33 @@ def validate_tip_split_policy(
     return value
 
 
+def _allocate_tip_amount(
+    amount_minor: int,
+    policy: dict[str, Any],
+) -> dict[str, int]:
+    allocations: dict[str, int] = {}
+    remainders: list[tuple[int, int, str]] = []
+    for index, (name, field) in enumerate(TIP_SPLIT_FIELDS):
+        allocated, remainder = divmod(amount_minor * policy[field], 10_000)
+        allocations[f"{name}_amount_minor"] = allocated
+        remainders.append((remainder, index, name))
+    undistributed = amount_minor - sum(allocations.values())
+    for _, _, name in sorted(remainders, key=lambda item: (-item[0], item[1]))[
+        :undistributed
+    ]:
+        allocations[f"{name}_amount_minor"] += 1
+    return allocations
+
+
+def _median(values: list[int]) -> int:
+    if not values:
+        return 0
+    if len(values) % 2:
+        return values[len(values) // 2]
+    middle = len(values) // 2
+    return (values[middle - 1] + values[middle] + 1) // 2
+
+
 class InMemoryTipLedger:
     def __init__(
         self,
@@ -726,10 +805,7 @@ class InMemoryTipLedger:
         validated_policy = validate_tip_split_policy(split_policy, signer)
         if validated_policy["issuer"] != self.issuer:
             raise CreditError("Tip split policy issuer does not match the ledger.")
-        self.split_policy = {
-            **validated_policy,
-            "signature": dict(validated_policy["signature"]),
-        }
+        self.split_policy = copy.deepcopy(validated_policy)
         self.now = now or (lambda: datetime.now(timezone.utc))
         self.tips: dict[tuple[str, str], dict[str, Any]] = {}
         self.job_operations: dict[str, tuple[str, str]] = {}
@@ -808,23 +884,17 @@ class InMemoryTipLedger:
         )
         if account_hash != job.get("account_hash"):
             raise CreditError("Tip account does not match the delivered job.")
-        if (
-            isinstance(suggested_tip_minor, bool)
-            or not isinstance(suggested_tip_minor, int)
-            or suggested_tip_minor < 0
-            or suggested_tip_minor > 9_007_199_254_740_991
-            or isinstance(reference_cost_minor, bool)
-            or not isinstance(reference_cost_minor, int)
-            or reference_cost_minor < 1
-            or reference_cost_minor > 9_007_199_254_740_991
+        for amount, label, minimum in (
+            (suggested_tip_minor, "suggested_tip_minor", 0),
+            (reference_cost_minor, "reference_cost_minor", 1),
         ):
-            raise CreditError("Tip suggestion inputs are invalid.")
-        cap = self.split_policy["suggested_tip_ratio_cap_basis_points"]
-        ratio_bps = min(
-            cap,
-            (suggested_tip_minor * 10_000 + reference_cost_minor // 2)
-            // reference_cost_minor,
-        )
+            if (
+                isinstance(amount, bool)
+                or not isinstance(amount, int)
+                or amount < minimum
+                or amount > MAX_MINOR_AMOUNT
+            ):
+                raise CreditError(f"{label} is invalid.")
         if tipped:
             if not payment_proof:
                 raise CreditError("A tipped event requires verified payment proof.")
@@ -840,7 +910,7 @@ class InMemoryTipLedger:
                 isinstance(payment.amount_minor, bool)
                 or not isinstance(payment.amount_minor, int)
                 or payment.amount_minor < 1
-                or payment.amount_minor > 9_007_199_254_740_991
+                or payment.amount_minor > MAX_MINOR_AMOUNT
             ):
                 raise CreditError("Verified tip amount is invalid.")
             amount_minor = payment.amount_minor
@@ -859,29 +929,73 @@ class InMemoryTipLedger:
                 raise CreditError("A zero-tip event cannot include payment proof.")
             amount_minor = 0
             payment_reference_hash = None
-        operator_amount = (
-            amount_minor * self.split_policy["operator_basis_points"]
-        ) // 10_000
-        dealer_amount = amount_minor - operator_amount
+        cap = self.split_policy["quality_tip_ratio_cap_basis_points"]
+        suggested_ratio_bps = min(
+            cap,
+            (suggested_tip_minor * 10_000 + reference_cost_minor // 2)
+            // reference_cost_minor,
+        )
+        quality_ratio_bps = min(
+            cap,
+            (amount_minor * 10_000 + reference_cost_minor // 2)
+            // reference_cost_minor,
+        )
+        quality_signal_ppm = (
+            quality_ratio_bps * 1_000_000 + cap // 2
+        ) // cap
+        allocations = _allocate_tip_amount(amount_minor, self.split_policy)
+        occurred_utc = _utc(
+            self.now().isoformat(timespec="seconds"),
+            "tip occurred_utc",
+        )
+        economic_view = {
+            "amount_minor": amount_minor,
+            "currency": currency,
+            "payment_reference_hash": payment_reference_hash,
+            "reference_cost_minor": reference_cost_minor,
+            "suggested_tip_minor": suggested_tip_minor,
+            "allocations_minor": allocations,
+            "demand_market_alpha_eligible": True,
+            "owner_operator_dealer_payout_eligible": True,
+            "compute_reserve_eligible": True,
+            "species_rnd_eligible": True,
+            "patronage_lens_eligible": True,
+            "market_evaluation_eligible": True,
+            "candidate_experiment_sponsorship_minor": (
+                allocations["compute_reserve_amount_minor"]
+                + allocations["species_rnd_amount_minor"]
+            ),
+            "canonical_mutation_guaranteed": False,
+            "rating_override_allowed": False,
+        }
+        quality_view = {
+            "tip_ratio_basis_points": quality_ratio_bps,
+            "tip_signal_ppm": quality_signal_ppm,
+            "ratio_cap_basis_points": cap,
+            "raw_amount_used_directly": False,
+            "rating_override_allowed": False,
+        }
         base = {
-            "schema": "rapp-rapterworks-tip-signal/1",
+            "schema": "rapp-rapterworks-tip-signal/2",
             "kind": "body.pulse",
             "issuer": self.issuer,
             "job_id": job["job_id"],
             "cohort_id": bounded_text(cohort_id, "cohort_id", 128),
             "account_hash": account_hash,
-            "occurred_utc": self.now().isoformat(timespec="seconds"),
+            "occurred_utc": occurred_utc,
             "tipped": tipped,
             "currency": currency,
             "amount_minor": amount_minor,
             "payment_reference_hash": payment_reference_hash,
-            "suggested_tip_ratio_basis_points": ratio_bps,
-            "suggested_tip_signal_ppm": (
-                (ratio_bps * 1_000_000 + cap // 2) // cap
-            ),
+            "reference_cost_minor": reference_cost_minor,
+            "suggested_tip_minor": suggested_tip_minor,
+            "suggested_tip_ratio_basis_points": suggested_ratio_bps,
+            "quality_tip_ratio_basis_points": quality_ratio_bps,
+            "quality_tip_signal_ppm": quality_signal_ppm,
             "split_policy_id": self.split_policy["policy_id"],
-            "operator_amount_minor": operator_amount,
-            "dealer_amount_minor": dealer_amount,
+            **allocations,
+            "raw_economic_view": economic_view,
+            "normalized_quality_view": quality_view,
             "rating_included": False,
             "rating_incentivized": False,
             "artifact_access_gated": False,
@@ -906,62 +1020,210 @@ class InMemoryTipLedger:
         cohort_id: str,
         currency: str,
         completed_job_count: int,
+        window_start_utc: str,
+        window_end_utc: str,
     ) -> dict[str, Any]:
         if (
             isinstance(completed_job_count, bool)
             or not isinstance(completed_job_count, int)
             or completed_job_count < 1
-            or completed_job_count > 9_007_199_254_740_991
+            or completed_job_count > MAX_MINOR_AMOUNT
         ):
             raise CreditError("completed_job_count must be positive.")
         cohort_id = bounded_text(cohort_id, "cohort_id", 128)
         currency = bounded_text(currency, "currency", 3).upper()
         if not currency.isalpha():
             raise CreditError("currency must be a three-letter code.")
+        window_start_utc = _utc(window_start_utc, "window_start_utc")
+        window_end_utc = _utc(window_end_utc, "window_end_utc")
+        window_start = datetime.fromisoformat(window_start_utc)
+        window_end = datetime.fromisoformat(window_end_utc)
+        if window_end <= window_start:
+            raise CreditError("Tip cohort window end must follow its start.")
         with self._lock:
-            matching = [
+            lifetime = [
                 copy.deepcopy(event)
                 for event in self.tips.values()
                 if event["currency"] == currency and event["cohort_id"] == cohort_id
             ]
-        if completed_job_count < len(matching):
+        window = [
+            event
+            for event in lifetime
+            if window_start
+            <= datetime.fromisoformat(event["occurred_utc"])
+            < window_end
+        ]
+        if completed_job_count < len(window):
             raise CreditError(
-                "completed_job_count cannot be less than recorded cohort signals.",
+                "completed_job_count cannot be less than recorded window signals.",
             )
-        amounts = sorted(event["amount_minor"] for event in matching if event["tipped"])
-        if not amounts:
-            median = 0
-        elif len(amounts) % 2:
-            median = amounts[len(amounts) // 2]
+        lifetime_tips = [event for event in lifetime if event["tipped"]]
+        window_tips = [event for event in window if event["tipped"]]
+        amounts = sorted(event["amount_minor"] for event in lifetime_tips)
+        lifetime_volume = sum(amounts)
+        payer_totals: dict[str, int] = {}
+        payer_tip_counts: dict[str, int] = {}
+        for event in lifetime_tips:
+            account_hash = event["account_hash"]
+            payer_totals[account_hash] = (
+                payer_totals.get(account_hash, 0) + event["amount_minor"]
+            )
+            payer_tip_counts[account_hash] = payer_tip_counts.get(account_hash, 0) + 1
+        if lifetime_volume:
+            largest_payer_volume = max(payer_totals.values())
+            largest_payer_share_ppm = (
+                largest_payer_volume * 1_000_000 + lifetime_volume // 2
+            ) // lifetime_volume
+            concentration_denominator = lifetime_volume * lifetime_volume
+            payer_concentration_hhi_ppm = (
+                sum(value * value for value in payer_totals.values()) * 1_000_000
+                + concentration_denominator // 2
+            ) // concentration_denominator
         else:
-            middle = len(amounts) // 2
-            median = (amounts[middle - 1] + amounts[middle] + 1) // 2
-        tip_count = len(amounts)
+            largest_payer_volume = 0
+            largest_payer_share_ppm = 0
+            payer_concentration_hhi_ppm = 0
+        window_seconds = int((window_end - window_start).total_seconds())
+        window_volume = sum(event["amount_minor"] for event in window_tips)
+        tip_velocity_minor_per_day = (
+            window_volume * 86_400 + window_seconds // 2
+        ) // window_seconds
+        tip_count_velocity_ppm_per_day = (
+            len(window_tips) * 1_000_000 * 86_400 + window_seconds // 2
+        ) // window_seconds
         tip_rate_ppm = min(
             1_000_000,
-            (tip_count * 1_000_000) // completed_job_count,
+            (len(window_tips) * 1_000_000) // completed_job_count,
         )
+        raw_economic_view = {
+            "lifetime_tip_volume_minor": lifetime_volume,
+            "largest_tip_minor": amounts[-1] if amounts else 0,
+            "median_tip_minor": _median(amounts),
+            "unique_payer_count": len(payer_totals),
+            "repeat_tipper_count": sum(
+                1 for count in payer_tip_counts.values() if count > 1
+            ),
+            "largest_payer_volume_minor": largest_payer_volume,
+            "largest_payer_share_ppm": largest_payer_share_ppm,
+            "payer_concentration_hhi_ppm": payer_concentration_hhi_ppm,
+            "window_tip_volume_minor": window_volume,
+            "tip_velocity_minor_per_day": tip_velocity_minor_per_day,
+            "tip_count_velocity_ppm_per_day": tip_count_velocity_ppm_per_day,
+            "demand_market_alpha_eligible": True,
+            "patronage_lens_eligible": True,
+            "market_evaluation_eligible": True,
+            "canonical_mutation_guaranteed": False,
+            "rating_override_allowed": False,
+        }
+        quality_view = {
+            "tip_rate_ppm": tip_rate_ppm,
+            "raw_volume_used_directly": False,
+            "payer_concentration_used_directly": False,
+            "largest_tip_used_directly": False,
+        }
         base = {
-            "schema": "rapp-rapterworks-tip-cohort/1",
+            "schema": "rapp-rapterworks-tip-cohort/2",
             "kind": "swarm.telemetry",
             "issuer": self.issuer,
             "cohort_id": cohort_id,
             "currency": currency,
+            "window_start_utc": window_start_utc,
+            "window_end_utc": window_end_utc,
             "completed_job_count": completed_job_count,
-            "tip_count": tip_count,
+            "tip_count": len(window_tips),
             "tip_rate_ppm": tip_rate_ppm,
-            "median_tip_minor": median,
-            "raw_tip_amount_quality_weight": 0,
-            "whale_spend_quality_weight": 0,
-            "market_price_influence": False,
-            "autonomy_promotion": False,
-            "canonical_mutation_influence": False,
+            **raw_economic_view,
+            "raw_economic_view": raw_economic_view,
+            "normalized_quality_view": quality_view,
         }
         aggregate_hash = hashlib.sha256(canonical_json(base)).hexdigest()
         payload = {
             **base,
             "aggregate_id": f"rapterworks-tip-cohort:{aggregate_hash}",
             "aggregate_hash": aggregate_hash,
+        }
+        return {**payload, "signature": self.signer.sign(payload)}
+
+    def patronage(
+        self,
+        *,
+        account_reference: str,
+        currency: str,
+    ) -> dict[str, Any]:
+        account_hash = hash_reference(
+            "rapterworks-account",
+            bounded_text(account_reference, "account reference", 512),
+        )
+        currency = bounded_text(currency, "currency", 3).upper()
+        if not currency.isalpha():
+            raise CreditError("currency must be a three-letter code.")
+        with self._lock:
+            matching = sorted(
+                (
+                    copy.deepcopy(event)
+                    for event in self.tips.values()
+                    if event["account_hash"] == account_hash
+                    and event["currency"] == currency
+                ),
+                key=lambda event: (event["occurred_utc"], event["event_id"]),
+            )
+        history = [
+            {
+                "event_id": event["event_id"],
+                "job_id": event["job_id"],
+                "occurred_utc": event["occurred_utc"],
+                "tipped": event["tipped"],
+                "amount_minor": event["amount_minor"],
+                "payment_reference_hash": event["payment_reference_hash"],
+            }
+            for event in matching
+        ]
+        tipped_events = [event for event in matching if event["tipped"]]
+        amounts = [event["amount_minor"] for event in tipped_events]
+        lifetime_volume = sum(amounts)
+        if len(tipped_events) > 1:
+            first_tip = datetime.fromisoformat(tipped_events[0]["occurred_utc"])
+            last_tip = datetime.fromisoformat(tipped_events[-1]["occurred_utc"])
+            velocity_seconds = max(1, int((last_tip - first_tip).total_seconds()))
+            velocity = (
+                lifetime_volume * 86_400 + velocity_seconds // 2
+            ) // velocity_seconds
+        else:
+            velocity_seconds = 0
+            velocity = 0
+        history_hash = hashlib.sha256(canonical_json(history)).hexdigest()
+        base = {
+            "schema": "rapp-rapterworks-patronage/1",
+            "kind": "body.pulse",
+            "issuer": self.issuer,
+            "account_hash": account_hash,
+            "currency": currency,
+            "tip_count": len(tipped_events),
+            "no_tip_count": len(matching) - len(tipped_events),
+            "repeat_tip_count": max(0, len(tipped_events) - 1),
+            "repeat_tipping": len(tipped_events) > 1,
+            "lifetime_tip_volume_minor": lifetime_volume,
+            "largest_tip_minor": max(amounts, default=0),
+            "first_tip_utc": (
+                tipped_events[0]["occurred_utc"] if tipped_events else None
+            ),
+            "last_tip_utc": (
+                tipped_events[-1]["occurred_utc"] if tipped_events else None
+            ),
+            "tip_velocity_observation_seconds": velocity_seconds,
+            "tip_velocity_minor_per_day": velocity,
+            "history": history,
+            "history_hash": history_hash,
+            "demand_market_alpha_eligible": True,
+            "patronage_lens_eligible": True,
+            "canonical_mutation_guaranteed": False,
+            "rating_override_allowed": False,
+        }
+        patronage_hash = hashlib.sha256(canonical_json(base)).hexdigest()
+        payload = {
+            **base,
+            "patronage_id": f"rapterworks-patronage:{patronage_hash}",
+            "patronage_hash": patronage_hash,
         }
         return {**payload, "signature": self.signer.sign(payload)}
 
@@ -985,42 +1247,56 @@ def bounded_quality_evidence(
         (dispute_count, "dispute_count", 10),
         (cost_ratio_ppm, "cost_ratio_ppm", 1_000_000),
     ):
-        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 0 <= value <= maximum
+        ):
             raise CreditError(f"{label} is invalid.")
+    if not isinstance(cohort, dict):
+        raise CreditError("Tip cohort evidence is invalid.")
+    cohort_quality = cohort.get("normalized_quality_view", {})
     if (
-        not isinstance(cohort, dict)
-        or cohort.get("schema") != "rapp-rapterworks-tip-cohort/1"
-        or isinstance(cohort.get("tip_rate_ppm"), bool)
-        or not isinstance(cohort.get("tip_rate_ppm"), int)
-        or not 0 <= cohort["tip_rate_ppm"] <= 1_000_000
+        cohort.get("schema") != "rapp-rapterworks-tip-cohort/2"
+        or not isinstance(cohort_quality, dict)
+        or isinstance(cohort_quality.get("tip_rate_ppm"), bool)
+        or not isinstance(cohort_quality.get("tip_rate_ppm"), int)
+        or not 0 <= cohort_quality["tip_rate_ppm"] <= 1_000_000
     ):
         raise CreditError("Tip cohort evidence is invalid.")
-    if tip_event is not None and (
-        not isinstance(tip_event, dict)
-        or tip_event.get("schema") != "rapp-rapterworks-tip-signal/1"
-        or not isinstance(tip_event.get("tipped"), bool)
-        or isinstance(tip_event.get("suggested_tip_signal_ppm"), bool)
-        or not isinstance(tip_event.get("suggested_tip_signal_ppm"), int)
-        or not 0 <= tip_event["suggested_tip_signal_ppm"] <= 1_000_000
-    ):
-        raise CreditError("Tip event evidence is invalid.")
+    if tip_event is None:
+        tip_present = False
+        tip_component_ppm = 0
+    else:
+        quality_view = tip_event.get("normalized_quality_view", {})
+        if (
+            not isinstance(tip_event, dict)
+            or tip_event.get("schema") != "rapp-rapterworks-tip-signal/2"
+            or not isinstance(tip_event.get("tipped"), bool)
+            or not isinstance(quality_view, dict)
+            or isinstance(quality_view.get("tip_signal_ppm"), bool)
+            or not isinstance(quality_view.get("tip_signal_ppm"), int)
+            or not 0 <= quality_view["tip_signal_ppm"] <= 1_000_000
+            or quality_view.get("raw_amount_used_directly") is not False
+        ):
+            raise CreditError("Tip event evidence is invalid.")
+        tip_present = tip_event["tipped"]
+        tip_component_ppm = quality_view["tip_signal_ppm"]
     return {
-        "schema": "rapp-rapterworks-quality-evidence/1",
+        "schema": "rapp-rapterworks-quality-evidence/2",
         "rating_ppm": rating * 200_000,
         "repeat_signal_ppm": repeat_count * 100_000,
         "completion_signal_ppm": 1_000_000 if completed else 0,
         "dispute_signal_ppm": dispute_count * 100_000,
         "cost_ratio_ppm": cost_ratio_ppm,
-        "tip_present": bool(tip_event and tip_event.get("tipped")),
-        "suggested_tip_signal_ppm": (
-            tip_event.get("suggested_tip_signal_ppm", 0)
-            if tip_event
-            else 0
-        ),
-        "cohort_tip_rate_ppm": cohort["tip_rate_ppm"],
+        "tip_present": tip_present,
+        "normalized_tip_component_ppm": tip_component_ppm,
+        "cohort_tip_rate_ppm": cohort_quality["tip_rate_ppm"],
         "raw_tip_amount_used_directly": False,
-        "whale_spend_used_directly": False,
-        "market_price_influence": False,
-        "autonomy_promotion": False,
-        "canonical_mutation_influence": False,
+        "payer_concentration_used_directly": False,
+        "lifetime_volume_used_directly": False,
+        "largest_tip_used_directly": False,
+        "tip_velocity_used_directly": False,
+        "rating_overridden_by_tip": False,
+        "canonical_mutation_guaranteed": False,
     }

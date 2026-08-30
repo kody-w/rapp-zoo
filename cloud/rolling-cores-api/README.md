@@ -342,17 +342,25 @@ redelivery. Shopify Draft Orders and payment links can be created only after
 delivery, never gate the artifact, and never create debt.
 
 The same module defines independent post-service TIPS. A signed split policy
-fixes operator/dealer basis points for owner instances and caps the normalized
-suggested-tip ratio. One idempotent tip/no-tip signal is accepted per delivered
+fixes owner/operator/dealer, compute-reserve, and species-R&D basis points for
+owner instances. One idempotent tip/no-tip signal is accepted per delivered
 job; positive tips require a server-verified payment, payment references are
-hashed, and reused payments are refused. Signed cohort telemetry records
-currency-scoped median tip and tip rate. Rating remains independent, zero tip
-creates no debt, and artifact access is always full and unconditional. Raw tip
-amounts and outlier spend cannot directly determine quality, market price,
-autonomy promotion, or canonical mutation.
+hashed, and reused payments are refused. Rating remains independent, zero tip
+creates no debt, and artifact access is always full and unconditional.
+
+Every signed signal contains both a lossless raw economic view and a separate
+capped quality view. The raw view preserves the full verified amount, currency,
+payout and reserve allocations, and candidate-experiment sponsorship amount;
+it is never clipped to the quality ceiling. Signed cohort and patronage reports
+preserve lifetime volume, largest and median tips, velocity, repeat tipping,
+per-job history, unique payer count, largest-payer share, and concentration
+HHI. Raw evidence may materially inform demand/market alpha, payouts, compute
+reserve, species R&D, patronage, candidate experiments, and market evaluation.
+Only the normalized component enters quality evidence, so even the largest tip
+cannot rewrite a bad rating or guarantee a predetermined canonical mutation.
 
 The Shopify Admin token, commission verification, tip verification, signed tip
-split policy, and durable job/tip persistence remain server-side adapter
+allocation policy, and durable job/tip/patronage persistence remain server-side adapter
 concerns. No job, point, tip, or commission represents a real-money future,
 transferable currency, guaranteed work value, or convertible balance.
 
