@@ -254,6 +254,9 @@ Install with one command (after running the rapp-installer):
 ```bash
 BRAINSTEM=~/.brainstem/src/rapp_brainstem
 cp agents/*_agent.py "$BRAINSTEM/agents/"
+mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"
+cp utils/holo_protocol.py utils/rapp_protocol.py \
+  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"
 cp utils/rapp_protocol.py "$BRAINSTEM/utils/"
 # restart the brainstem; the cartridges auto-load
 ```

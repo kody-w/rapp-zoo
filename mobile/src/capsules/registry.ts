@@ -37,7 +37,7 @@ const UNSIGNED_KEYS = [
 ];
 const TRUSTED_REGISTRY_ISSUERS: Record<string, string> = {
   "rapterbox-credit-registry-demo-2026-3":
-    "PugKXYCbf8deLjjRe_5No697KTF--8HdlJ2opUZ3RQM",
+    "wJ-BRlj2vbYdAGS8u88uQ_-jChsm6PNAo-b6K3Dnf1g",
 };
 const HEX64 = /^[0-9a-f]{64}$/;
 const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;

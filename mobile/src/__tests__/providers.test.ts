@@ -17,7 +17,7 @@ import {
   validateBreathingLimits,
   wakeLeaseMs,
 } from "@/providers/breathing";
-import { demoHoloRaw } from "@/generated/holo-fixtures";
+import { demoHoloRaw, demoSourceRaw } from "@/generated/holo-fixtures";
 import { validateHoloRaw, verifySourceFrame } from "@/lib/holo";
 import { strictParse } from "@/lib/strict-json";
 import type { JsonObject } from "@/lib/types";
@@ -128,6 +128,8 @@ describe("shared OpenAI-compatible provider interface", () => {
     accessibility.description = "The signal field advances by one verified tick.";
     const result = materializeDirectSuccessor({
       current,
+      previousSourceFrame: strictParse(demoSourceRaw) as JsonObject,
+      previousBodyFrame: strictParse(demoHoloRaw) as JsonObject,
       text: "One bounded local breath.",
       authored,
       wakeLeaseMs: 300_000,
@@ -137,7 +139,41 @@ describe("shared OpenAI-compatible provider interface", () => {
     assert.equal(result.holo.visualParent, current.id);
     assert.equal(result.holo.holoSequence, current.holoSequence + 1);
     assert.equal(result.holo.sourceSequence, current.sourceSequence + 1);
+    assert.equal(
+      result.source.prev,
+      (strictParse(demoSourceRaw) as JsonObject).payload_hash,
+    );
+    assert.equal(
+      result.holo.outerFrame!.prev,
+      (strictParse(demoHoloRaw) as JsonObject).payload_hash,
+    );
+    assert.notEqual(result.source.prev, current.sourceFrameHash);
+    assert.notEqual(result.holo.outerFrame!.prev, current.id);
     assert.equal(verifySourceFrame(result.source, result.holo), result.source);
+  });
+
+  it("refuses unverified previous source and body continuity inputs", () => {
+    const current = validateHoloRaw(demoHoloRaw);
+    const authored = strictParse(JSON.stringify(current.authored)) as JsonObject;
+    authored.base_holo_id = current.id;
+    const accessibility = authored.accessibility as JsonObject;
+    accessibility.description = "A continuity refusal test.";
+    const wrongBody = strictParse(demoHoloRaw) as JsonObject;
+    wrongBody.frame_hash = "0".repeat(64);
+    assert.throws(
+      () =>
+        materializeDirectSuccessor({
+          current,
+          previousSourceFrame: strictParse(demoSourceRaw) as JsonObject,
+          previousBodyFrame: wrongBody,
+          text: "Refuse the invalid prior body.",
+          authored,
+          wakeLeaseMs: 300_000,
+          turnLatencyMs: 120,
+          utc: "2026-08-30T03:30:00.000Z",
+        }),
+      /frame_hash mismatch/,
+    );
   });
 
   it("requests one bounded successor and rejects no-op output", async () => {
@@ -174,6 +210,8 @@ describe("shared OpenAI-compatible provider interface", () => {
         apiKey: "user-key",
       },
       current,
+      previousSourceFrame: strictParse(demoSourceRaw) as JsonObject,
+      previousBodyFrame: strictParse(demoHoloRaw) as JsonObject,
       maxContextBytes: 32_768,
       maxOutputTokens: 512,
       wakeLeaseMs: 600_000,
@@ -194,6 +232,8 @@ describe("shared OpenAI-compatible provider interface", () => {
           apiKey: "user-key",
         },
         current,
+        previousSourceFrame: strictParse(demoSourceRaw) as JsonObject,
+        previousBodyFrame: strictParse(demoHoloRaw) as JsonObject,
         maxContextBytes: 32_768,
         maxOutputTokens: 512,
         wakeLeaseMs: 600_000,

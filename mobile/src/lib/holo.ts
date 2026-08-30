@@ -127,9 +127,9 @@ export function buildPlayerUpdate(
 
 function validateFrame(frame: JsonObject, raw: string): ValidatedHolo {
   validateRappFrame(frame);
-  require(frame.kind === "body.hologram", "frame.kind must be body.hologram");
+  require(frame.kind === "body.pulse", "frame.kind must be body.pulse");
   const subject = string(frame.stream_id, "frame.stream_id");
-  require(RAPPID.test(subject), "body.hologram stream_id must be a RAPPID");
+  require(RAPPID.test(subject), "body.pulse stream_id must be a RAPPID");
   require(frame.prev_wave === null, "body frames require prev_wave null");
   const frameHash = hex64(frame.frame_hash, "frame.frame_hash");
   return validateRecord(

@@ -127,6 +127,27 @@ def _register_protocol_shim():
     return rapp_protocol
 
 
+class TestDocumentedCartridgeInstall(unittest.TestCase):
+    def test_readme_installs_both_protocol_modules_in_the_sibling_package(self):
+        readme = (_REPO_ROOT / "README.md").read_text()
+        self.assertIn(
+            'mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"',
+            readme,
+        )
+        self.assertIn(
+            "cp utils/holo_protocol.py utils/rapp_protocol.py \\\n"
+            '  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"',
+            readme,
+        )
+        agents_dir = pathlib.Path(_stage_cartridges())
+        try:
+            protocol_dir = agents_dir / "rapp_zoo_holo_protocol"
+            self.assertTrue((protocol_dir / "holo_protocol.py").is_file())
+            self.assertTrue((protocol_dir / "rapp_protocol.py").is_file())
+        finally:
+            shutil.rmtree(agents_dir, ignore_errors=True)
+
+
 @unittest.skipUnless(HAVE_BRAINSTEM, "ancestor brainstem.py not available")
 class TestCartridgesLoadIntoAncestorBrainstem(unittest.TestCase):
     """The most important contract test: do our cartridges load via the
