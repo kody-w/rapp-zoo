@@ -306,6 +306,23 @@ the policy fraction, sats, quote hash, and fiat reference into the event. The
 BTC amount is provenance only—not payment, redemption, investment yield, or a
 promise of return.
 
+## World Pulse aggregation
+
+`credits/world_pulse.py` defines a privacy-safe aggregation boundary available
+to every verified account, including free Companion accounts. Private
+`memory.save` receipts never leave the device. The server accepts only verified
+attestations and stores one-way account/event hashes, category, bounded positive
+points, observed UTC, attester source, entitlement class, and evidence hash.
+
+The reference ledger enforces attestation replay protection, verified-account
+anti-Sybil decisions, per-event caps, per-account daily event caps,
+per-account daily point caps, and equal accessibility-alternative limits.
+Signed `rapp-rapter-world-pulse/1` checkpoints use registered
+`swarm.telemetry` and expose only participant count, event count, point total,
+UTC window, previous aggregate hash, evidence Merkle root, and unlocked
+shared-story/shared-region identifiers. They confer no monetary, purchasable,
+redeemable, investment, or yield value.
+
 ## Cost controls and next ledger boundary
 
 Current controls are a fixed model allowlist, 64 KiB body limit, bounded message

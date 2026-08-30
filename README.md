@@ -113,6 +113,13 @@ hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
 and current core head; accepted evolution appends a `body.pulse` with an
 immutable BTC/USD reference snapshot, never a payment or yield.
 
+Verified accounts—including free Companion accounts—may contribute capped,
+privacy-safe Growth Point attestations to World Pulse. Detailed receipts stay
+local. Signed `swarm.telemetry` checkpoints publish only participant count,
+event count, point total, UTC window, prior aggregate hash, and evidence Merkle
+root. Global milestones unlock shared story or region events, never money or
+investment value.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

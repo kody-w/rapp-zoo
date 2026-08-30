@@ -71,6 +71,8 @@ Supporting lines:
   original to Rapterbox.
 - Rapter Growth Points are earned through bounded opt-in positive activity;
   they are never sold, transferred, redeemed, or deducted below zero.
+- World Pulse combines privacy-safe Growth Point totals into shared story and
+  region unlocks; it never converts participation into cash or investment value.
 
 ## Positioning
 

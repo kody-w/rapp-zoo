@@ -398,6 +398,34 @@ BTC/USD evidence. It burns the signed fraction, integer sats, raw quote hash,
 and fiat reference into the immutable event. BTC is reference and provenance,
 not payment, redemption value, or yield.
 
+### 11.3 World Pulse
+
+Every verified account may contribute capped Growth Points to **World Pulse**,
+including accounts whose only entitlement is the free Companion. Eligibility
+does not depend on purchasing or renting a premium Rapter.
+
+Private event receipts stay local as `memory.save`. A server receives only a
+verified, idempotent attestation containing category, positive points, observed
+UTC, attester/source, evidence hash, entitlement class, and a one-way account
+hash. Per-event, per-account daily event, and per-account daily point caps limit
+abuse. Anti-Sybil eligibility comes from the server attester, never a client
+boolean. Accessibility-equivalent events use the same earning bounds.
+
+The issuer periodically appends a signed `rapp-rapter-world-pulse/1` checkpoint
+on registered `swarm.telemetry`. It contains only:
+
+- participant count;
+- event count;
+- point total;
+- UTC window;
+- previous aggregate hash;
+- evidence Merkle root;
+- any unlocked shared-story or shared-region milestone identifiers.
+
+It contains no raw health data, private receipt, account identity, or PII.
+World Pulse points and milestones have no cash, purchase, redemption,
+investment, or yield value.
+
 ---
 
 ## 12. Offline behavior
