@@ -21,6 +21,7 @@ Powered by RAPP/1. From Rapterbox.
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
 | **Breath key** | A usable, securely stored provider credential that permits bounded verified ticks |
 | **Rapterbox** | Consumer storefront and product home |
+| **RapterWorks** | Proof-first jobs and services delivered by conformant public DOGGs |
 | **Rappter** | Protocol/company/developer-facing flock identity |
 
 ## Product promise

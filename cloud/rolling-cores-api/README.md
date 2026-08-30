@@ -327,6 +327,24 @@ UTC window, previous aggregate hash, evidence Merkle root, and unlocked
 shared-story/shared-region identifiers. They confer no monetary, purchasable,
 redeemable, investment, or yield value.
 
+## RapterWorks typed interfaces
+
+`credits/rapterworks.py` defines the proof-first job and owner-instance
+interfaces for the 251 Rapterbox-owned First Edition / First Dimension species.
+A verified Shopify sale creates a unique player RAPPID, Credit, Capsule, and
+dimension branch without changing the source species.
+
+Public job acceptance requires DOGG conformance, while private local mutation
+remains unrestricted. The signed state machine covers request, acceptance or
+refusal, work, proof, supervisor approval or revision, full-and-free delivery,
+optional commission, rating, immutable regression fixtures, correction, and
+redelivery. Shopify Draft Orders and payment links can be created only after
+delivery, never gate the artifact, and never create debt.
+
+The Shopify Admin token and payment verification remain server-side adapter
+concerns. No job or point represents a real-money future, transferable
+currency, guaranteed work value, or convertible balance.
+
 ## Cost controls and next ledger boundary
 
 Current controls are a fixed model allowlist, 64 KiB body limit, bounded message

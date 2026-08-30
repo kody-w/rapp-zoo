@@ -106,6 +106,10 @@ per-generation birth and exclusive-rental caps. Signed mutation policies carry
 only a later verified AI turn can append a successor. Offline or unavailable
 compute leaves the mutation pending and never rewrites old bytes.
 
+[`RAPTERWORKS.md`](./RAPTERWORKS.md) defines proof-first jobs and Shopify-backed
+owner-instance hatching for the 251 Rapterbox-owned First Edition / First
+Dimension species.
+
 Rapter Growth Points are local game progression only: non-transferable,
 non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
 category, positive points, observation time, attester/source, and an evidence
