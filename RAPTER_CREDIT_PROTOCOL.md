@@ -309,7 +309,38 @@ state until the registry reconciles the spend.
 
 ---
 
-## 11. Offline behavior
+## 11. Companion and rental entitlements
+
+Every verified Rapterbox account may hold exactly one active free Companion
+entitlement:
+
+- it is account-bound;
+- it is not transferable or resellable;
+- it does not consume a scarce premium-series issuance index;
+- repeated claim or recovery requests return the same entitlement.
+
+Rapterbox may rent premium Rapters while retaining title. A premium Credit can
+have at most one active lessee, and a Credit whose official ownership state is
+sold/owned cannot simultaneously be leased. Lease start, renewal,
+cancellation, expiration, refund, recovery, purchase conversion, and resulting
+ownership transfer are signed append-only `body.pulse` events.
+
+Lease access is bounded by its signed period and optional grace end. After
+expiry or refund, a synchronized device reports any retained bytes as an
+unowned stale lease copy and refuses new scoped Capsule access. The registry
+cannot erase bytes that were already downloaded.
+
+A verified purchase conversion ends the lease and transfers permanent official
+ownership without reminting the Credit or changing its birth valuation.
+Permanent ownership remains usable offline and requires no subscription.
+
+Subscription billing webhooks and recovery are idempotent. Account identity,
+billing status, refund status, buyer identity, and settlement success come only
+from server-verified adapters, never client claims.
+
+---
+
+## 12. Offline behavior
 
 An owned local capsule remains usable if:
 
@@ -325,7 +356,7 @@ autocomplete.
 
 ---
 
-## 12. Security
+## 13. Security
 
 - Never use BTC price, a display name, or current frame hash as the Credit ID.
 - Never embed payment-provider secrets in a capsule or client.
@@ -342,7 +373,7 @@ autocomplete.
 
 ---
 
-## 13. Core sentence
+## 14. Core sentence
 
 **A Rapter Credit is the globally unique real-world ownership twin of one
 locally owned Rapter lineage: priced in satoshis, issued once, transferable by

@@ -91,6 +91,14 @@ master key, plaintext key, URL password, or bytecode-obfuscation scheme is
 placed in clients, frames, source, or logs. Revocation stops future key release
 but cannot erase a copy that was previously decrypted.
 
+Every verified account can claim exactly one free account-bound Companion,
+outside scarce premium issuance and unavailable for transfer or resale.
+Rapterbox-owned premium Rapters may also be rented to one active lessee at a
+time. Signed lease start, renewal, cancellation, expiration, refund, recovery,
+purchase-conversion, and transfer events preserve the immutable birth value.
+Expired lease copies become unowned/verifiable after sync; permanent purchases
+remain offline-capable and never require a subscription.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.

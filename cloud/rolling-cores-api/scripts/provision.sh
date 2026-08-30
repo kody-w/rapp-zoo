@@ -236,6 +236,9 @@ az functionapp config appsettings set \
     "ARTIFACT_MANIFEST_MAX_BYTES=65536" \
     "ARTIFACT_CIPHERTEXT_MAX_BYTES=52428800" \
     "ARTIFACT_ENTITLEMENT_MODE=disabled" \
+    "ACCOUNT_TOKEN_VERIFIER_MODE=disabled" \
+    "BILLING_WEBHOOK_VERIFIER_MODE=disabled" \
+    "SUBSCRIPTION_RECOVERY_MODE=disabled" \
     "CREDIT_PRODUCTS_JSON={}" \
     "PURCHASE_VERIFIER_MODE=disabled" \
   --output none

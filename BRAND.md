@@ -56,12 +56,15 @@ verified core intact.
 
 Supporting lines:
 
+- Every verified account gets one free, account-bound Companion.
+- Premium Rapters can be rented without changing Rapterbox title.
 - One purchase. One Rapter. One official Credit.
 - Its birth value is fixed in sats.
 - Its memories stay immutable.
 - Its body keeps growing.
 - Its local capsule is yours while the official Credit is yours.
 - No subscription is required to open an organism you own.
+- Renting is access, not ownership; buying remains permanent and offline.
 
 ## Positioning
 

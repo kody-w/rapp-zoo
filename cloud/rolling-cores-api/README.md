@@ -49,6 +49,14 @@ request an unsigned official record.
 | `POST` | `/v1/resale/sales` | Function | Verify settlement and atomically append sale plus ownership-transfer events. |
 | `GET` | `/v1/artifacts/status` | Public | Report delivery limits and entitlement-adapter readiness. |
 | `POST` | `/v1/artifacts/release-key` | Function + scoped token | Validate entitlement, manifest, ciphertext, recipient, expiry, and replay before releasing a recipient-wrapped DEK. |
+| `GET` | `/v1/subscriptions/policy` | Public | Report the one-free-Companion and exclusive-lease rules plus adapter readiness. |
+| `GET` | `/v1/subscription-registry/events?credit_id=...` | Public | Mirror signed lease, refund, conversion, and transfer events. |
+| `POST` | `/v1/companions/claim` | Function + account token | Idempotently grant the verified account's one free Companion. |
+| `GET` | `/v1/entitlements/status` | Function + account token | Return account-bound Companion and premium lease access state. |
+| `POST` | `/v1/subscriptions/capsule-access` | Function + account token | Return a short-lived signed download/decrypt authorization for an active or grace lease. |
+| `POST` | `/v1/billing/webhook` | Function + provider signature | Normalize an idempotent verified billing event. |
+| `POST` | `/v1/subscriptions/recover` | Function + account token | Recover server-verified subscription state. |
+| `POST` | `/v1/subscriptions/sync` | Function + account token | Append an expiry pulse when a cached lease has become stale. |
 
 Every server-side `rappter-credit-registry-entry/1` binds:
 
@@ -244,6 +252,30 @@ issuer is configured. Revocation prevents future DEK releases. It cannot erase
 or claw back plaintext that an authorized recipient previously decrypted.
 Bytecode obfuscation and passwords embedded in URLs or clients are never
 treated as access control.
+
+## Free Companion and premium rentals
+
+The subscription layer is distinct from permanent ownership:
+
+- every verified account receives at most one active free Companion;
+- the Companion is account-bound, non-transferable, non-resellable, and outside
+  premium-series issuance and supply counters;
+- premium Rapters can be leased only while Rapterbox remains the title owner;
+- one premium Credit can have only one active lessee;
+- an owned/sold Rapter cannot also be leased;
+- signed `body.pulse` events record lease start, renewal, cancellation, grace,
+  expiry, refund, recovery, purchase conversion, and ownership transfer;
+- billing event hashes make webhook processing idempotent;
+- purchase conversion preserves the original Credit and birth valuation.
+
+Lease status exposes `allowed` access only during an active or grace period.
+After the signed access time passes, offline state becomes
+`unowned-stale-lease-copy` until synchronization appends the expiry event.
+Permanent owners remain offline-capable without a subscription.
+
+The deployed account-token, billing-webhook, subscription-recovery, and worker
+adapters remain disabled. No endpoint trusts client-declared subscription,
+refund, balance, buyer, or payment success.
 
 ## Cost controls and next ledger boundary
 

@@ -21,6 +21,13 @@ from .quotes import configured_quote_provider
 from .repository import AzureTableCreditRepository
 from .service import CreditService
 from .signing import configured_registry_signer
+from .subscriptions import (
+    AzureTableSubscriptionRepository,
+    DisabledAccountTokenVerifier,
+    DisabledBillingWebhookVerifier,
+    DisabledSubscriptionRecoveryAdapter,
+    SubscriptionService,
+)
 
 
 MAX_CREDIT_REQUEST_BYTES = 65_536
@@ -28,10 +35,12 @@ service_override: CreditService | None = None
 service_instance: CreditService | None = None
 lifecycle_override: LifecycleService | None = None
 lifecycle_instance: LifecycleService | None = None
+subscription_override: SubscriptionService | None = None
+subscription_instance: SubscriptionService | None = None
 
 
 def _service() -> CreditService:
-    global lifecycle_instance, service_instance
+    global lifecycle_instance, service_instance, subscription_instance
     if service_override is not None:
         return service_override
     if service_instance is None:
@@ -76,15 +85,29 @@ def _service() -> CreditService:
             verify_credit=lambda record: service_instance.verify(record)["valid"],
             bitcoin_refund_fee_sats=bitcoin_fee_sats,
         )
+        subscription_instance = SubscriptionService(
+            issuer=os.environ.get("CREDIT_ISSUER_ID", "rappterbox"),
+            credits=repository,
+            repository=AzureTableSubscriptionRepository(repository.table, repository),
+            signer=signer,
+            account_verifier=DisabledAccountTokenVerifier(),
+            webhook_verifier=DisabledBillingWebhookVerifier(),
+            recovery_adapter=DisabledSubscriptionRecoveryAdapter(),
+            verify_credit=lambda record: service_instance.verify(record)["valid"],
+        )
     return service_instance
 
 
 def reset_service() -> None:
-    global lifecycle_instance, lifecycle_override, service_instance, service_override
+    global lifecycle_instance, lifecycle_override
+    global service_instance, service_override
+    global subscription_instance, subscription_override
     service_instance = None
     service_override = None
     lifecycle_instance = None
     lifecycle_override = None
+    subscription_instance = None
+    subscription_override = None
 
 
 def _lifecycle() -> LifecycleService:
@@ -94,6 +117,15 @@ def _lifecycle() -> LifecycleService:
     if lifecycle_instance is None:
         raise RuntimeError("Credit lifecycle service is unavailable.")
     return lifecycle_instance
+
+
+def _subscriptions() -> SubscriptionService:
+    if subscription_override is not None:
+        return subscription_override
+    _service()
+    if subscription_instance is None:
+        raise RuntimeError("Subscription service is unavailable.")
+    return subscription_instance
 
 
 def _scoped_token(req: func.HttpRequest) -> str | None:
@@ -269,5 +301,84 @@ def complete_sale(req: func.HttpRequest) -> func.HttpResponse:
     def operation():
         events, created = _lifecycle().complete_sale(_body(req), _scoped_token(req))
         return json_response({"created": created, "events": events}, 201 if created else 200)
+
+    return _call(operation)
+
+
+def subscription_policy(_: func.HttpRequest) -> func.HttpResponse:
+    return _call(lambda: json_response(_subscriptions().service_status()))
+
+
+def claim_companion(req: func.HttpRequest) -> func.HttpResponse:
+    def operation():
+        entitlement, created = _subscriptions().claim_companion(_scoped_token(req))
+        return json_response(
+            {"created": created, "entitlement": entitlement},
+            201 if created else 200,
+        )
+
+    return _call(operation)
+
+
+def entitlement_status(req: func.HttpRequest) -> func.HttpResponse:
+    return _call(lambda: json_response(_subscriptions().entitlement_status(
+        _scoped_token(req),
+        req.params.get("credit_id"),
+    )))
+
+
+def subscription_events(req: func.HttpRequest) -> func.HttpResponse:
+    return _call(lambda: json_response(_subscriptions().public_events(
+        req.params.get("credit_id"),
+        req.params.get("after"),
+        req.params.get("limit"),
+    )))
+
+
+def subscription_capsule_access(req: func.HttpRequest) -> func.HttpResponse:
+    def operation():
+        return json_response(_subscriptions().capsule_access(
+            _scoped_token(req),
+            _body(req),
+        ))
+
+    return _call(operation)
+
+
+def billing_webhook(req: func.HttpRequest) -> func.HttpResponse:
+    def operation():
+        raw = req.get_body()
+        if len(raw) > MAX_CREDIT_REQUEST_BYTES:
+            raise CreditError("Billing webhook body is too large.")
+        events, created = _subscriptions().process_webhook(
+            raw,
+            {key.lower(): value for key, value in req.headers.items()},
+        )
+        return json_response({"created": created, "events": events}, 201 if created else 200)
+
+    return _call(operation)
+
+
+def recover_subscription(req: func.HttpRequest) -> func.HttpResponse:
+    def operation():
+        value = _body(req)
+        if not isinstance(value, dict) or set(value) != {"proof"}:
+            raise CreditError("Subscription recovery request has an invalid shape.")
+        results = _subscriptions().recover(_scoped_token(req), value["proof"])
+        return json_response({"recoveries": results})
+
+    return _call(operation)
+
+
+def sync_subscription(req: func.HttpRequest) -> func.HttpResponse:
+    def operation():
+        value = _body(req)
+        if not isinstance(value, dict) or set(value) != {"credit_id"}:
+            raise CreditError("Subscription sync request has an invalid shape.")
+        events, created = _subscriptions().sync_expiry(
+            _scoped_token(req),
+            value["credit_id"],
+        )
+        return json_response({"created": created, "events": events})
 
     return _call(operation)

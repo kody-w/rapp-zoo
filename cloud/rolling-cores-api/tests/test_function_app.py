@@ -195,6 +195,8 @@ def test_credit_routes_separate_public_reads_from_authenticated_writes():
     assert auth_levels["credit_lookup"] == func.AuthLevel.ANONYMOUS
     assert auth_levels["credit_verify"] == func.AuthLevel.ANONYMOUS
     assert auth_levels["artifact_status"] == func.AuthLevel.ANONYMOUS
+    assert auth_levels["subscription_policy"] == func.AuthLevel.ANONYMOUS
+    assert auth_levels["subscription_events"] == func.AuthLevel.ANONYMOUS
     assert auth_levels["credit_lifecycle_status"] == func.AuthLevel.ANONYMOUS
     assert auth_levels["credit_ownership"] == func.AuthLevel.ANONYMOUS
     assert auth_levels["credit_lifecycle"] == func.AuthLevel.ANONYMOUS
@@ -204,6 +206,12 @@ def test_credit_routes_separate_public_reads_from_authenticated_writes():
     assert auth_levels["resale_listing_cancel"] == func.AuthLevel.FUNCTION
     assert auth_levels["resale_sale"] == func.AuthLevel.FUNCTION
     assert auth_levels["artifact_release_key"] == func.AuthLevel.FUNCTION
+    assert auth_levels["companion_claim"] == func.AuthLevel.FUNCTION
+    assert auth_levels["entitlement_status"] == func.AuthLevel.FUNCTION
+    assert auth_levels["subscription_capsule_access"] == func.AuthLevel.FUNCTION
+    assert auth_levels["subscription_billing_webhook"] == func.AuthLevel.FUNCTION
+    assert auth_levels["subscription_recover"] == func.AuthLevel.FUNCTION
+    assert auth_levels["subscription_sync"] == func.AuthLevel.FUNCTION
     assert auth_levels["valuation_schedule_publish"] == func.AuthLevel.FUNCTION
     assert auth_levels["wild_breathing_status"] == func.AuthLevel.FUNCTION
     assert auth_levels["wild_breathing_start"] == func.AuthLevel.FUNCTION

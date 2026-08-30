@@ -220,6 +220,78 @@ def resale_sale(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.route(
+    route="v1/subscriptions/policy",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def subscription_policy(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.subscription_policy(req)
+
+
+@app.route(
+    route="v1/subscription-registry/events",
+    methods=["GET"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def subscription_events(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.subscription_events(req)
+
+
+@app.route(
+    route="v1/companions/claim",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def companion_claim(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.claim_companion(req)
+
+
+@app.route(
+    route="v1/entitlements/status",
+    methods=["GET"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def entitlement_status(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.entitlement_status(req)
+
+
+@app.route(
+    route="v1/subscriptions/capsule-access",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def subscription_capsule_access(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.subscription_capsule_access(req)
+
+
+@app.route(
+    route="v1/billing/webhook",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def subscription_billing_webhook(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.billing_webhook(req)
+
+
+@app.route(
+    route="v1/subscriptions/recover",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def subscription_recover(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.recover_subscription(req)
+
+
+@app.route(
+    route="v1/subscriptions/sync",
+    methods=["POST"],
+    auth_level=func.AuthLevel.FUNCTION,
+)
+def subscription_sync(req: func.HttpRequest) -> func.HttpResponse:
+    return credit_api.sync_subscription(req)
+
+
+@app.route(
     route="v1/issuer/valuation-schedules",
     methods=["POST"],
     auth_level=func.AuthLevel.FUNCTION,

@@ -310,6 +310,64 @@ if [[ "$ARTIFACT_NO_TOKEN_STATUS" != "403" ]]; then
   exit 1
 fi
 
+SUBSCRIPTION_POLICY_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/subscription-policy.json" \
+    --write-out '%{http_code}' \
+    "$ENDPOINT/v1/subscriptions/policy" || true
+)"
+UNAUTH_COMPANION_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/unauthenticated-companion.json" \
+    --write-out '%{http_code}' \
+    --request POST \
+    --data '{}' \
+    "$ENDPOINT/v1/companions/claim" || true
+)"
+UNAUTH_LEASE_CAPSULE_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/unauthenticated-lease-capsule.json" \
+    --write-out '%{http_code}' \
+    --request POST \
+    --header 'content-type: application/json' \
+    --data '{}' \
+    "$ENDPOINT/v1/subscriptions/capsule-access" || true
+)"
+if [[ "$SUBSCRIPTION_POLICY_STATUS" != "200" || "$UNAUTH_COMPANION_STATUS" != "401" || "$UNAUTH_LEASE_CAPSULE_STATUS" != "401" ]]; then
+  printf 'Subscription boundary failed (%s/%s/%s).\n' \
+    "$SUBSCRIPTION_POLICY_STATUS" "$UNAUTH_COMPANION_STATUS" "$UNAUTH_LEASE_CAPSULE_STATUS" >&2
+  exit 1
+fi
+SUBSCRIPTION_TEST_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+az functionapp function keys set \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$FUNCTION_APP" \
+  --function-name companion_claim \
+  --key-name private-subscription-test \
+  --key-value="$SUBSCRIPTION_TEST_KEY" \
+  --output none
+COMPANION_NO_ACCOUNT_STATUS="$(
+  curl --silent --show-error \
+    --output "$STATE_DIR/companion-no-account.json" \
+    --write-out '%{http_code}' \
+    --request POST \
+    --header "x-functions-key: $SUBSCRIPTION_TEST_KEY" \
+    --data '{}' \
+    "$ENDPOINT/v1/companions/claim" || true
+)"
+unset SUBSCRIPTION_TEST_KEY
+az functionapp function keys delete \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$FUNCTION_APP" \
+  --function-name companion_claim \
+  --key-name private-subscription-test \
+  --output none
+if [[ "$COMPANION_NO_ACCOUNT_STATUS" != "403" ]]; then
+  printf 'Free Companion claim without account token was not refused (HTTP %s).\n' \
+    "$COMPANION_NO_ACCOUNT_STATUS" >&2
+  exit 1
+fi
+
 az functionapp function keys set \
   --resource-group "$RESOURCE_GROUP" \
   --name "$FUNCTION_APP" \
@@ -485,6 +543,10 @@ LISTING_NO_OWNER_STATUS="$LISTING_NO_OWNER_STATUS" \
 ARTIFACT_STATUS="$ARTIFACT_STATUS" \
 UNAUTH_ARTIFACT_STATUS="$UNAUTH_ARTIFACT_STATUS" \
 ARTIFACT_NO_TOKEN_STATUS="$ARTIFACT_NO_TOKEN_STATUS" \
+SUBSCRIPTION_POLICY_STATUS="$SUBSCRIPTION_POLICY_STATUS" \
+UNAUTH_COMPANION_STATUS="$UNAUTH_COMPANION_STATUS" \
+UNAUTH_LEASE_CAPSULE_STATUS="$UNAUTH_LEASE_CAPSULE_STATUS" \
+COMPANION_NO_ACCOUNT_STATUS="$COMPANION_NO_ACCOUNT_STATUS" \
 UNTRUSTED_PAYMENT_STATUS="$UNTRUSTED_PAYMENT_STATUS" \
 COMPLETION_STATUS="$COMPLETION_STATUS" \
 python3 <<'PY'
@@ -504,12 +566,17 @@ wild_breathing = json.loads((app_dir / ".deploy" / "wild-breathing-status.json")
 wild_pause = json.loads((app_dir / ".deploy" / "wild-breathing-pause.json").read_text())
 lifecycle = json.loads((app_dir / ".deploy" / "lifecycle-status.json").read_text())
 artifact = json.loads((app_dir / ".deploy" / "artifact-status.json").read_text())
+subscription = json.loads((app_dir / ".deploy" / "subscription-policy.json").read_text())
 if issuer.get("signing_ready") is not True:
     raise SystemExit("Key Vault signing self-test was not ready.")
 if artifact.get("entitlement_verifier_configured") is not False:
     raise SystemExit("Artifact entitlement verifier did not fail closed.")
 if artifact.get("commit_pin_required") is not True:
     raise SystemExit("Artifact policy did not require commit-pinned raw URLs.")
+if subscription.get("free_companions_per_verified_account") != 1:
+    raise SystemExit("Subscription policy did not enforce one free Companion.")
+if subscription.get("exclusive_active_lessee") is not True:
+    raise SystemExit("Subscription policy did not enforce exclusive leasing.")
 choice = completion["choices"][0]
 message = choice.get("message", {})
 content = message.get("content")
@@ -544,6 +611,9 @@ evidence = f"""# Deployment evidence
 - Return/listing without scoped owner token: HTTP {os.environ["RETURN_NO_OWNER_STATUS"]}/{os.environ["LISTING_NO_OWNER_STATUS"]} (refused)
 - Artifact delivery policy: HTTP {os.environ["ARTIFACT_STATUS"]}, commit pin required, entitlement adapter disabled
 - Artifact release without Function/scoped token: HTTP {os.environ["UNAUTH_ARTIFACT_STATUS"]}/{os.environ["ARTIFACT_NO_TOKEN_STATUS"]} (refused)
+- Subscription policy: HTTP {os.environ["SUBSCRIPTION_POLICY_STATUS"]}, one free Companion/account, exclusive premium lessee
+- Companion claim without Function/account token: HTTP {os.environ["UNAUTH_COMPANION_STATUS"]}/{os.environ["COMPANION_NO_ACCOUNT_STATUS"]} (refused)
+- Lease Capsule access without Function token: HTTP {os.environ["UNAUTH_LEASE_CAPSULE_STATUS"]} (refused)
 - Client-declared payment success: HTTP {os.environ["UNTRUSTED_PAYMENT_STATUS"]} (rejected)
 - Completion shape: `{completion.get("object")}`
 - Completion model: `{completion.get("model", "gpt-5.4")}`
@@ -573,4 +643,6 @@ printf 'Lifecycle missing-owner return/listing: HTTP %s/%s\n' \
   "$RETURN_NO_OWNER_STATUS" "$LISTING_NO_OWNER_STATUS"
 printf 'Artifact status/unauth/no-token: HTTP %s/%s/%s\n' \
   "$ARTIFACT_STATUS" "$UNAUTH_ARTIFACT_STATUS" "$ARTIFACT_NO_TOKEN_STATUS"
+printf 'Subscription policy/unauth/no-account: HTTP %s/%s/%s\n' \
+  "$SUBSCRIPTION_POLICY_STATUS" "$UNAUTH_COMPANION_STATUS" "$COMPANION_NO_ACCOUNT_STATUS"
 printf 'Keychain: %s / %s\n' "$SERVICE" "$PROFILE_ID"
