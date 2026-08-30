@@ -393,3 +393,6 @@ boundary, also intentionally deferred from the immediate UI handoff.
 See [`GROWTH_POINTS_ARCHITECTURE.md`](./GROWTH_POINTS_ARCHITECTURE.md) for
 non-monetary Growth Points, signed mutation timing, accessibility-safe
 micro-events, and the disabled-by-default preview HealthKit adapter.
+See [`WORLD_PULSE_ARCHITECTURE.md`](./WORLD_PULSE_ARCHITECTURE.md) for the
+typed global aggregate checkpoint, milestone, event-count, and universal
+shared-world unlock boundary kept separate from individual progress.
