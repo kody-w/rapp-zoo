@@ -10,6 +10,26 @@ undiscovered.
 Exact Original title may transfer later only after output-rights and commerce
 gates. Catalog publication or offspring issuance does not transfer it.
 
+## Holo Zoo constitutional boundary
+
+RapterWorks is entered only through Holo Zoo **Work mode**. It never appears as
+a sales prompt in Companion mode or companion dialogue.
+
+- companionship, affection, memory, personality, local playback, and owned
+  capsule access remain independent from jobs, commissions, tips, sponsorship,
+  compute balance, and Coin state;
+- House membership cannot change service quality, price, priority, encounter
+  odds, companion capability, or economic weight;
+- full delivery precedes every optional compensation surface;
+- zero tip changes nothing;
+- EVOLUTION SPONSORSHIP is excluded from Holo Zoo's core companion and gameplay
+  loop;
+- the local `local-work-preview/1` interface is a non-executing UI walkthrough
+  and never emits official RapterWorks states.
+
+The binding policy is
+[`HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](./HOLO_ZOO_GAMEPLAY_CONSTITUTION.md).
+
 ## Offspring owner instances
 
 A verified Shopify sale may issue one unique offspring from a source Original:

@@ -274,8 +274,8 @@ export function InspectorPanel() {
           </>
         ) : store.selection?.kind === "gallery" ? (
           <Text style={styles.trait}>
-            Gallery preview only. Redeem one owned Rapter credit to download the
-            signed local capsule.
+            Gallery preview only. Signed ownership and local custody metadata
+            are unavailable in preview.
           </Text>
         ) : (
           <Text style={styles.trait}>

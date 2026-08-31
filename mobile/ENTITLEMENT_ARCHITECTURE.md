@@ -11,6 +11,11 @@ integration-ready Expo handoff. The typed source of truth is
    - Exactly one per account.
    - Account-bound and non-transferable.
    - Outside scarce premium Rapter series.
+   - Includes the complete basic companion relationship: Field encounter,
+     Stage meeting/playback, local history already provided with the
+     Companion, and House participation.
+   - Spending cannot improve its affection, personality, memory access,
+     survival, encounter odds, or gameplay capability.
 2. **Rented premium Rapter**
    - A subscription lease, never ownership.
    - Exactly one active lessee.

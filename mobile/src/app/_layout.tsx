@@ -3,9 +3,12 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BillingProvider } from "@/billing/billing-context";
 import { LifecycleProvider } from "@/capsules/lifecycle-context";
+import { assertGameplayConstitution } from "@/constitution/gameplay";
 import { DirectBreathingProvider } from "@/providers/breathing-context";
 import { HoloStoreProvider } from "@/state/holo-store";
 import { colors } from "@/theme/colors";
+
+assertGameplayConstitution();
 
 export default function RootLayout() {
   return (

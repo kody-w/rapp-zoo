@@ -9,6 +9,12 @@ Network requests go only to the host explicitly configured by the user. The
 embedded Holo player has `connect-src 'none'`, cannot navigate to arbitrary
 remote pages, and uses only bundled renderer code and authored data.
 
+Holo Field currently uses a permissionless offline radar. It requests no GPS
+or location permission, contacts no map provider, generates no physical
+destination, and stores or uploads no coordinates. Encounter placement derives
+only from public organism IDs. A future geographic field requires a separate
+privacy and physical-safety review.
+
 Android native builds permit cleartext transport so user-selected loopback and
 private-LAN RAPP Zoo or Direct-provider endpoints continue to work. Holo Zoo's
 URL validator refuses credentials and public cleartext hosts; the Holo player
@@ -106,3 +112,8 @@ Consumer privacy information is published through Rapterbox at
 <https://rapterbox.com/holo>, and support is at
 <https://rapterbox.com/support>. A Rapter is one organism; a Rappter is a flock
 of Rapters. RAPP/1 remains the separate protocol and developer lane.
+
+Companion mode does not import billing, tips, sponsorship, Coin economics, or
+service dispatch. Work mode is explicitly selected and the current
+`local-work-preview/1` flow remains private, local, non-economic, and
+non-authoritative.
