@@ -265,6 +265,12 @@ ask price, verified sale, tip, and current service revenue.
 - `mobile/src/provenance/` contains the native/web policy and validator.
 - Holo Zoo keeps projection, display, wallets, transfers, and markets disabled.
 - Public sites explain the public/private boundary without selling Coins.
+- The Gameplay and Companionship Constitution forbids Coin state from changing
+  affection, memory, survival, House identity, encounter odds, progress, or
+  gameplay power.
+
+See
+[`HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](./HOLO_ZOO_GAMEPLAY_CONSTITUTION.md).
 
 ## Core sentence
 

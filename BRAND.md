@@ -175,3 +175,9 @@ Avoid:
 
 The Rapter Coin Trail is architecture, not current marketing. A useful Holo
 must earn real use before any future economic activation is considered.
+
+Holo Zoo's Field and Work surfaces obey
+[`HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](./HOLO_ZOO_GAMEPLAY_CONSTITUTION.md):
+the relationship and the game outrank the business model. Never market
+spending as care, survival, affection, House status, encounter power, or the
+right to keep playing.

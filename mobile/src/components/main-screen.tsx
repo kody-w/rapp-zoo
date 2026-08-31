@@ -10,25 +10,24 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useBilling } from "@/billing/billing-context";
-import { directPlan } from "@/billing/catalog";
 import { useHoloStore } from "@/state/holo-store";
 import { colors } from "@/theme/colors";
+import { FieldPanel } from "./field-panel";
 import { InspectorPanel } from "./inspector-panel";
 import { Onboarding, ONBOARDING_KEY } from "./onboarding";
 import { Sidebar } from "./sidebar";
 import { StagePanel } from "./stage-panel";
 
-type PhonePane = "library" | "stage" | "inspect";
+type PhonePane = "field" | "library" | "stage" | "inspect";
+type WideMode = "field" | "companion" | "habitat";
 
 export function MainScreen() {
   const store = useHoloStore();
-  const billing = useBilling();
-  const router = useRouter();
   const { width } = useWindowDimensions();
-  const wide = width >= 1080;
-  const [phonePane, setPhonePane] = useState<PhonePane>("library");
+  const wide = width >= 1180;
+  const [phonePane, setPhonePane] = useState<PhonePane>("field");
+  const [wideMode, setWideMode] = useState<WideMode>("field");
+  const [stageCommerce, setStageCommerce] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
@@ -44,6 +43,18 @@ export function MainScreen() {
       if (value !== "complete") setShowOnboarding(true);
     });
   }, []);
+  const selectWideMode = (mode: WideMode) => {
+    setWideMode(mode);
+    setStageCommerce(mode === "habitat");
+  };
+  const selectPhonePane = (pane: PhonePane) => {
+    if (pane === "field") setStageCommerce(false);
+    if (pane === "library") setStageCommerce(true);
+    if (pane === "stage" && phonePane === "field") {
+      setStageCommerce(false);
+    }
+    setPhonePane(pane);
+  };
   if (!store.ready) {
     return (
       <SafeAreaView style={styles.loading}>
@@ -70,36 +81,38 @@ export function MainScreen() {
           <Text style={styles.bannerText}>{store.info}</Text>
         </Pressable>
       ) : null}
-      {billing.billingEnvironment !== "live" ? (
-        <Pressable
-          onPress={() => router.push("/upgrade")}
-          style={[
-            styles.billingBanner,
-            billing.billingEnvironment === "misconfigured" &&
-              styles.billingError,
-          ]}
-          accessibilityRole="link"
-        >
-          <Text style={styles.billingText}>
-            {billing.billingEnvironment === "preview"
-              ? `${
-                  billing.ledger.activeWildRapters > 0
-                    ? `Wild · ${billing.ledger.activeWildRapters} active Rapters`
-                    : directPlan.title
-                } · PREVIEW BILLING — mock offerings only; no store transaction`
-              : "REVENUECAT KEY MISSING — purchases disabled in this EAS build"}
-          </Text>
-          <Text style={styles.billingLink}>Credits →</Text>
-        </Pressable>
+      {wide ? (
+        <View style={styles.wideModes}>
+          {(["field", "companion", "habitat"] as const).map((mode) => (
+            <Pressable
+              key={mode}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: wideMode === mode }}
+              onPress={() => selectWideMode(mode)}
+              style={[
+                styles.wideMode,
+                wideMode === mode && styles.wideModeActive,
+              ]}
+            >
+              <Text style={styles.tabText}>
+                {mode === "field"
+                  ? "HOLO FIELD"
+                  : mode === "companion"
+                    ? "COMPANION STAGE"
+                    : "HABITAT"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       ) : null}
       {!wide ? (
         <View style={styles.tabs}>
-          {(["library", "stage", "inspect"] as const).map((pane) => (
+          {(["field", "library", "stage", "inspect"] as const).map((pane) => (
             <Pressable
               key={pane}
               accessibilityRole="tab"
               accessibilityState={{ selected: phonePane === pane }}
-              onPress={() => setPhonePane(pane)}
+              onPress={() => selectPhonePane(pane)}
               style={[styles.tab, phonePane === pane && styles.activeTab]}
             >
               <Text style={styles.tabText}>{pane.toUpperCase()}</Text>
@@ -108,24 +121,77 @@ export function MainScreen() {
         </View>
       ) : null}
       <View style={styles.workspace}>
-        {wide || phonePane === "library" ? (
-          <View style={wide ? styles.sidebarWide : styles.fullPane}>
-            <Sidebar
-              onSelected={() => setPhonePane("stage")}
-              onShowOnboarding={() => setShowOnboarding(true)}
-            />
-          </View>
-        ) : null}
-        {wide || phonePane === "stage" ? (
-          <View style={wide ? styles.stageWide : styles.fullPane}>
-            <StagePanel reducedMotion={reducedMotion} />
-          </View>
-        ) : null}
-        {wide || phonePane === "inspect" ? (
-          <View style={wide ? styles.inspectorWide : styles.fullPane}>
-            <InspectorPanel />
-          </View>
-        ) : null}
+        {wide ? (
+          wideMode === "field" ? (
+            <View style={styles.fullPane}>
+              <FieldPanel
+                onOpenStage={() => {
+                  setStageCommerce(false);
+                  selectWideMode("companion");
+                }}
+              />
+            </View>
+          ) : wideMode === "companion" ? (
+            <View style={styles.fullPane}>
+              <StagePanel commerce="hidden" reducedMotion={reducedMotion} />
+            </View>
+          ) : (
+            <>
+              <View style={styles.sidebarWide}>
+                <Sidebar
+                  onSelected={() => {
+                    setStageCommerce(true);
+                    selectWideMode("habitat");
+                  }}
+                  onShowOnboarding={() => setShowOnboarding(true)}
+                />
+              </View>
+              <View style={styles.stageWide}>
+                <StagePanel commerce="allowed" reducedMotion={reducedMotion} />
+              </View>
+              <View style={styles.inspectorWide}>
+                <InspectorPanel />
+              </View>
+            </>
+          )
+        ) : (
+          <>
+            {phonePane === "field" ? (
+              <View style={styles.fullPane}>
+                <FieldPanel
+                  onOpenStage={() => {
+                    setStageCommerce(false);
+                    selectPhonePane("stage");
+                  }}
+                />
+              </View>
+            ) : null}
+            {phonePane === "library" ? (
+              <View style={styles.fullPane}>
+                <Sidebar
+                  onSelected={() => {
+                    setStageCommerce(true);
+                    selectPhonePane("stage");
+                  }}
+                  onShowOnboarding={() => setShowOnboarding(true)}
+                />
+              </View>
+            ) : null}
+            {phonePane === "stage" ? (
+              <View style={styles.fullPane}>
+                <StagePanel
+                  commerce={stageCommerce ? "allowed" : "hidden"}
+                  reducedMotion={reducedMotion}
+                />
+              </View>
+            ) : null}
+            {phonePane === "inspect" ? (
+              <View style={styles.fullPane}>
+                <InspectorPanel />
+              </View>
+            ) : null}
+          </>
+        )}
       </View>
       <Onboarding
         visible={showOnboarding}
@@ -153,6 +219,24 @@ const styles = StyleSheet.create({
   workspace: {
     flex: 1,
     flexDirection: "row",
+  },
+  wideModes: {
+    flexDirection: "row",
+    gap: 6,
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.panel,
+  },
+  wideMode: {
+    minWidth: 150,
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+  },
+  wideModeActive: {
+    backgroundColor: colors.panelRaised,
   },
   sidebarWide: {
     width: 310,
@@ -204,30 +288,6 @@ const styles = StyleSheet.create({
   infoBanner: {
     padding: 10,
     backgroundColor: "#123c55",
-  },
-  billingBanner: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    backgroundColor: "#443116",
-    borderBottomColor: colors.amber,
-    borderBottomWidth: 1,
-  },
-  billingError: {
-    backgroundColor: "#512127",
-    borderBottomColor: colors.red,
-  },
-  billingText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  billingLink: {
-    color: colors.text,
-    fontWeight: "900",
   },
   bannerText: {
     flex: 1,

@@ -68,6 +68,18 @@ export function Onboarding({
             definition="The underlying organism product system and whole-business thesis."
           />
           <VocabularyCard
+            term="Holo Field"
+            definition="The permissionless offline radar where a player joins one House, discovers nearby Holo signals, and meets Rapters without sharing location or identity."
+          />
+          <VocabularyCard
+            term="Four starting Houses"
+            definition="Overwatch, Scout, Forge, and Sentinel organize community and perspective. Houses never change power, prices, encounters, companion capability, or economic weight."
+          />
+          <VocabularyCard
+            term="Companion / Work"
+            definition="Companion mode contains play, presence, history, and relationship with no commerce. Work mode is a separately entered proof-first service lane."
+          />
+          <VocabularyCard
             term="Living digital organism"
             definition={`${brand.rapterPositioning} Verified source plus Rolling Core successor mutations are ticks of existence. The host reports Awake, Sleeping, Quarantined, or Unborn. Holo Zoo uses Waking only while checking for the next verified successor.`}
           />
@@ -92,6 +104,7 @@ export function Onboarding({
             breathing requires optional bounded Wild cloud compute.
             Private on-device context stays private; only an explicit,
             DOGG-safe publication can enter public provenance.
+            The relationship and the game always outrank the business model.
           </Text>
           <Button tone="accent" onPress={() => void finish()}>
             Enter Holo Zoo

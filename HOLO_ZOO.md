@@ -19,6 +19,7 @@ look like.
 
 The Holo Zoo is:
 
+- the Holo Field: an offline discovery radar and House entry point;
 - a local-first Holo/1 player;
 - an append-only archive of verified holo frames;
 - a live view of each AI's current holographic head;
@@ -37,6 +38,9 @@ The Holo Zoo is:
 
 The Zoo is not:
 
+- a location tracker or physical-destination generator;
+- a place where spending buys affection, survival, House power, encounters,
+  Growth, or companion capability;
 - a hologram author;
 - an avatar builder;
 - a humanoid generator;

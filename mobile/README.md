@@ -39,6 +39,17 @@ discover organism
 RAPP/1 is the substrate. Rapterbox is the storefront. Cloud inference is an
 optional service, never a prerequisite for local ownership or playback.
 
+The default app surface is **Holo Field**: a permissionless offline radar that
+combines organism discovery and companionship with a separately entered Work
+mode. The current Work mode is explicitly `local-work-preview/1`; it creates no
+official RapterWorks job, payment, tip, public proof, Coin, or service claim.
+See [`../HOLO_ZOO_FIELD_DISPATCH.md`](../HOLO_ZOO_FIELD_DISPATCH.md).
+
+The binding gameplay rule is
+[`../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md):
+spending cannot alter affection, memory, survival, House identity, encounter
+odds, Growth, companion capability, or provenance truth.
+
 The repository also reserves a dormant Rapter Coin Trail seam for
 intentionally public DOGG-safe frames. It is not exposed in Holo Zoo, has no
 wallet, balance, market, transfer, cash value, or yield, and never includes
@@ -341,7 +352,12 @@ hold breath and leave the last valid core and history intact.
 ## Capabilities
 
 - Responsive three-panel workspace on wide screens and stacked
-  Library/Stage/Inspect navigation on phones.
+  Field/Library/Stage/Inspect navigation on phones.
+- Offline Holo Field radar with deterministic public-organism signals, four
+  local-only starting Houses, and no GPS or map-provider dependency.
+- Explicit Companion and Work modes. Companion mode contains no commerce; Work
+  mode is a bounded, visibly nonofficial UI walkthrough until durable
+  RapterWorks services launch.
 - Holo Zoo consumer habitat, player, and immutable Rolling Core library.
 - Configurable RAPP Zoo host for connected Rapters with sandboxed non-secret
   persistence.
@@ -421,3 +437,9 @@ with points-plus-UTC eligibility and no pay-to-evolve semantics.
 See [`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md) for the
 dormant public-frame provenance seam, public DOGG/private GODD split, title
 resolution, tip attribution, activation gates, and anti-speculation rules.
+See [`../HOLO_ZOO_FIELD_DISPATCH.md`](../HOLO_ZOO_FIELD_DISPATCH.md) for the
+unified Field/companion/work interaction model.
+See
+[`../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md)
+for the release-blocking no-pay-to-win, no-pay-to-live, no-guilt, and
+full-delivery-before-compensation rules.

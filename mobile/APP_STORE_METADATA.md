@@ -58,6 +58,11 @@ Meet a living digital organism in Holo Zoo. Follow its verified Rolling Core
 ticks, explore immutable visual history, inspect RAPP/1 evidence, and hear
 completed Growl expressions.
 
+Start in Holo Field: choose Overwatch, Scout, Forge, or Sentinel and explore an
+offline radar of local Holo signals. The Field requests no GPS, contacts no map
+provider, and gives every player the same encounter roster regardless of House
+or spending.
+
 ### Description
 
 Holo Zoo is the Rapterbox consumer app where a Rapter lives as a digital
@@ -119,6 +124,14 @@ Holo Zoo,Rolling Cores,Rapterbox,Rapter,Rappter,RAPP,AI,hologram,MIDI,Growl
 
 - The app opens with a bundled signed local Rapter capsule and does not require
   an account.
+- Holo Field is a permissionless offline radar. It requests no location
+  permission and generates no physical destinations.
+- Houses are local identity only and do not affect power, encounter odds,
+  companion capability, price, Growth, or economic weight.
+- Companion mode contains no commercial actions. Work mode is explicitly
+  entered and currently labeled **UI walkthrough only** with
+  **workflow preview** states. It creates no official job, work, proof,
+  artifact, delivery, payment, tip, public proof, Coin, or service claim.
 - Holo Zoo is the consumer app and habitat/player/library for Rolling Cores.
 - Liveness comes from the `liveness` member of `/api/holo/heads`, not animation,
   credentials, or connectivity. Host states are awake, sleeping, quarantined,

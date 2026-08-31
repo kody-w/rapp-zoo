@@ -390,7 +390,7 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
     setSourceProof({
       kind: "unavailable",
       message:
-        "Gallery preview only. Purchase and redeem a Rapter credit to own the signed capsule.",
+        "Gallery preview only. Exact signed source and custody proof are unavailable in preview.",
     });
     setPlayerStatus(emptyStatus);
   }

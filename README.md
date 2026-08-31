@@ -202,6 +202,9 @@ The one-to-one organism ownership record is specified in
 The dormant one-public-frame/one-provenance-ID seam is specified in
 [`RAPTER_COIN_ARCHITECTURE.md`](./RAPTER_COIN_ARCHITECTURE.md). It has no
 wallet, market, transfer, cash value, or consumer launch surface.
+The unified discovery/companionship/work product is specified in
+[`HOLO_ZOO_FIELD_DISPATCH.md`](./HOLO_ZOO_FIELD_DISPATCH.md), under the binding
+[`HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](./HOLO_ZOO_GAMEPLAY_CONSTITUTION.md).
 The organism lifecycle is specified in
 [`ROLLING_CORE_PROTOCOL.md`](./ROLLING_CORE_PROTOCOL.md).
 
