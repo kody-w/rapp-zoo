@@ -39,6 +39,14 @@ discover organism
 RAPP/1 is the substrate. Rapterbox is the storefront. Cloud inference is an
 optional service, never a prerequisite for local ownership or playback.
 
+The repository also reserves a dormant Rapter Coin Trail seam for
+intentionally public DOGG-safe frames. It is not exposed in Holo Zoo, has no
+wallet, balance, market, transfer, cash value, or yield, and never includes
+private GODD/on-device context. The seam exists only so useful public frames
+can retain exact provenance and future attribution without changing capsule or
+Rolling Core identity later. See
+[`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md).
+
 ## Verified-tick liveness
 
 A source frame plus its verified successor Rolling Core frame is a **tick of
@@ -80,6 +88,10 @@ development machine and device can reach one another.
 
 The default host is `http://127.0.0.1:5000`. Android emulators commonly reach
 the development machine at `http://10.0.2.2:5000`; set that URL in the app.
+Android prebuilds use the checked-in
+`plugins/with-private-network-http.js` config plugin to preserve these
+explicitly selected loopback/private-LAN HTTP flows. The application validator
+continues to refuse credentials and public cleartext endpoints.
 
 ## Checks
 
@@ -229,6 +241,12 @@ Holo Zoo implements no Bitcoin wallet, custody, transfer, exchange, or
 direct BTC checkout. A future Rapterbox web BTC purchase and an App Store/Play
 receipt redemption can call the same backend minting protocol and return the
 same capsule/credit record shape.
+
+The reserved Rapter Coin Trail is separate from Rapter Credits and Bitcoin.
+The submitted app does not create, display, sell, trade, redeem, or value
+Coins. Any future activation requires a new signed policy, explicit opt-in,
+privacy and fraud review, and current legal/store-policy approval after Holos
+have demonstrated real utility.
 
 Consumed products are not guaranteed to remain recoverable from every platform
 receipt—particularly Google Play Billing 8. The account ledger exists only for
@@ -400,3 +418,6 @@ shared-world unlock boundary kept separate from individual progress.
 See [`STAGE_TIMELINE_ARCHITECTURE.md`](./STAGE_TIMELINE_ARCHITECTURE.md) for
 the typed free Origin and signed Journey/Ascendant stage reference timeline,
 with points-plus-UTC eligibility and no pay-to-evolve semantics.
+See [`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md) for the
+dormant public-frame provenance seam, public DOGG/private GODD split, title
+resolution, tip attribution, activation gates, and anti-speculation rules.

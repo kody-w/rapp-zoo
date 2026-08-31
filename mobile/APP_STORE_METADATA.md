@@ -159,6 +159,9 @@ Holo Zoo,Rolling Cores,Rapterbox,Rapter,Rappter,RAPP,AI,hologram,MIDI,Growl
   require backend-verified settlement.
 - Birth value, current seller ask, and last verified sale are displayed
   separately. No appreciation, investment-return, or liquidity claim is made.
+- The reserved Rapter Coin Trail is dormant protocol architecture only. This
+  release has no Coin minting, balance, wallet, sale, transfer, exchange,
+  redemption, cash value, yield, or consumer-facing Coin copy.
 
 ## Google Play draft
 
@@ -213,6 +216,10 @@ RevenueCat and the platform store.
   claims.
 - Rapterbox web BTC checkout, if launched later, must remain outside this app
   unless counsel confirms the current store rules permit the intended flow.
+- Do not market or activate the dormant Rapter Coin Trail until Holos
+  demonstrate real utility and the exact future model passes privacy, fraud,
+  accounting, tax, payments, consumer-protection, store-policy, and
+  digital-asset review.
 - The Rapterbox owner must obtain current App Review, payments, consumer-law,
   tax, sanctions, money-transmission, and digital-asset counsel before launch.
 - Registry status controls official ownership/redownload/transfer claims, not

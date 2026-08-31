@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rapter Coin Trail/1 dormant public-frame provenance record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "coin_id",
+    "organism_rappid",
+    "publisher_rappid",
+    "publisher_authorization_hash",
+    "dogg_publication_hash",
+    "core_frame_hash",
+    "core_seq",
+    "coin_seq",
+    "source_frame_hash",
+    "previous_coin_id",
+    "rights_profile_id",
+    "rights_profile_hash",
+    "visibility",
+    "economics",
+    "created_utc"
+  ],
+  "properties": {
+    "schema": {
+      "const": "rapp-rapter-coin/1"
+    },
+    "coin_id": {
+      "type": "string",
+      "pattern": "^rcoin:[0-9a-f]{64}$"
+    },
+    "organism_rappid": {
+      "$ref": "#/$defs/rappid"
+    },
+    "publisher_rappid": {
+      "$ref": "#/$defs/rappid"
+    },
+    "publisher_authorization_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "dogg_publication_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "core_frame_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "core_seq": {
+      "$ref": "#/$defs/uint53"
+    },
+    "coin_seq": {
+      "$ref": "#/$defs/uint53"
+    },
+    "source_frame_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "previous_coin_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^rcoin:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rights_profile_id": {
+      "$ref": "#/$defs/label"
+    },
+    "rights_profile_hash": {
+      "$ref": "#/$defs/hex64"
+    },
+    "visibility": {
+      "const": "public-dogg"
+    },
+    "economics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "cash_value",
+        "purchasable",
+        "redeemable",
+        "transferable",
+        "yield_bearing"
+      ],
+      "properties": {
+        "status": {
+          "const": "dormant"
+        },
+        "cash_value": {
+          "type": "null"
+        },
+        "purchasable": {
+          "const": false
+        },
+        "redeemable": {
+          "const": false
+        },
+        "transferable": {
+          "const": false
+        },
+        "yield_bearing": {
+          "const": false
+        }
+      }
+    },
+    "created_utc": {
+      "$ref": "#/$defs/utc"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "coin_seq": {
+            "const": 0
+          }
+        },
+        "required": [
+          "coin_seq"
+        ]
+      },
+      "then": {
+        "properties": {
+          "previous_coin_id": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "previous_coin_id": {
+            "type": "string",
+            "pattern": "^rcoin:[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  ],
+  "$comment": "Schema validates record shape. Runtime trail acceptance also requires the resolved predecessor, full accepted body/source evidence, publisher authorization, and atomic append.",
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uint53": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "rappid": {
+      "type": "string",
+      "maxLength": 213,
+      "pattern": "^rappid:@(?=[a-z0-9-]{1,39}/)[a-z0-9]+(?:-[a-z0-9]+)*/(?=[a-z0-9-]{1,100}:)[a-z0-9]+(?:-[a-z0-9]+)*:[0-9a-f]{64}$"
+    },
+    "utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:(?!0000)[0-9]{4})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12][0-9]|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12][0-9]|30)|02-(?:0[1-9]|1[0-9]|2[0-8]))|(?:(?:[0-9]{2}(?:0[48]|[2468][048]|[13579][26])|(?:0[48]|[2468][048]|[13579][26])00)-02-29))T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$"
+    }
+  }
+}

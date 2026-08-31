@@ -90,6 +90,8 @@ export function Onboarding({
             and remote Rapters; 3- and 10-slot plans support a Rappter flock.
             iOS suspends local Direct breathing away from the app; continuous
             breathing requires optional bounded Wild cloud compute.
+            Private on-device context stays private; only an explicit,
+            DOGG-safe publication can enter public provenance.
           </Text>
           <Button tone="accent" onPress={() => void finish()}>
             Enter Holo Zoo

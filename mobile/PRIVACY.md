@@ -9,6 +9,11 @@ Network requests go only to the host explicitly configured by the user. The
 embedded Holo player has `connect-src 'none'`, cannot navigate to arbitrary
 remote pages, and uses only bundled renderer code and authored data.
 
+Android native builds permit cleartext transport so user-selected loopback and
+private-LAN RAPP Zoo or Direct-provider endpoints continue to work. Holo Zoo's
+URL validator refuses credentials and public cleartext hosts; the Holo player
+still has no network capability.
+
 When connected, Holo Zoo reads liveness from the configured host's
 `/api/holo/heads` response. Awake, Sleeping, Quarantined, and Unborn are derived
 from verified source/Rolling Core tick cadence and lease timestamps. Waking is
@@ -17,6 +22,13 @@ not fabricate activity from animation, credentials, or connectivity.
 
 Imported files remain local unless the user explicitly exports one through the
 system share sheet or browser download.
+
+The reserved Rapter Coin Trail never turns local history into public data.
+Only an explicitly published, DOGG-safe frame may receive a deterministic
+public provenance ID. Private GODD/on-device prompts, memories, customer
+content, keys, receipts, health data, legal records, and unpublished mutations
+remain ineligible. The current Holo Zoo release keeps Coin projection and
+display disabled.
 
 An owned organism is represented by a signed local Rolling Core Capsule.
 Capsules are verified before import and stored in app document storage. They
@@ -34,6 +46,11 @@ The proof may include immutable public birth-valuation metadata: Rapterbox
 tier/set schedule, fixed sats, conception BTC/USD quote, and fiat reference.
 Any separately fetched current BTC conversion is optional, live,
 non-authoritative, and is not stored as the official birth value.
+
+Rapter Credit ownership proof and dormant Rapter Coin provenance are separate.
+A Coin carries no owner, wallet, balance, cash value, purchase, redemption,
+transfer, or yield field. Official lineage title continues to come only from
+the signed Rapter Credit registry.
 
 The app may mirror a signed public ownership-status record from Rapterbox's
 authoritative registry. The registry controls official ownership claims,

@@ -41,6 +41,22 @@ real twin:     one Rapter Credit + append-only ownership history
 They are one commercial unit but remain separate cryptographic objects so
 neither has to hash itself.
 
+### 1.1 Not the Rapter Coin Trail
+
+A Rapter Credit is the one-per-lineage title and ownership record. It is not a
+Rapter Coin.
+
+The separately reserved
+[`rapp-rapter-coin/1`](./RAPTER_COIN_ARCHITECTURE.md) architecture derives one
+dormant, non-transferable provenance identity from each intentionally public
+verified Rolling Core frame. Coins do not grant title, access, compute, cash
+value, or ownership. The Credit registry remains the only official lineage
+title authority.
+
+This separation prevents frame growth from reminting ownership and prevents
+ownership commerce from turning ordinary public frames into speculative
+inventory.
+
 ---
 
 ## 2. Important correction: hashes do not create scarcity

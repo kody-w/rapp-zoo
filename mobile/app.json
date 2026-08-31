@@ -6,7 +6,6 @@
     "scheme": "holo-zoo",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "icon": "./assets/images/icon.png",
     "assetBundlePatterns": [
       "assets/**/*"
@@ -53,7 +52,6 @@
       "permissions": [
         "INTERNET"
       ],
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-foreground.png",
         "backgroundColor": "#07111F"
@@ -85,6 +83,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-private-network-http",
       [
         "expo-splash-screen",
         {
