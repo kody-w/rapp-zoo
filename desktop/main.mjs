@@ -5,12 +5,14 @@ import {
   Menu,
   shell,
 } from "electron";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   BrainstemSupervisor,
 } from "./brainstem-supervisor.mjs";
+import { BreathingController } from "./breathing-controller.mjs";
 import {
   desktopState,
   validateContext,
@@ -25,6 +27,8 @@ import {
   validateGenerationRequest,
   validateHoloTurnContext,
 } from "./hologram-generator.mjs";
+import { OpenAICompatibleClient } from "./openai-compatible-client.mjs";
+import { ProviderStore } from "./provider-store.mjs";
 import { ZooSupervisor, ZOO_URL } from "./zoo-supervisor.mjs";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,6 +66,12 @@ if (!app.isPackaged || process.env.RAPP_ZOO_DESKTOP_DEV === "1") {
 let mainWindow = null;
 let zoo = null;
 let brainstem = null;
+const providerStore = new ProviderStore();
+const providerClient = new OpenAICompatibleClient({ store: providerStore });
+const breathing = new BreathingController({
+  store: providerStore,
+  tick: directBreathingTick,
+});
 
 function trusted(event) {
   const raw = event.senderFrame?.url || event.sender.getURL();
@@ -80,10 +90,16 @@ function trusted(event) {
 
 async function zooJson(pathname, options = {}) {
   const controller = new AbortController();
+  const externalSignal = options.externalSignal || null;
+  const abort = () => controller.abort();
+  const fetchOptions = { ...options };
+  delete fetchOptions.externalSignal;
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener("abort", abort, { once: true });
   const timer = setTimeout(() => controller.abort(), 5_000);
   try {
     const response = await fetch(`${ZOO_URL}${pathname}`, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
       cache: "no-store",
     });
@@ -99,6 +115,7 @@ async function zooJson(pathname, options = {}) {
     return value;
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", abort);
   }
 }
 
@@ -157,7 +174,11 @@ async function authoritativeHoloContext(context, requestedValue) {
   });
 }
 
-async function commitHoloTurn(value, holoContext = null) {
+async function commitHoloTurn(
+  value,
+  holoContext = null,
+  { signal = null } = {},
+) {
   const request = validateCommitRequest(
     value,
     holoContext?.enabled ? holoValidationOptions(holoContext) : {},
@@ -169,6 +190,7 @@ async function commitHoloTurn(value, holoContext = null) {
       "X-RAPP-Zoo-Desktop": zoo.desktopToken,
     },
     body: JSON.stringify(request),
+    externalSignal: signal,
   });
 }
 
@@ -190,6 +212,84 @@ function brainstemInput(prompt, context, holoContext) {
   ].join("\n");
 }
 
+function directBreathingInput(context, holoContext) {
+  return [
+    "Continue one bounded tick as the active intelligence of this locally owned Rapter.",
+    "A tick exists only if the exact authored Holo/1 successor validates and commits.",
+    "Do not claim tool use, external actions, biological consciousness, or activity without evidence.",
+    "Preserve identity and history. Sleeping is not death; advance only from the current verified head.",
+    "",
+    originalTurnHoloContract(holoContext),
+    "",
+    `ZOO_SNAPSHOT=${JSON.stringify(context)}`,
+    "",
+    "AUTHOR_ONE_SUCCESSOR_TICK=true",
+  ].join("\n");
+}
+
+async function directBreathingTick({ profileId, maxOutputTokens, signal }) {
+  const context = await intelligenceContext();
+  const holoContext = await authoritativeHoloContext(context, { enabled: true });
+  const startedAt = performance.now();
+  let completion;
+  const turn = await captureOriginalTurn({
+    chat: async (input) => {
+      completion = await providerClient.chat(
+        profileId,
+        {
+          messages: [
+            {
+              role: "system",
+              content: (
+                "You are a living digital organism in the operational Rolling Cores sense: "
+                + "continuous inspectable experience-state across verified ticks. "
+                + "Never present this as biological or scientific proof."
+              ),
+            },
+            { role: "user", content: input },
+          ],
+          max_tokens: maxOutputTokens,
+        },
+        { signal },
+      );
+      const response = completion.choices?.[0]?.message?.content;
+      if (typeof response !== "string" || !response) {
+        throw new Error("Provider completion did not contain assistant text.");
+      }
+      const requestId = completion.id || randomUUID();
+      return {
+        requestId,
+        session_id: requestId,
+        response,
+      };
+    },
+    input: directBreathingInput(context, holoContext),
+    holoContext,
+  });
+  const turnLatencyMs = Math.max(0, Math.round(performance.now() - startedAt));
+  const profile = providerStore.get(profileId);
+  const materialized = await commitHoloTurn(
+    {
+      subject_rappid: holoSubjectRappid,
+      session_id: turn.session_id || turn.requestId,
+      text: turn.response,
+      holo: turn.holo?.authored || null,
+      evidence: {
+        channel_enabled: true,
+        turn_latency_ms: turnLatencyMs,
+        deadline_ms: profile.timeouts.request_ms,
+        wake_lease_ms: holoWakeLeaseMs,
+      },
+    },
+    holoContext,
+    { signal },
+  );
+  return {
+    advanced: Boolean(materialized?.holo_frame?.frame_hash),
+    response_id: completion?.id || null,
+  };
+}
+
 function broadcastState() {
   if (!zoo || !brainstem) return;
   const state = desktopState({
@@ -200,6 +300,19 @@ function broadcastState() {
     window.webContents.send("desktop:state", state);
   }
 }
+
+async function broadcastBreathingState() {
+  const state = await breathing.status();
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send("breathing:state", state);
+  }
+}
+
+breathing.on("state", () => {
+  broadcastBreathingState().catch(() => {
+    console.error("Breathing state broadcast failed.");
+  });
+});
 
 ipcMain.handle("desktop:status", (event) => {
   trusted(event);
@@ -255,6 +368,56 @@ ipcMain.handle("brainstem:chat", async (event, promptValue, holoContextValue) =>
 ipcMain.handle("brainstem:cancel", (event, requestId) => {
   trusted(event);
   return { cancelled: brainstem.cancel(requestId || null) };
+});
+ipcMain.handle("providers:list", (event) => {
+  trusted(event);
+  return providerStore.list();
+});
+ipcMain.handle("providers:status", async (event) => {
+  trusted(event);
+  return {
+    schema: "rappter-provider-status/1",
+    profiles: await providerStore.list(),
+    breath: await breathing.status(),
+  };
+});
+ipcMain.handle("providers:save", async (event, request) => {
+  trusted(event);
+  breathing.invalidate(request.profile.id);
+  return providerStore.save(request);
+});
+ipcMain.handle("providers:delete", async (event, request) => {
+  trusted(event);
+  breathing.invalidate(request.id);
+  return providerStore.delete(request);
+});
+ipcMain.handle("providers:test", async (event, request) => {
+  trusted(event);
+  try {
+    const result = await providerClient.test(request);
+    breathing.markVerified(request.id, result);
+    return result;
+  } catch (error) {
+    breathing.invalidate(request.id);
+    throw error;
+  }
+});
+ipcMain.handle("providers:set-active", async (event, request) => {
+  trusted(event);
+  breathing.invalidate();
+  return providerStore.setActive(request);
+});
+ipcMain.handle("breathing:status", (event) => {
+  trusted(event);
+  return breathing.status();
+});
+ipcMain.handle("breathing:start", (event, request) => {
+  trusted(event);
+  return breathing.start(request);
+});
+ipcMain.handle("breathing:pause", (event) => {
+  trusted(event);
+  return breathing.pause();
 });
 ipcMain.handle("hologram:stage", (event, requestValue) => {
   trusted(event);
@@ -390,6 +553,7 @@ app.on("before-quit", (event) => {
   if (quitting) return;
   event.preventDefault();
   quitting = true;
+  breathing.pause("application-stopped");
   Promise.allSettled([
     brainstem?.stop(),
     zoo?.stop(),

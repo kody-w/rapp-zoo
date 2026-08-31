@@ -1,5 +1,6 @@
 import {
   validateHoloValue,
+  validateRappFrameValue,
   verifySourceFrame,
 } from "@/lib/holo";
 import {
@@ -16,6 +17,8 @@ const DIRECT_DEADLINE_MS = 30_000;
 export async function requestDirectSuccessorTick({
   settings,
   current,
+  previousSourceFrame,
+  previousBodyFrame,
   maxContextBytes,
   maxOutputTokens,
   wakeLeaseMs,
@@ -25,6 +28,8 @@ export async function requestDirectSuccessorTick({
 }: {
   settings: DirectProviderSettings;
   current: ValidatedHolo;
+  previousSourceFrame: JsonObject;
+  previousBodyFrame: JsonObject;
   maxContextBytes: number;
   maxOutputTokens: number;
   wakeLeaseMs: number;
@@ -107,6 +112,8 @@ export async function requestDirectSuccessorTick({
   );
   return materializeDirectSuccessor({
     current,
+    previousSourceFrame,
+    previousBodyFrame,
     text,
     authored,
     wakeLeaseMs,
@@ -117,6 +124,8 @@ export async function requestDirectSuccessorTick({
 
 export function materializeDirectSuccessor({
   current,
+  previousSourceFrame,
+  previousBodyFrame,
   text,
   authored,
   wakeLeaseMs,
@@ -124,12 +133,22 @@ export function materializeDirectSuccessor({
   utc,
 }: {
   current: ValidatedHolo;
+  previousSourceFrame: JsonObject;
+  previousBodyFrame: JsonObject;
   text: string;
   authored: JsonObject;
   wakeLeaseMs: number;
   turnLatencyMs: number;
   utc: string;
 }): { holo: ValidatedHolo; source: JsonObject } {
+  const verifiedSource = verifySourceFrame(previousSourceFrame, current);
+  const verifiedBody = validateHoloValue(previousBodyFrame);
+  require(
+    verifiedBody.outerFrame !== null &&
+      verifiedBody.id === current.id &&
+      canonicalize(verifiedBody.outerFrame) === canonicalize(current.outerFrame),
+    "Previous body frame does not match the current Rolling Core.",
+  );
   const sourcePayload: JsonObject = {
     role: "assistant",
     text,
@@ -148,8 +167,9 @@ export function materializeDirectSuccessor({
     sequence: current.sourceSequence + 1,
     utc,
     payload: sourcePayload,
-    previous: current.sourceFrameHash,
+    previous: verifiedSource.payload_hash as string,
   });
+  validateContinuity(source, verifiedSource, "source");
   const record: JsonObject = {
     schema: "rapp-holo-record/1",
     holo_seq: current.holoSequence + 1,
@@ -168,13 +188,14 @@ export function materializeDirectSuccessor({
       ? current.outerFrame.seq + 1
       : current.holoSequence + 1;
   const outer = rappFrame({
-    kind: "body.hologram",
+    kind: "body.pulse",
     streamId: current.subjectRappid,
     sequence: outerSequence,
     utc,
     payload: record,
-    previous: current.id,
+    previous: verifiedBody.outerFrame.payload_hash as string,
   });
+  validateContinuity(outer, verifiedBody.outerFrame, "body");
   const holo = validateHoloValue(outer);
   verifySourceFrame(source, holo);
   return { holo, source };
@@ -211,6 +232,30 @@ function rappFrame({
     frame_hash: domainHash("rapp/1:wave", preimage),
     sig: null,
   };
+}
+
+function validateContinuity(
+  frame: JsonObject,
+  previousFrame: JsonObject,
+  label: string,
+): void {
+  const verifiedPrevious = validateRappFrameValue(previousFrame);
+  require(
+    frame.stream_id === verifiedPrevious.stream_id,
+    `Direct ${label} successor changed stream_id.`,
+  );
+  require(
+    frame.seq === (verifiedPrevious.seq as number) + 1,
+    `Direct ${label} successor sequence is not contiguous.`,
+  );
+  require(
+    frame.prev === verifiedPrevious.payload_hash,
+    `Direct ${label} successor prev does not match prior payload_hash.`,
+  );
+  require(
+    (frame.utc as string) >= (verifiedPrevious.utc as string),
+    `Direct ${label} successor UTC precedes its prior frame.`,
+  );
 }
 
 function expressionWithoutBase(value: JsonObject): string {

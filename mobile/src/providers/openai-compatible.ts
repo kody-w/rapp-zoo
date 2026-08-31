@@ -19,6 +19,7 @@ export function createDirectProvider(
     settings.endpoint,
     settings.model,
     { Authorization: `Bearer ${settings.apiKey}` },
+    true,
     fetchImpl,
   );
 }
@@ -35,6 +36,7 @@ export function createWildProvider(
     options.endpoint,
     options.model,
     headers,
+    Boolean(options.sessionToken),
     fetchImpl,
   );
 }
@@ -44,9 +46,10 @@ function createProvider(
   endpoint: string,
   model: string,
   extraHeaders: Record<string, string>,
+  authenticated: boolean,
   fetchImpl: FetchLike,
 ): OpenAICompatibleProvider {
-  const normalizedEndpoint = normalizeOpenAIEndpoint(endpoint);
+  const normalizedEndpoint = normalizeOpenAIEndpoint(endpoint, authenticated);
   if (!model.trim()) {
     throw new Error("An OpenAI-compatible model identifier is required.");
   }
@@ -123,7 +126,10 @@ export async function testDirectProvider(
   }
 }
 
-export function normalizeOpenAIEndpoint(value: string): string {
+export function normalizeOpenAIEndpoint(
+  value: string,
+  authenticated = true,
+): string {
   let url: URL;
   try {
     url = new URL(value.trim());
@@ -133,9 +139,12 @@ export function normalizeOpenAIEndpoint(value: string): string {
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("OpenAI-compatible endpoint must use http or https.");
   }
-  if (url.protocol === "http:" && !isLocalHostname(url.hostname)) {
+  if (
+    url.protocol === "http:" &&
+    (authenticated || !isLoopbackHostname(url.hostname))
+  ) {
     throw new Error(
-      "Provider API keys require HTTPS unless the endpoint is on localhost or a private local network.",
+      "Provider credentials require HTTPS; HTTP is allowed only for unauthenticated loopback providers.",
     );
   }
   if (url.username || url.password || url.search || url.hash) {
@@ -146,19 +155,12 @@ export function normalizeOpenAIEndpoint(value: string): string {
   return url.toString().replace(/\/$/, "");
 }
 
-function isLocalHostname(hostname: string): boolean {
-  if (
+function isLoopbackHostname(hostname: string): boolean {
+  return (
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
-    hostname === "[::1]" ||
-    hostname.endsWith(".local")
-  ) {
-    return true;
-  }
-  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
-  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
-  const match = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(hostname);
-  return match !== null && Number(match[1]) >= 16 && Number(match[1]) <= 31;
+    hostname === "[::1]"
+  );
 }
 
 export function configuredWildBrainstem(): {

@@ -326,7 +326,7 @@ currency price.
 
 Each attempt asks the configured OpenAI-compatible provider for one authored
 successor candidate. Holo Zoo materializes its local RAPP source and
-`body.hologram` frames, verifies hashes, source binding, subject, sequence,
+`body.pulse` frames, verifies hashes, source binding, subject, sequence,
 visual parent, and an actual experience-state mutation, then stores the tick.
 Invalid output never advances the Rolling Core.
 

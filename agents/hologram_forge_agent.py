@@ -59,10 +59,10 @@ __manifest__ = {
 
 def _load_shared_holo_protocol():
     agent_path = Path(__file__).resolve()
-    if agent_path.name.startswith("rapp_zoo_"):
-        candidates = (agent_path.parent / "rapp_zoo_holo_protocol",)
-    else:
-        candidates = (agent_path.parents[1] / "utils",)
+    candidates = (
+        agent_path.parent / "rapp_zoo_holo_protocol",
+        agent_path.parents[1] / "utils",
+    )
     module_root = next(
         (
             candidate

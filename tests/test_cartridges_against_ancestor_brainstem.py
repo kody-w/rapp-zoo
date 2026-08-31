@@ -107,6 +107,10 @@ def _stage_cartridges() -> str:
     ):
         src = _REPO_ROOT / "agents" / cart
         shutil.copy2(src, os.path.join(tmp_agents, cart))
+    protocol_dir = pathlib.Path(tmp_agents) / "rapp_zoo_holo_protocol"
+    protocol_dir.mkdir()
+    for filename in ("holo_protocol.py", "rapp_protocol.py"):
+        shutil.copy2(_REPO_ROOT / "utils" / filename, protocol_dir / filename)
     return tmp_agents
 
 
@@ -121,6 +125,27 @@ def _register_protocol_shim():
     if utils_pkg is not None:
         setattr(utils_pkg, "rapp_protocol", rapp_protocol)
     return rapp_protocol
+
+
+class TestDocumentedCartridgeInstall(unittest.TestCase):
+    def test_readme_installs_both_protocol_modules_in_the_sibling_package(self):
+        readme = (_REPO_ROOT / "README.md").read_text()
+        self.assertIn(
+            'mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"',
+            readme,
+        )
+        self.assertIn(
+            "cp utils/holo_protocol.py utils/rapp_protocol.py \\\n"
+            '  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"',
+            readme,
+        )
+        agents_dir = pathlib.Path(_stage_cartridges())
+        try:
+            protocol_dir = agents_dir / "rapp_zoo_holo_protocol"
+            self.assertTrue((protocol_dir / "holo_protocol.py").is_file())
+            self.assertTrue((protocol_dir / "rapp_protocol.py").is_file())
+        finally:
+            shutil.rmtree(agents_dir, ignore_errors=True)
 
 
 @unittest.skipUnless(HAVE_BRAINSTEM, "ancestor brainstem.py not available")

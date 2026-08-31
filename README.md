@@ -51,6 +51,85 @@ npm run desktop
 
 The desktop intelligence panel calls that Brainstem's single `/chat` surface. GitHub Copilot can use the full installed agent/tool set to inspect, build, test, and operate the computer; high-impact or externally publishing actions remain explicit authorization boundaries. `HologramForge` and `HologramDOGG` are installed as ordinary hotloaded agents. Set `RAPP_ZOO_BRAINSTEM_MODEL` to request a foundry model; the app requests `gpt-5.6-sol` by default, while the installed Brainstem remains authoritative over model availability and fallback.
 
+The Electron provider layer also supports Direct and Wild OpenAI-compatible
+profiles. Profiles contain only endpoint/model/auth metadata; macOS credentials
+are stored globally in Keychain under service
+`com.rapterbox.rollingcores.openai-compatible`, keyed by profile ID. The
+non-secret profile registry is `~/.rapp/config/openai-providers.json` with mode
+`0600`. CI and non-macOS callers can set
+`RAPP_OPENAI_PROVIDER_SECRET_<NORMALIZED_PROFILE_ID>`. The optional Wild gateway
+and its deployment guide live in
+[`cloud/rolling-cores-api/`](./cloud/rolling-cores-api/). Cloud compute remains
+separate from signed, locally owned organism capsules.
+
+The trusted Electron bridge exposes provider status, breath eligibility,
+bounded start, and explicit pause APIs. Provider verification is required
+before Direct breathing; saving a key never silently starts spend. The preload
+surface is `providerStatus`, `breathingStatus`, `startBreathing`, and
+`pauseBreathing`.
+
+That Function also hosts the public, mirrorable Rapter Credit registry. Official
+credits are issued only after server-side purchase verification, atomically bind
+a hashed payment reference to one organism and immutable genesis/core hashes,
+and are signed by the Rapterbox issuer key. Their immutable birth valuation is
+derived from an issuer-signed set/tier fraction of one BTC plus a fresh,
+hashed-evidence BTC/USD observation. It is an official issuer value, not an
+independent investment appraisal or return promise. Credits authorize
+acquisition; they do not move capsule identity or history into the cloud.
+
+The registry also carries the 30-day return and post-window resale lifecycle.
+Returns atomically refund through the verified original rail and transfer
+official ownership back to Rapterbox inventory. Local bytes remain as an
+unowned, verifiable copy. Later listings, cancellations, sales, and transfers
+are signed append-only events; ask and sale prices never rewrite birth value or
+promise appreciation or liquidity.
+
+Restricted global downloads use public, commit-pinned GitHub raw ciphertext plus
+a signed content-addressed manifest. After scoped entitlement and device-key
+authorization, Azure releases only a recipient-wrapped per-artifact DEK. No
+master key, plaintext key, URL password, or bytecode-obfuscation scheme is
+placed in clients, frames, source, or logs. Revocation stops future key release
+but cannot erase a copy that was previously decrypted.
+
+Every verified account can claim exactly one free account-bound Companion
+offspring, outside Original title supply and unavailable for transfer or
+resale. Rapterbox-owned Rapters may also be rented to one active lessee at a
+time. Signed lease start, renewal, cancellation, expiration, refund, recovery,
+purchase-conversion, and transfer events preserve the immutable birth value.
+Expired lease copies become unowned/verifiable after sync; permanent purchases
+remain offline-capable and never require a subscription.
+
+The canonical launch catalog contains exactly 251 First Edition / First
+Dimension Originals. At publication all 251 are issuer-held, none have
+transferred, and all are undiscovered. Exact Original title may transfer only
+after rights and commerce gates. Separately issued offspring use distinct
+RAPPIDs and rights and do not consume or transfer Original title. Signed
+offspring generation and mutation policies carry `generation_id`,
+`eligible_after_utc`, source Original, and the current head. Crossing UTC marks
+`mutation_due`; only a later verified AI turn can append a successor.
+
+[`RAPTERWORKS.md`](./RAPTERWORKS.md) defines proof-first jobs and Shopify-backed
+offspring issuance from the 251 Rapterbox-owned First Edition / First Dimension
+Originals.
+
+Rapter Growth Points are local game progression only: non-transferable,
+non-purchasable, and non-redeemable. Private `memory.save` receipts retain only
+category, positive points, observation time, attester/source, and an evidence
+hash. A signed stage policy gates mutation by point threshold, UTC eligibility,
+and current core head; accepted evolution appends a `body.pulse` with an
+immutable BTC/USD reference snapshot, never a payment or yield. Starter
+Companion schedules define source-Original-specific Origin → Journey and
+Journey → Ascendant reference targets around $15 and $35; the current quote
+converts the signed USD-micro target to integer sats without changing birth
+valuation or Original title.
+
+Verified accounts—including free Companion accounts—may contribute capped,
+privacy-safe Growth Point attestations to World Pulse. Detailed receipts stay
+local. Signed `swarm.telemetry` checkpoints publish only participant count,
+event count, point total, UTC window, prior aggregate hash, and evidence Merkle
+root. Global milestones unlock shared story or region events, never money or
+investment value.
+
 The same responsive UI is an installable PWA through `/manifest.webmanifest`. A mobile browser can operate a reachable zoo host, but does not run Brainstem or GitHub Copilot on-device; intelligent actions require the desktop host and its supervisor. See [`FRONTIER.md`](./FRONTIER.md).
 
 Build unpacked desktop artifacts with `npm run dist:dir`, or platform installers with `npm run dist`.
@@ -178,6 +257,9 @@ Install with one command (after running the rapp-installer):
 ```bash
 BRAINSTEM=~/.brainstem/src/rapp_brainstem
 cp agents/*_agent.py "$BRAINSTEM/agents/"
+mkdir -p "$BRAINSTEM/agents/rapp_zoo_holo_protocol"
+cp utils/holo_protocol.py utils/rapp_protocol.py \
+  "$BRAINSTEM/agents/rapp_zoo_holo_protocol/"
 cp utils/rapp_protocol.py "$BRAINSTEM/utils/"
 # restart the brainstem; the cartridges auto-load
 ```

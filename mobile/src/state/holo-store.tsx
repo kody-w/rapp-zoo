@@ -682,9 +682,16 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
         "Direct breathing requires the selected Rolling Core's verified source.",
       );
     }
+    if (!selected.outerFrame) {
+      throw new Error(
+        "Direct breathing requires the selected Rolling Core's verified body frame.",
+      );
+    }
     const result = await requestDirectSuccessorTick({
       settings,
       current: selected,
+      previousSourceFrame: sourceProof.source,
+      previousBodyFrame: selected.outerFrame,
       maxContextBytes,
       maxOutputTokens,
       wakeLeaseMs: leaseMs,

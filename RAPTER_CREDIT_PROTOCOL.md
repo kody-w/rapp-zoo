@@ -325,7 +325,147 @@ state until the registry reconciles the spend.
 
 ---
 
-## 11. Offline behavior
+## 11. Companion and rental entitlements
+
+Every verified Rapterbox account may hold exactly one active free Companion
+entitlement:
+
+- it is account-bound;
+- it is not transferable or resellable;
+- it is separately issued offspring with a distinct RAPPID and rights record;
+- it does not consume or transfer any of the 251 Original titles;
+- repeated claim or recovery requests return the same entitlement.
+
+Rapterbox may rent issuer-held Originals while retaining title. An Original
+Credit can have at most one active lessee, and a Credit whose official ownership state is
+sold/owned cannot simultaneously be leased. Lease start, renewal,
+cancellation, expiration, refund, recovery, purchase conversion, and resulting
+ownership transfer are signed append-only `body.pulse` events.
+
+Lease access is bounded by its signed period and optional grace end. After
+expiry or refund, a synchronized device reports any retained bytes as an
+unowned stale lease copy and refuses new scoped Capsule access. The registry
+cannot erase bytes that were already downloaded.
+
+A verified purchase conversion ends the lease and transfers permanent official
+ownership without reminting the Credit or changing its birth valuation.
+Permanent ownership remains usable offline and requires no subscription.
+
+Subscription billing webhooks and recovery are idempotent. Account identity,
+billing status, refund status, buyer identity, and settlement success come only
+from server-verified adapters, never client claims.
+
+### 11.1 First Dimension Originals and offspring generations
+
+The canonical launch catalog has exactly 251 **First Edition / First
+Dimension Originals**. The signed publication state is exact:
+
+- 251 issuer-held by Rapterbox;
+- 0 transferred;
+- 0 discovered and 251 undiscovered.
+
+An Original's exact title may transfer later only after verified output-rights
+acceptance and verified commerce settlement. Catalog publication, Companion
+issuance, rentals, and offspring generation do not transfer Original title.
+
+Each verified account may receive one separately issued Companion offspring.
+Every offspring has a distinct RAPPID and rights record, remains account-bound
+when issued as the free Companion, and does not consume or alter Original
+title supply.
+
+Every offspring generation has a signed
+`rapp-rapter-offspring-generation-policy/1` with a `generation_id`, an
+`eligible_after_utc`, the previous policy hash, and exact per-source-Original
+offspring birth and exclusive-rental caps. New policies append; they do not
+rewrite the launch catalog, an Original title, Credit, Capsule, or core frame.
+
+A signed `rapp-rapter-offspring-mutation-policy/1` can mark a distinct offspring
+RAPPID eligible for mutation against its current head. Crossing
+`eligible_after_utc` changes only `mutation_due`. Offline or unavailable compute
+leaves the successor pending with old bytes and Original title unchanged.
+
+### 11.2 Rapter Growth Points
+
+Rapter Growth Points are non-transferable, non-purchasable, non-redeemable game
+points earned from bounded, opt-in, micro-positive events. Points are never
+negative and are constrained by per-event, per-category, and total daily caps.
+Equivalent accessible interactions can earn within the same limits.
+
+Detailed health or activity data remains local. A private
+`rapp-rapter-growth-receipt/1` carried by `memory.save` contains only the
+organism identity, category, positive points, observed UTC, attester, source,
+evidence hash, content address, and signature. Reusing the same content-addressed
+event ID is idempotent and cannot add points twice.
+
+A signed `rapp-rapter-growth-stage-policy/2` binds:
+
+- the organism and current core head;
+- `stage_id` and `generation_id`;
+- the required point threshold;
+- `eligible_after_utc`;
+- the signed source-Original evolution schedule and transition target;
+- `pay_to_evolve: false` and `retroactive_rewrite: false`.
+
+Each starter Companion offspring has two progressive transition targets in its
+signed `rapp-rapter-evolution-schedule/2`, keyed by source Original:
+
+- Origin → Journey, initially around `15_000_000` USD micros;
+- Journey → Ascendant, initially around `35_000_000` USD micros.
+
+Exact targets may vary by source Original. They are issuer stage references,
+not client prices, and a later schedule appends rather than changing an earlier
+target.
+
+Crossing the UTC boundary does not mutate a frame. It marks the stage
+`mutation_due`. If compute is offline or unavailable, the transition remains
+pending. Once threshold, time, current-head, signature, and compute checks pass,
+the next verified AI turn may author a successor.
+
+The accepted aggregate `rapp-rapter-evolution/1` uses `body.pulse`, links the
+prior and successor core heads, hashes the counted receipt set, and snapshots
+BTC/USD evidence. It burns `target_usd_micros`, the exact current-quote satoshi
+equivalent, source, observed UTC, raw quote hash, and rounded fiat reference
+into the immutable event:
+
+```text
+price_sats =
+  ceil(target_usd_micros * 100,000,000 / btc_usd_micros)
+```
+
+BTC is reference and provenance, not payment, redemption value, or yield.
+Evolution does not modify the separate birth valuation.
+
+### 11.3 World Pulse
+
+Every verified account may contribute capped Growth Points to **World Pulse**,
+including accounts whose only entitlement is the free Companion. Eligibility
+does not depend on purchasing or renting a premium Rapter.
+
+Private event receipts stay local as `memory.save`. A server receives only a
+verified, idempotent attestation containing category, positive points, observed
+UTC, attester/source, evidence hash, entitlement class, and a one-way account
+hash. Per-event, per-account daily event, and per-account daily point caps limit
+abuse. Anti-Sybil eligibility comes from the server attester, never a client
+boolean. Accessibility-equivalent events use the same earning bounds.
+
+The issuer periodically appends a signed `rapp-rapter-world-pulse/1` checkpoint
+on registered `swarm.telemetry`. It contains only:
+
+- participant count;
+- event count;
+- point total;
+- UTC window;
+- previous aggregate hash;
+- evidence Merkle root;
+- any unlocked shared-story or shared-region milestone identifiers.
+
+It contains no raw health data, private receipt, account identity, or PII.
+World Pulse points and milestones have no cash, purchase, redemption,
+investment, or yield value.
+
+---
+
+## 12. Offline behavior
 
 An owned local capsule remains usable if:
 
@@ -341,7 +481,7 @@ autocomplete.
 
 ---
 
-## 12. Security
+## 13. Security
 
 - Never use BTC price, a display name, or current frame hash as the Credit ID.
 - Never embed payment-provider secrets in a capsule or client.
@@ -358,7 +498,7 @@ autocomplete.
 
 ---
 
-## 13. Core sentence
+## 14. Core sentence
 
 **A Rapter Credit is the globally unique real-world ownership twin of one
 locally owned Rapter lineage: priced in satoshis, issued once, transferable by

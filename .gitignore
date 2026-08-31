@@ -24,7 +24,11 @@ Thumbs.db
 # Local secrets
 .env
 .env.local
+local.settings.json
 node_modules/
 release/
 dist/
 logs/
+.deploy/
+.test-state/
+.pytest_cache/

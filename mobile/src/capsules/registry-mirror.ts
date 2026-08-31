@@ -31,6 +31,10 @@ export async function loadRegistryMirror(): Promise<
 export async function storeRegistryRecord(
   record: RapterCreditRegistryRecord,
 ): Promise<void> {
+  if (record.root.schema === "rappter-credit-registry-entry/1") {
+    // Azure ES256 credits are remotely verified and remain session-scoped.
+    return;
+  }
   const key = `${PREFIX}${record.creditId}`;
   const existing = await AsyncStorage.getItem(key);
   if (existing) {
