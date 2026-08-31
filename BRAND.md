@@ -19,6 +19,7 @@ Powered by RAPP/1. From Rapterbox.
 | **SHAPEE** | The Rapter's optional seeded key-tooth side-profile tile |
 | **Growl** | The Rapter's original completed MIDI piano identity |
 | **Holo Wake** | Evidence left by a core keeping up with a live stream |
+| **Rapter Coin Trail** | Reserved non-financial provenance for intentionally public frames; not launch copy |
 | **Rapterbox** | Consumer storefront and product home |
 | **Rappter** | Protocol/company/developer-facing flock identity |
 
@@ -141,3 +142,8 @@ Avoid:
 - chatbot animation;
 - decorative visualization;
 - claims that AGI has already been achieved.
+- consumer-facing Coin, token, yield, investment, scarcity-profit, or
+  appreciation language while the Rapter Coin Trail remains dormant.
+
+The Rapter Coin Trail is architecture, not current marketing. A useful Holo
+must earn real use before any future economic activation is considered.

@@ -4,6 +4,7 @@ dist/
 dist-*/
 web-build/
 coverage/
+.derived-data/
 *.log
 .DS_Store
 ios/

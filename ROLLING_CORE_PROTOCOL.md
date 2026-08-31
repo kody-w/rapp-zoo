@@ -356,6 +356,28 @@ It is derived separately from frame integrity. Evidence includes:
 The Wake can indicate `ai-present-likely`, `unassisted-human-likely`, or
 `indeterminate`. It never changes whether a RAPP frame is valid.
 
+### 12.1 Public Coin Trail projection
+
+An intentionally published, DOGG-safe Rolling Core frame may have one
+deterministic `rapp-rapter-coin/1` projection. The projection binds the subject
+and exact core-frame hash, so the same public frame always has the same
+`rcoin:` identity.
+
+This projection is dormant:
+
+- it is not required for Rolling Core validity;
+- it does not alter or advance the authoritative core head;
+- it does not carry private GODD/on-device data;
+- it has no cash value, purchase, redemption, transfer, wallet, or yield
+  semantics;
+- it does not grant lineage ownership, which remains in the Rapter Credit
+  registry;
+- it can be rebuilt from the verified public history.
+
+The seam exists so future public reuse, tips, and service receipts can cite an
+exact frame without changing the frame or inventing provenance later. See
+[`RAPTER_COIN_ARCHITECTURE.md`](./RAPTER_COIN_ARCHITECTURE.md).
+
 ---
 
 ## 13. Flocks

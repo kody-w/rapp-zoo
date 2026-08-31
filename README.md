@@ -120,6 +120,9 @@ The shared world and naming canon is in [`LORE.md`](./LORE.md).
 The product vocabulary and launch copy are in [`BRAND.md`](./BRAND.md).
 The one-to-one organism ownership record is specified in
 [`RAPTER_CREDIT_PROTOCOL.md`](./RAPTER_CREDIT_PROTOCOL.md).
+The dormant one-public-frame/one-provenance-ID seam is specified in
+[`RAPTER_COIN_ARCHITECTURE.md`](./RAPTER_COIN_ARCHITECTURE.md). It has no
+wallet, market, transfer, cash value, or consumer launch surface.
 The organism lifecycle is specified in
 [`ROLLING_CORE_PROTOCOL.md`](./ROLLING_CORE_PROTOCOL.md).
 
