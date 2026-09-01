@@ -1,119 +1,110 @@
 # Holo Zoo privacy
 
-Holo Zoo contains no telemetry, analytics, advertising SDK, tracking, or
-account system. It stores only the user-selected, non-secret RAPP Zoo base URL
-and validated immutable Holo JSON in the app sandbox. It does not persist host
-tokens, passwords, cookies, or API credentials.
+This policy describes the current adult internal TestFlight. It does not
+describe a future public, family, commercial, or protocol-interoperable build.
 
-Network requests go only to the host explicitly configured by the user. The
-embedded Holo player has `connect-src 'none'`, cannot navigate to arbitrary
-remote pages, and uses only bundled renderer code and authored data.
+## Release boundary
 
-Holo Field currently uses a permissionless offline radar. It requests no GPS
-or location permission, contacts no map provider, generates no physical
-destination, and stores or uploads no coordinates. Encounter placement derives
-only from public organism IDs. A future geographic field requires a separate
-privacy and physical-safety review.
+Holo Zoo has no RapterBox account, automatic RapterBox telemetry, analytics,
+advertising SDK, real commerce, production RapterWorks, tips, sponsorship,
+rentals, resale, managed-compute sales, Coin economics, public publication, or
+external protocol interoperability. RevenueCat initialization is blocked by
+the release policy even if a key is present.
 
-Android native builds permit cleartext transport so user-selected loopback and
-private-LAN RAPP Zoo or Direct-provider endpoints continue to work. Holo Zoo's
-URL validator refuses credentials and public cleartext hosts; the Holo player
-still has no network capability.
+The local error boundary displays failures on the device and intentionally
+uploads nothing. Apple may process TestFlight diagnostics and feedback under
+Apple's policies.
 
-When connected, Holo Zoo reads liveness from the configured host's
-`/api/holo/heads` response. Awake, Sleeping, Quarantined, and Unborn are derived
-from verified source/Rolling Core tick cadence and lease timestamps. Waking is
-only a transient client label during an explicit successor check; the app does
-not fabricate activity from animation, credentials, or connectivity.
+## Information stored on the device
 
-Imported files remain local unless the user explicitly exports one through the
-system share sheet or browser download.
+Holo Zoo may store these values in its app sandbox:
 
-The reserved Rapter Coin Trail never turns local history into public data.
-Only an explicitly published, DOGG-safe frame may receive a deterministic
-public provenance ID. Private GODD/on-device prompts, memories, customer
-content, keys, receipts, health data, legal records, and unpublished mutations
-remain ineligible. The current Holo Zoo release keeps Coin projection and
-display disabled.
+- the selected local House code;
+- the configured RAPP Zoo URL;
+- imported or bundled Rolling Core capsules;
+- immutable Holo history and local source evidence;
+- the selected Direct provider endpoint and model;
+- bounded-update settings; and
+- other app preferences.
 
-An owned organism is represented by a signed local Rolling Core Capsule.
-Capsules are verified before import and stored in app document storage. They
-remain usable offline and may be exported, AirDropped, backed up, or re-imported
-by the user. Cloud availability and credit balance do not control access to an
-already-owned capsule.
+On native builds, a Direct provider API key is stored through Expo SecureStore
+in the device Keychain or Keystore with this-device-only accessibility. Holo
+Zoo keeps a separate sandbox marker for the current installation. If that
+marker is absent or stale, the app deletes any residual secure-store key before
+loading provider settings. This prevents an iOS Keychain value left by a prior
+uninstall from silently returning in a fresh installation.
 
-A capsule may include a public `rapp-rapter-credit/1` proof with an integer
-satoshi amount and, optionally, a public Bitcoin transaction outpoint. Rolling
-Holo Zoo does not create or store wallet private keys, seed phrases, raw store
-receipts, or custody credentials. It does not provide Bitcoin checkout,
-transfer, exchange, or spending.
+Clear a saved provider key in the app before uninstalling whenever possible.
+If provider settings cannot be read or the residual key cannot be deleted,
+Direct updates remain disabled and the app surfaces the error.
 
-The proof may include immutable public birth-valuation metadata: Rapterbox
-tier/set schedule, fixed sats, conception BTC/USD quote, and fiat reference.
-Any separately fetched current BTC conversion is optional, live,
-non-authoritative, and is not stored as the official birth value.
+## Location and Holo Field
 
-Rapter Credit ownership proof and dormant Rapter Coin provenance are separate.
-A Coin carries no owner, wallet, balance, cash value, purchase, redemption,
-transfer, or yield field. Official lineage title continues to come only from
-the signed Rapter Credit registry.
+Holo Field is a permissionless offline radar. It requests no GPS or location
+permission, contacts no map provider, generates no physical destination, and
+stores or uploads no coordinates. Sample encounter placement derives only from
+public organism IDs.
 
-The app may mirror a signed public ownership-status record from Rapterbox's
-authoritative registry. The registry controls official ownership claims,
-redownload, and transfer status. The app cannot write registry status. When
-offline, Holo Zoo shows the last successfully verified record and its
-verification time. Missing, transferred, or revoked status never prevents the
-local capsule bytes from rendering.
+## Network use
 
-When a user opens a real EAS development or store build with RevenueCat
-configured, RevenueCat and Apple or Google process product, purchase, receipt,
-and one-time transaction information needed to grant credits. Holo Zoo
-never receives or stores payment-card credentials. Expo Go and web use clearly
-labeled, session-only mock billing and create no store transaction.
+The app contacts only a RAPP Zoo or Direct AI provider endpoint explicitly
+configured by the tester. Public hosts must use HTTPS. Cleartext HTTP is
+limited to literal loopback or private-network addresses. Cross-origin
+redirects are rejected before response data is accepted.
 
-The backend-owned account ledger records store transaction IDs, unused Rapter
-credits, compute credits, and capsule recovery/redownload rights. It does not
-replace the signed local capsule as the durable owned object. Protocol
-validation, local playback, access to owned local data, and export remain
-available in both Direct and Wild modes.
+Testing a Direct provider key calls only the selected provider's `/models`
+endpoint. An update starts only after explicit user action. The selected
+current Rolling Core is then sent to that provider as successor context.
+Provider processing, retention, geography, abuse monitoring, and output terms
+are governed by that provider. Do not send personal or confidential
+information unless those terms are acceptable.
 
-Return and resale actions use public ownership/lifecycle records and future
-short-lived official-owner authorization. The app does not store raw store
-receipts, refund credentials, Bitcoin settlement secrets, or buyer payment
-proofs. Apple and Google handle their refund flows; Rapterbox verifies BTC
-settlement server-side. A returned or sold capsule remains on-device as an
-unowned verifiable copy unless the user explicitly deletes or exports it.
+Holo Zoo aborts Direct updates when the app leaves the foreground. The current
+build does not provide managed processing or continuous background execution.
 
-In free Direct mode, the user supplies their own OpenAI-compatible endpoint,
-model, and API key. Native builds store that key through Expo SecureStore in
-the device Keychain/Keystore. Web preview keeps it only in session storage.
-The key is sent only to the endpoint chosen by the user and is never included
-in this repository or shared with other Holo Zoo users.
+## Files and sharing
 
-Testing a Direct breath key calls only the chosen provider's `/models`
-endpoint. A breathing session starts only after explicit opt-in and is bounded
-by cadence, tick, output-token, total-token, and time ceilings. Provider output
-is refused unless it materializes as a valid successor source/Holo pair. Each
-attempt sends the selected current Rolling Core record to that user-chosen
-provider as successor context.
-Holo Zoo pauses and aborts Direct breathing when the app leaves the foreground.
-It does not claim or simulate continuous iOS background execution.
+Native imports are limited to 16 MiB. Temporary picker and export cache copies
+are removed after reading or sharing. Capsules use the registered
+`.rollingcore` type. Export occurs only after a tester invokes the system share
+action.
 
-Paid Wild mode contacts the configured Rapterbox Azure Function Brainstem for
-managed autocomplete, provider routing, quota, revocation, and remote Rapter
-access. The app contains no shared Azure Function host key or cloud-provider
-API key. Future Wild authentication must use short-lived user/session
-credentials issued and enforced by the managed service. Continuous
-away-from-device breathing requires an explicit bounded Wild lease and prepaid
-compute; it is separate from local capsule ownership.
+Signed capsules and history remain local unless the tester explicitly exports
+them or starts a provider update as described above. The current build creates
+no wallet, payment credential, public Coin record, ownership transfer, or
+official work record.
 
-Consumer privacy information is published through Rapterbox at
-<https://rapterbox.com/privacy>. Product information is at
-<https://rapterbox.com/holo>, and support is at
-<https://rapterbox.com/support>. A Rapter is one organism; a Rappter is a flock
-of Rapters. RAPP/1 remains the separate protocol and developer lane.
+Inspector proof summaries expose only allowlisted frame identity, ordering,
+time, hash, member-count, and signature-presence fields. They do not render raw
+payload values. External credit registry refresh is disabled both manually and
+during automatic capsule load.
 
-Companion mode does not import billing, tips, sponsorship, Coin economics, or
-service dispatch. Work mode is explicitly selected and the current
-`local-work-preview/1` flow remains private, local, non-economic, and
-non-authoritative.
+## Public and private data
+
+Public DOGG-safe data and private GODD data are separate. Public publication is
+disabled. Private prompts, relationship history, customer content,
+credentials, receipts, raw location, and unpublished mutations must never
+enter public frames.
+
+## Deletion
+
+Use in-app controls to delete imported content where available and save an
+empty provider key to remove the secure-store credential. Deleting Holo Zoo
+removes its app sandbox. On a later fresh installation, the missing
+installation marker causes Holo Zoo to delete any residual secure-store key
+before reading it. The current build has no RapterBox cloud account to delete.
+
+## Children
+
+The TestFlight is restricted to adult internal testers. Do not invite or
+provide this build to minors. A family release requires a separate youth,
+guardian, provider, household-separation, deletion, recovery, moderation, and
+healthy-play review.
+
+## Website privacy and support
+
+The Holo Zoo app does not submit data to RapterBox website forms. Website-form
+collection and private correction/deletion requests are documented at
+<https://rapterbox.com/privacy/>. Product information is at
+<https://rapterbox.com/holo/>, and support is at
+<https://rapterbox.com/support/>.

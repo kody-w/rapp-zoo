@@ -14,6 +14,7 @@ import {
   wildPlanSummary,
 } from "./catalog";
 import { createPreviewBillingAdapter } from "./preview-adapter";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 import type {
   BillingAdapter,
   BillingOffering,
@@ -26,6 +27,9 @@ let packages = new Map<string, PurchasesPackage>();
 export function createBillingAdapter(): BillingAdapter {
   if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
     return createPreviewBillingAdapter("Expo Go preview");
+  }
+  if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+    return createReleaseDisabledAdapter();
   }
   const apiKey =
     Platform.OS === "ios"
@@ -123,6 +127,28 @@ function receiptFromTransaction(
     purchaseDate: transaction.purchaseDate,
     store: Platform.OS === "ios" ? "APP_STORE" : "PLAY_STORE",
     appUserId,
+  };
+}
+
+function createReleaseDisabledAdapter(): BillingAdapter {
+  const snapshot: BillingSnapshot = {
+    initialized: true,
+    billingEnvironment: "misconfigured",
+    offerings: [],
+    receipts: [],
+    error:
+      "Real purchases are disabled for this internal TestFlight. Local companionship, Holo Field, playback, history, and import/export remain available.",
+  };
+  return {
+    async initialize() {
+      return { snapshot, cleanup: () => undefined };
+    },
+    async purchase() {
+      throw new Error(snapshot.error!);
+    },
+    async syncPurchaseHistory() {
+      throw new Error(snapshot.error!);
+    },
   };
 }
 

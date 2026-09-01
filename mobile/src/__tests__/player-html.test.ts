@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { demoHoloRaw } from "@/generated/holo-fixtures";
-import { normalizeBaseUrl } from "@/lib/api";
+import { normalizeBaseUrl, privateHttpHostname } from "@/lib/api";
 import { buildPlayerUpdate, validateHoloRaw } from "@/lib/holo";
 import { buildPlayerHtml } from "@/lib/player-html";
 
@@ -24,6 +24,22 @@ describe("offline player shell", () => {
     assert.throws(
       () => normalizeBaseUrl("https://token@example.com"),
       /credentials/,
+    );
+    assert.equal(privateHttpHostname("10.0.2.2"), true);
+    assert.equal(privateHttpHostname("172.31.2.3"), true);
+    assert.equal(privateHttpHostname("172.32.2.3"), false);
+    assert.equal(privateHttpHostname("192.168.1.8"), true);
+    assert.equal(privateHttpHostname("127.0.0.1"), true);
+    assert.equal(privateHttpHostname("::1"), true);
+    assert.equal(privateHttpHostname("fd12::1"), true);
+    assert.equal(privateHttpHostname("example.com"), false);
+    assert.throws(
+      () => normalizeBaseUrl("http://example.com:5000"),
+      /must use HTTPS/,
+    );
+    assert.equal(
+      normalizeBaseUrl("https://example.com"),
+      "https://example.com",
     );
   });
 });

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import json
 import sys
 import unittest
 
@@ -61,6 +62,40 @@ def credit_record():
 
 
 class RapterCreditProtocolTests(unittest.TestCase):
+    def test_json_schema_references_close_and_birth_is_not_nested_in_outpoint(self):
+        schema = json.loads(
+            (
+                ROOT
+                / "holograms"
+                / "protocol"
+                / "rapp-rapter-credit.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        refs = []
+
+        def collect(value):
+            if isinstance(value, dict):
+                if isinstance(value.get("$ref"), str):
+                    refs.append(value["$ref"])
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, list):
+                for item in value:
+                    collect(item)
+
+        collect(schema)
+        definitions = schema["$defs"]
+        missing = [
+            ref
+            for ref in refs
+            if ref.startswith("#/$defs/")
+            and ref.removeprefix("#/$defs/") not in definitions
+        ]
+        self.assertEqual(missing, [])
+        self.assertIn("birth", definitions)
+        self.assertNotIn("birth", definitions["outpoint"]["properties"])
+        self.assertIn("issuance_index < series_cap", schema["$comment"])
+
     def test_credit_is_valid_payload_on_registered_body_pulse(self):
         record = credit_record()
         self.assertIs(C.validate_credit_record(record), record)

@@ -28,13 +28,12 @@ const HoloStage = forwardRef<HoloStageHandle, HoloStageProps>(
     }));
     useEffect(() => {
       const listener = (event: MessageEvent) => {
+        if (event.source !== iframe.current?.contentWindow) return;
         const envelope = event.data as { source?: string; payload?: unknown };
         const payload =
           envelope?.source === "rolling-cores-sandbox"
             ? envelope.payload
-            : event.source === iframe.current?.contentWindow
-              ? event.data
-              : null;
+            : event.data;
         const status = parsePlayerMessage(payload);
         if (status) onStatus(status);
       };

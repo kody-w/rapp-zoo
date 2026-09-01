@@ -2,21 +2,23 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { BillingProvider } from "@/billing/billing-context";
-import { LifecycleProvider } from "@/capsules/lifecycle-context";
+import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { assertGameplayConstitution } from "@/constitution/gameplay";
 import { DirectBreathingProvider } from "@/providers/breathing-context";
+import { assertReleasePolicy } from "@/release-policy";
 import { HoloStoreProvider } from "@/state/holo-store";
 import { colors } from "@/theme/colors";
 
 assertGameplayConstitution();
+assertReleasePolicy();
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <BillingProvider>
-        <HoloStoreProvider>
-          <DirectBreathingProvider>
-            <LifecycleProvider>
+    <AppErrorBoundary>
+      <SafeAreaProvider>
+        <BillingProvider>
+          <HoloStoreProvider>
+            <DirectBreathingProvider>
               <StatusBar style="light" />
               <Stack
                 screenOptions={{
@@ -36,15 +38,15 @@ export default function RootLayout() {
                 <Stack.Screen
                   name="upgrade"
                   options={{
-                    title: "Holo Zoo Wild Credits",
+                    title: "Holo Zoo Release Boundary",
                     presentation: "modal",
                   }}
                 />
               </Stack>
-            </LifecycleProvider>
-          </DirectBreathingProvider>
-        </HoloStoreProvider>
-      </BillingProvider>
-    </SafeAreaProvider>
+            </DirectBreathingProvider>
+          </HoloStoreProvider>
+        </BillingProvider>
+      </SafeAreaProvider>
+    </AppErrorBoundary>
   );
 }

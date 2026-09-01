@@ -9,6 +9,9 @@ export const HOLO_ZOO_GAMEPLAY_CONSTITUTION = Object.freeze({
     salesInCompanionDialogue: false,
     guiltForSpend: false,
     spendRequiredForSurvival: false,
+    sentienceClaimsAllowed: false,
+    exclusivityClaimsAllowed: false,
+    distressWhenUserLeavesAllowed: false,
   }),
   gameplay: Object.freeze({
     powerPurchasable: false,
@@ -18,6 +21,10 @@ export const HOLO_ZOO_GAMEPLAY_CONSTITUTION = Object.freeze({
     growthPointsPurchasable: false,
     worldPulseWeightPurchasable: false,
     provenanceRankPurchasable: false,
+    streakLossAllowed: false,
+    absenceDecayAllowed: false,
+    timeLimitedProgressionAllowed: false,
+    excessiveSessionRewardsAllowed: false,
   }),
   work: Object.freeze({
     explicitModeSwitch: true,
@@ -32,6 +39,13 @@ export const HOLO_ZOO_GAMEPLAY_CONSTITUTION = Object.freeze({
     rawLocationUploaded: false,
     housePiiCollected: false,
     privateGoddPublishedByDefault: false,
+  }),
+  safety: Object.freeze({
+    minorsAllowedInCurrentTestFlight: false,
+    unsupervisedHouseSocialFeatures: false,
+    houseChangePenalty: false,
+    atHomeParityRequired: true,
+    permissionlessProgressionRequired: true,
   }),
   provenance: Object.freeze({
     coinEconomicsInGameplay: false,
@@ -52,6 +66,9 @@ export function assertGameplayConstitution(): void {
     policy.companionship.salesInCompanionDialogue ||
     policy.companionship.guiltForSpend ||
     policy.companionship.spendRequiredForSurvival ||
+    policy.companionship.sentienceClaimsAllowed ||
+    policy.companionship.exclusivityClaimsAllowed ||
+    policy.companionship.distressWhenUserLeavesAllowed ||
     policy.gameplay.powerPurchasable ||
     policy.gameplay.encounterOddsPurchasable ||
     policy.gameplay.houseEconomicWeight ||
@@ -59,6 +76,10 @@ export function assertGameplayConstitution(): void {
     policy.gameplay.growthPointsPurchasable ||
     policy.gameplay.worldPulseWeightPurchasable ||
     policy.gameplay.provenanceRankPurchasable ||
+    policy.gameplay.streakLossAllowed ||
+    policy.gameplay.absenceDecayAllowed ||
+    policy.gameplay.timeLimitedProgressionAllowed ||
+    policy.gameplay.excessiveSessionRewardsAllowed ||
     !policy.work.explicitModeSwitch ||
     !policy.work.fullDeliveryBeforeTip ||
     policy.work.zeroTipPenalty ||
@@ -69,6 +90,11 @@ export function assertGameplayConstitution(): void {
     policy.privacy.rawLocationUploaded ||
     policy.privacy.housePiiCollected ||
     policy.privacy.privateGoddPublishedByDefault ||
+    policy.safety.minorsAllowedInCurrentTestFlight ||
+    policy.safety.unsupervisedHouseSocialFeatures ||
+    policy.safety.houseChangePenalty ||
+    !policy.safety.atHomeParityRequired ||
+    !policy.safety.permissionlessProgressionRequired ||
     policy.provenance.coinEconomicsInGameplay ||
     policy.provenance.coinAffectsCompanionship ||
     policy.provenance.coinAffectsPower ||

@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -11,14 +11,8 @@ import {
   View,
 } from "react-native";
 import { useBilling } from "@/billing/billing-context";
-import { useLifecycle } from "@/capsules/lifecycle-context";
 import { directPlan } from "@/billing/catalog";
 import { brand } from "@/config/brand";
-import {
-  formatBtc,
-  formatSats,
-  formatUsdCents,
-} from "@/capsules/credit";
 import {
   livenessExpiresAtMs,
   presentLiveness,
@@ -38,10 +32,7 @@ export function Sidebar({
 }) {
   const store = useHoloStore();
   const billing = useBilling();
-  const lifecycle = useLifecycle();
-  const router = useRouter();
   const [draftHost, setDraftHost] = useState(store.baseUrl);
-  const [recoveryId, setRecoveryId] = useState("");
   const livenessNow = useLivenessClock(
     store.heads.map((head) => livenessExpiresAtMs(head.liveness)),
   );
@@ -76,19 +67,10 @@ export function Sidebar({
           <View key={organism.id} style={styles.card}>
             <Text style={styles.cardTitle}>{organism.displayName}</Text>
             <Text style={styles.cardMeta}>{organism.description}</Text>
-            <Text style={styles.valueSummary}>{organism.valueSummary}</Text>
             <Text style={styles.creditValue}>
-              {organism.valuation === null
-                ? "Bundled local capsule"
-                : `Official Rapterbox birth value · ${
-                    organism.valuation.tier
-                  } / ${organism.valuation.setId} · ${formatSats(
-                    organism.valuation.priceSats,
-                  )} · ${formatBtc(
-                    organism.valuation.priceSats,
-                  )} · ${formatUsdCents(
-                    organism.valuation.birthFiatCents,
-                  )} USD`}
+              {localCapsule
+                ? "Signed local capsule"
+                : "Local preview · not available for purchase"}
             </Text>
             <View style={styles.actionRow}>
               <Button
@@ -115,48 +97,12 @@ export function Sidebar({
                       : "UNVERIFIED COPY"}
                 </Text>
               ) : (
-                <Button
-                  tone="accent"
-                  onPress={() =>
-                    billing.ledger.availableRapterCredits > 0
-                      ? void store.redeemGalleryOrganism(organism)
-                      : router.push("/upgrade")
-                  }
-                >
-                  {billing.ledger.availableRapterCredits > 0
-                    ? "Redeem 1 Credit"
-                    : "Get Rapter Credit"}
-                </Button>
+                <Text style={styles.unverified}>PREVIEW ONLY</Text>
               )}
             </View>
           </View>
         );
       })}
-
-      <SectionTitle>Lifecycle Marketplace</SectionTitle>
-      {lifecycle.marketplace.map((listing) => (
-        <View key={listing.organismId} style={styles.card}>
-          <Text style={styles.cardTitle}>{listing.displayName}</Text>
-          <Text style={styles.cardMeta}>LISTED · PREVIEW FIXTURE</Text>
-          <Text style={styles.creditValue}>
-            Official Rapterbox birth value ·{" "}
-            {formatSats(listing.officialBirthPriceSats)}
-          </Text>
-          <Text style={styles.valueSummary}>
-            Current seller ask · {formatSats(listing.currentSellerAskSats)}
-          </Text>
-          <Text style={styles.valueSummary}>
-            Last verified sale ·{" "}
-            {listing.lastVerifiedSaleSats === null
-              ? "none"
-              : formatSats(listing.lastVerifiedSaleSats)}
-          </Text>
-          <Text style={styles.caption}>
-            Separate signed-event market facts. No return, appreciation, or
-            liquidity guarantee.
-          </Text>
-        </View>
-      ))}
 
       <SectionTitle
         trailing={<Text style={styles.caption}>{store.capsules.length}</Text>}
@@ -166,12 +112,6 @@ export function Sidebar({
       {store.capsules.map((entry) => {
         const selected =
           store.selection?.kind === "capsule" && store.selection.id === entry.id;
-        const selectedLifecycle = lifecycle.snapshot;
-        const lifecycleState =
-          selectedLifecycle &&
-          selectedLifecycle.creditId === entry.capsule.credit?.creditId
-            ? selectedLifecycle.state
-            : null;
         return (
           <Pressable
             key={entry.id}
@@ -193,26 +133,17 @@ export function Sidebar({
               style={[
                 styles.owned,
                 entry.capsule.credit &&
-                  (lifecycleState === "returned" ||
-                    lifecycleState === "sold" ||
-                    lifecycleState === "unverified-copy" ||
-                    store.registryRecords[entry.capsule.credit.creditId]
-                      ?.status !== "official") &&
+                  store.registryRecords[entry.capsule.credit.creditId]
+                    ?.status !== "official" &&
                   styles.unverified,
               ]}
             >
               {!entry.capsule.credit
                 ? "BUNDLED LOCAL"
-                : lifecycleState === "returned"
-                  ? "RETURNED · UNOWNED PREVIEW"
-                  : lifecycleState === "sold"
-                    ? "SOLD · UNOWNED PREVIEW"
-                    : lifecycleState === "listed"
-                      ? "OFFICIAL · LISTED"
-                      : store.registryRecords[entry.capsule.credit.creditId]
-                            ?.status === "official"
-                        ? "OFFICIAL · LAST VERIFIED"
-                        : "UNVERIFIED COPY / PREVIEW"}
+                : store.registryRecords[entry.capsule.credit.creditId]
+                      ?.status === "official"
+                  ? "SIGNED · LOCAL"
+                  : "UNVERIFIED COPY / PREVIEW"}
             </Text>
             <Text numberOfLines={1} style={styles.hash}>
               {entry.capsule.capsuleId}
@@ -261,30 +192,6 @@ export function Sidebar({
         {store.capsules.length} signed capsules and {store.library.length} legacy
         frames. Owned local data is never gated, hidden, or deleted.
       </Text>
-      <View style={styles.connection}>
-        <SectionTitle>Capsule recovery</SectionTitle>
-        <Text style={styles.caption}>
-          Redownload a previously owned signed capsule by its account-ledger
-          capsule ID. Cloud recovery is optional; local capsules work offline.
-        </Text>
-        <TextInput
-          accessibilityLabel="Rolling Core Capsule ID"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={recoveryId}
-          onChangeText={setRecoveryId}
-          placeholder="64-character capsule ID"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-        />
-        <Button
-          disabled={recoveryId.trim().length !== 64}
-          onPress={() => void store.recoverCapsule(recoveryId)}
-        >
-          Recover Capsule
-        </Button>
-      </View>
-
       <SectionTitle>Optional compute & connectivity</SectionTitle>
       <ProviderSettings />
 
@@ -314,23 +221,20 @@ export function Sidebar({
           </Button>
         </View>
 
-        <Link href="/upgrade" asChild>
-          <Pressable
-            style={styles.planCard}
-            accessibilityRole="link"
-            accessibilityLabel={`Current compute mode ${billing.features.accessMode}, ${billing.ledger.activeWildRapters} active managed Rapter sessions. View credits.`}
-          >
-            <View>
-              <Text style={styles.planLabel}>COMPUTE MODE</Text>
-              <Text style={styles.planName}>
-                {billing.features.accessMode === "wild"
-                  ? `Wild · ${billing.ledger.activeWildRapters} active`
-                  : directPlan.title}
-              </Text>
-            </View>
-            <Text style={styles.planLink}>Credits →</Text>
-          </Pressable>
-        </Link>
+        <View
+          style={styles.planCard}
+          accessibilityLabel={`Current compute mode ${billing.features.accessMode}. Commerce is disabled in this build.`}
+        >
+          <View>
+            <Text style={styles.planLabel}>COMPUTE MODE</Text>
+            <Text style={styles.planName}>
+              {billing.features.accessMode === "wild"
+                ? `Wild · ${billing.ledger.activeWildRapters} active`
+                : directPlan.title}
+            </Text>
+          </View>
+          <Text style={styles.planLink}>NO COMMERCE</Text>
+        </View>
         <Text style={styles.caption}>
           {store.health
             ? `${store.health.name} ${store.health.version} · ${store.health.status}`
@@ -410,8 +314,10 @@ export function Sidebar({
         </Pressable>
       </Link>
       <Text style={styles.privacy}>
-        No telemetry. No embedded credentials. Only this non-secret host URL and
-        validated local Holo JSON are persisted.
+        Local app data can include the House code, host URL, signed or imported
+        capsules, Holo history and evidence, provider endpoint/model/settings,
+        and preferences. A provider key stays in device secure storage. No
+        automatic RapterBox telemetry. See Privacy below.
       </Text>
       <View style={styles.brandLinks}>
         <Pressable onPress={() => void Linking.openURL(brand.marketingUrl)}>

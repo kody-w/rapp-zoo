@@ -62,4 +62,20 @@ describe("Holo Zoo gameplay and companionship constitution", () => {
       false,
     );
   });
+
+  it("blocks dependency mechanics, unhealthy retention, and youth exposure", () => {
+    const policy = HOLO_ZOO_GAMEPLAY_CONSTITUTION;
+    assert.equal(policy.companionship.sentienceClaimsAllowed, false);
+    assert.equal(policy.companionship.exclusivityClaimsAllowed, false);
+    assert.equal(policy.companionship.distressWhenUserLeavesAllowed, false);
+    assert.equal(policy.gameplay.streakLossAllowed, false);
+    assert.equal(policy.gameplay.absenceDecayAllowed, false);
+    assert.equal(policy.gameplay.timeLimitedProgressionAllowed, false);
+    assert.equal(policy.gameplay.excessiveSessionRewardsAllowed, false);
+    assert.equal(policy.safety.minorsAllowedInCurrentTestFlight, false);
+    assert.equal(policy.safety.unsupervisedHouseSocialFeatures, false);
+    assert.equal(policy.safety.houseChangePenalty, false);
+    assert.equal(policy.safety.atHomeParityRequired, true);
+    assert.equal(policy.safety.permissionlessProgressionRequired, true);
+  });
 });

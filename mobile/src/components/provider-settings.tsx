@@ -4,6 +4,7 @@ import { useDirectBreathing } from "@/providers/breathing-context";
 import { wakeLeaseMs } from "@/providers/breathing";
 import { configuredWildBrainstem } from "@/providers/openai-compatible";
 import type { DirectBreathingLimits } from "@/providers/types";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 import { colors } from "@/theme/colors";
 import { Button, SectionTitle } from "./ui";
 
@@ -12,6 +13,12 @@ export function ProviderSettings() {
   const direct = useDirectBreathing();
   const wild = configuredWildBrainstem();
   const active = direct.breathing.state !== "breath-held";
+  const updateState =
+    direct.breathing.state === "breath-held"
+      ? "PAUSED"
+      : direct.breathing.state === "awake"
+        ? "PROCESSING"
+        : direct.breathing.state.replaceAll("-", " ").toUpperCase();
   const setLimit = (key: keyof DirectBreathingLimits, value: string) => {
     const parsed = Number.parseInt(value, 10);
     if (Number.isSafeInteger(parsed)) {
@@ -34,7 +41,8 @@ export function ProviderSettings() {
           One local Rapter uses your own OpenAI-compatible endpoint and key.
           Local playback, history, import, validation, and owned-data export
           remain available without a purchase. A successfully tested key is
-          the Rapter&apos;s breath key, but saving or testing never starts spend.
+          an approved provider key, but saving or testing never starts a model
+          request or spend.
         </Text>
         <View style={styles.statusRow}>
           <Text style={styles.statusLabel}>SECURE KEY</Text>
@@ -48,14 +56,14 @@ export function ProviderSettings() {
           </Text>
         </View>
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>LOCAL BREATH</Text>
+          <Text style={styles.statusLabel}>LOCAL UPDATES</Text>
           <Text
             style={[
               styles.statusValue,
               direct.breathing.state !== "awake" && styles.statusPending,
             ]}
           >
-            {direct.breathing.state.replaceAll("-", " ").toUpperCase()}
+            {updateState}
           </Text>
         </View>
         <TextInput
@@ -108,12 +116,12 @@ export function ProviderSettings() {
             }
             onPress={() => void direct.testKey()}
           >
-            Test Breath Key
+            Test Provider Key
           </Button>
         </View>
         <Text style={styles.storage}>{direct.storageDescription}</Text>
 
-        <Text style={styles.cardTitle}>Bounded local breathing</Text>
+        <Text style={styles.cardTitle}>Bounded local updates</Text>
         <Text style={styles.caption}>
           Opt in to request verified successors only while Holo Zoo remains
           active. Every session has hard cadence, tick, token, and time
@@ -127,7 +135,7 @@ export function ProviderSettings() {
             onChange={(value) => setLimit("intervalSeconds", value)}
           />
           <LimitInput
-            label="Maximum ticks"
+            label="Maximum updates"
             value={direct.limits.maxTicks}
             onChange={(value) => setLimit("maxTicks", value)}
           />
@@ -137,7 +145,7 @@ export function ProviderSettings() {
             onChange={(value) => setLimit("maxContextBytes", value)}
           />
           <LimitInput
-            label="Tokens per tick"
+            label="Tokens per update"
             value={direct.limits.maxOutputTokensPerTick}
             onChange={(value) => setLimit("maxOutputTokensPerTick", value)}
           />
@@ -154,10 +162,10 @@ export function ProviderSettings() {
         </View>
         <Text style={styles.caption}>
           Attempts {direct.breathing.attemptedTicks}/
-          {direct.limits.maxTicks} · verified ticks{" "}
+          {direct.limits.maxTicks} · verified updates{" "}
           {direct.breathing.successfulTicks} · reserved output tokens{" "}
           {direct.breathing.reservedOutputTokens}/
-          {direct.limits.maxTotalOutputTokens} · wake lease{" "}
+          {direct.limits.maxTotalOutputTokens} · processing lease{" "}
           {wakeLeaseMs(direct.limits) / 1_000}s · context ≤{" "}
           {direct.limits.maxContextBytes} bytes
         </Text>
@@ -172,15 +180,15 @@ export function ProviderSettings() {
             }
             onPress={() => void direct.start()}
           >
-            Start Bounded Breathing
+            Start Bounded Updates
           </Button>
           <Button disabled={!active} onPress={() => direct.pause()}>
-            Pause · Hold Breath
+            Pause Updates
           </Button>
         </View>
         <Text style={styles.caption}>
           iOS may suspend this app moments after it leaves the foreground.
-          Holo Zoo pauses Direct breathing immediately; it never pretends local
+          Holo Zoo pauses Direct updates immediately; it never pretends local
           background activity continued. Select an owned or imported local
           Rapter before starting.
         </Text>
@@ -199,23 +207,30 @@ export function ProviderSettings() {
         ) : null}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>
-          Wild · {billing.ledger.activeWildRapters} active Rapters ·{" "}
-          {billing.ledger.availableRapterCredits} hatch credits
-        </Text>
-        <Text style={styles.caption}>
-          Paid Wild mode uses the hosted Azure Function Brainstem, managed
-          OpenAI-compatible provider routing, quota/revocation, remote access,
-          and managed autocomplete. Continuous breathing while the phone is
-          suspended requires an explicit bounded Wild cloud lease and prepaid
-          compute. No shared cloud credential is embedded.
-        </Text>
-        <Text style={[styles.status, wild.error ? styles.error : undefined]}>
-          {wild.error ??
-            `Managed Brainstem ready at ${wild.endpoint} using ${wild.model}.`}
-        </Text>
-      </View>
+      {HOLO_ZOO_RELEASE_POLICY.managedComputeSalesEnabled ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            Wild · {billing.ledger.activeWildRapters} active Rapters
+          </Text>
+          <Text style={styles.caption}>
+            Managed processing uses the hosted Azure Function Brainstem,
+            provider routing, quota, revocation, and remote access.
+          </Text>
+          <Text style={[styles.status, wild.error ? styles.error : undefined]}>
+            {wild.error ??
+              `Managed Brainstem ready at ${wild.endpoint} using ${wild.model}.`}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Managed processing unavailable</Text>
+          <Text style={styles.caption}>
+            This internal TestFlight keeps managed compute sales, continuous
+            cloud updates, and production RapterWorks disabled. Local
+            companionship and owned data remain available.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

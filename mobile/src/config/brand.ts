@@ -15,7 +15,7 @@ export const brand = {
     habitat: "Holo Zoo",
     core: "Rolling Core",
   },
-  marketingUrl: "https://rapterbox.com/holo",
-  privacyUrl: "https://rapterbox.com/privacy",
-  supportUrl: "https://rapterbox.com/support",
+  marketingUrl: "https://rapterbox.com/holo/",
+  privacyUrl: "https://rapterbox.com/privacy/",
+  supportUrl: "https://rapterbox.com/support/",
 } as const;

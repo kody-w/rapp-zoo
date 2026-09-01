@@ -1,18 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useHoloStore } from "@/state/holo-store";
-import {
-  formatBtc,
-  formatSats,
-  fiatCentsForSats,
-  formatUsdCents,
-  uniquenessLabel,
-} from "@/capsules/credit";
-import {
-  fetchCurrentBtcQuote,
-  type CurrentBtcQuote,
-} from "@/capsules/current-btc";
-import { useLifecycle } from "@/capsules/lifecycle-context";
 import { ownershipStatusLabel } from "@/capsules/registry";
 import {
   livenessExpiresAtMs,
@@ -20,21 +8,18 @@ import {
   presentLiveness,
 } from "@/lib/liveness";
 import { useLivenessClock } from "@/lib/use-liveness-clock";
+import { redactInspectionRecord } from "@/lib/redact-inspection";
 import { useDirectBreathing } from "@/providers/breathing-context";
 import type { DirectBreathingState } from "@/providers/types";
 import { colors } from "@/theme/colors";
 import { Button, MetadataRow, SectionTitle } from "./ui";
-import { LifecyclePanel } from "./lifecycle-panel";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 
 export function InspectorPanel() {
   const store = useHoloStore();
   const direct = useDirectBreathing();
-  const lifecycle = useLifecycle();
   const [showSource, setShowSource] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
-  const [currentBtcQuote, setCurrentBtcQuote] =
-    useState<CurrentBtcQuote | null>(null);
-  const creditId = store.selectedCapsule?.credit?.creditId ?? null;
   const livenessNow = useLivenessClock([
     livenessExpiresAtMs(store.liveness),
   ]);
@@ -62,18 +47,6 @@ export function InspectorPanel() {
     ? hostLiveness.detail
     : direct.message ??
       "Breath held until a secure key is verified and bounded breathing is explicitly started.";
-  useEffect(() => {
-    let active = true;
-    const request = creditId
-      ? fetchCurrentBtcQuote().catch(() => null)
-      : Promise.resolve(null);
-    void request.then((quote) => {
-      if (active) setCurrentBtcQuote(quote);
-    });
-    return () => {
-      active = false;
-    };
-  }, [creditId]);
   const holo = store.selected;
   if (!holo) {
     return (
@@ -105,20 +78,12 @@ export function InspectorPanel() {
         {store.selectedCapsule ? (
           <>
             <Text
-              style={[
-                styles.classification,
-                store.selectedCapsule.credit &&
-                  lifecycle.snapshot &&
-                  !lifecycle.snapshot.officialOwned &&
-                  styles.warning,
-              ]}
+              style={styles.classification}
             >
-              {store.selectedCapsule.credit && lifecycle.snapshot
-                ? lifecycle.label
-                : ownershipStatusLabel(
-                    store.selectedCapsule,
-                    store.selectedRegistryRecord,
-                  )}
+              {ownershipStatusLabel(
+                store.selectedCapsule,
+                store.selectedRegistryRecord,
+              )}
             </Text>
             <MetadataRow
               label="Capsule"
@@ -146,86 +111,10 @@ export function InspectorPanel() {
                   label="Genesis core"
                   value={store.selectedCapsule.credit.genesisCoreId}
                 />
-                <MetadataRow
-                  label="Recorded value"
-                  value={`${formatSats(
-                    store.selectedCapsule.credit.priceSats,
-                  )} · ${formatBtc(store.selectedCapsule.credit.priceSats)}`}
-                />
-                <Text style={styles.birthLabel}>
-                  OFFICIAL RAPTERBOX BIRTH VALUE
-                </Text>
-                <MetadataRow
-                  label="Tier"
-                  value={store.selectedCapsule.credit.valuation.tier}
-                />
-                <MetadataRow
-                  label="Set"
-                  value={store.selectedCapsule.credit.valuation.setId}
-                />
-                <MetadataRow
-                  label="Schedule"
-                  value={`${store.selectedCapsule.credit.valuation.scheduleId} v${store.selectedCapsule.credit.valuation.scheduleVersion}`}
-                />
-                <MetadataRow
-                  label="Fixed birth sats"
-                  value={`${formatSats(
-                    store.selectedCapsule.credit.valuation.priceSats,
-                  )} · ${formatBtc(
-                    store.selectedCapsule.credit.valuation.priceSats,
-                  )}`}
-                />
-                <MetadataRow
-                  label="BTC/USD at birth"
-                  value={`${formatUsdCents(
-                    store.selectedCapsule.credit.valuation
-                      .btcUsdCentsPerBtc,
-                  )}/BTC · ${store.selectedCapsule.credit.valuation.quoteUtc}`}
-                />
-                <MetadataRow
-                  label="Birth fiat reference"
-                  value={`${formatUsdCents(
-                    store.selectedCapsule.credit.valuation.birthFiatCents,
-                  )} USD`}
-                />
                 <Text style={styles.trait}>
-                  Fixed conception snapshot metadata—not current market value
-                  or an investment appraisal.
+                  Signed provenance metadata. Valuation, redemption, return,
+                  resale, and transfer controls are not exposed in this build.
                 </Text>
-                {currentBtcQuote ? (
-                  <>
-                    <Text style={styles.liveLabel}>
-                      LIVE CONVERSION · NON-AUTHORITATIVE
-                    </Text>
-                    <MetadataRow
-                      label="Current BTC/USD"
-                      value={`${formatUsdCents(
-                        currentBtcQuote.btcUsdCentsPerBtc,
-                      )}/BTC · ${currentBtcQuote.asOfUtc}`}
-                    />
-                    <MetadataRow
-                      label="Current conversion"
-                      value={`${formatUsdCents(
-                        fiatCentsForSats(
-                          store.selectedCapsule.credit.priceSats,
-                          currentBtcQuote.btcUsdCentsPerBtc,
-                        ),
-                      )} USD`}
-                    />
-                  </>
-                ) : (
-                  <Text style={styles.trait}>
-                    Live non-authoritative BTC conversion unavailable.
-                  </Text>
-                )}
-                <MetadataRow
-                  label="Uniqueness proof"
-                  value={uniquenessLabel(store.selectedCapsule.credit)}
-                />
-                <MetadataRow
-                  label="Mint channel"
-                  value={store.selectedCapsule.credit.mintChannel}
-                />
                 {store.selectedRegistryRecord ? (
                   <>
                     <MetadataRow
@@ -255,21 +144,24 @@ export function InspectorPanel() {
                   </Text>
                 )}
                 <Button
+                  disabled={
+                    !HOLO_ZOO_RELEASE_POLICY.externalInteroperabilityEnabled
+                  }
                   onPress={() => void store.refreshSelectedRegistry()}
                 >
-                  Refresh Official Registry
+                  Registry refresh disabled
                 </Button>
               </>
             ) : (
               <Text style={styles.trait}>
-                Bundled free capsule; no purchased Rapter Credit binding.
+                Bundled free capsule; no separate Rapter Credit binding.
               </Text>
             )}
             <Text style={styles.trait}>
-              Registry status controls official ownership claims,
-              redownload, and transfer—not whether local capsule bytes can
-              render. This capsule remains usable offline and can be exported,
-              AirDropped, backed up, and re-imported.
+              Registry status controls official provenance claims, not whether
+              local capsule bytes can render. This capsule remains usable
+              offline and can be exported, AirDropped, backed up, and
+              re-imported.
             </Text>
           </>
         ) : store.selection?.kind === "gallery" ? (
@@ -284,8 +176,6 @@ export function InspectorPanel() {
           </Text>
         )}
       </View>
-
-      <LifecyclePanel />
 
       <View style={styles.section}>
         <SectionTitle>Current vs player-active</SectionTitle>
@@ -440,11 +330,17 @@ export function InspectorPanel() {
         {store.sourceProof.kind === "verified" ? (
           <>
             <Button onPress={() => setShowSource((value) => !value)}>
-              {showSource ? "Hide source JSON" : "Inspect source JSON"}
+              {showSource
+                ? "Hide source proof summary"
+                : "Inspect source proof summary"}
             </Button>
             {showSource ? (
               <Text selectable style={styles.json}>
-                {JSON.stringify(store.sourceProof.source, null, 2)}
+                {JSON.stringify(
+                  redactInspectionRecord(store.sourceProof.source),
+                  null,
+                  2,
+                )}
               </Text>
             ) : null}
           </>
@@ -457,11 +353,19 @@ export function InspectorPanel() {
         </SectionTitle>
         <MetadataRow label="Authored hash" value={holo.authoredHash} />
         <Button onPress={() => setShowRecord((value) => !value)}>
-          {showRecord ? "Hide Holo JSON" : "Inspect Holo JSON"}
+          {showRecord
+            ? "Hide record proof summary"
+            : "Inspect record proof summary"}
         </Button>
         {showRecord ? (
           <Text selectable style={styles.json}>
-            {JSON.stringify(store.selectedCapsule?.root ?? holo.root, null, 2)}
+            {JSON.stringify(
+              redactInspectionRecord(
+                store.selectedCapsule?.root ?? holo.root,
+              ),
+              null,
+              2,
+            )}
           </Text>
         ) : null}
       </View>

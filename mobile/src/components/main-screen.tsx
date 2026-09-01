@@ -27,7 +27,6 @@ export function MainScreen() {
   const wide = width >= 1180;
   const [phonePane, setPhonePane] = useState<PhonePane>("field");
   const [wideMode, setWideMode] = useState<WideMode>("field");
-  const [stageCommerce, setStageCommerce] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   useEffect(() => {
@@ -45,14 +44,8 @@ export function MainScreen() {
   }, []);
   const selectWideMode = (mode: WideMode) => {
     setWideMode(mode);
-    setStageCommerce(mode === "habitat");
   };
   const selectPhonePane = (pane: PhonePane) => {
-    if (pane === "field") setStageCommerce(false);
-    if (pane === "library") setStageCommerce(true);
-    if (pane === "stage" && phonePane === "field") {
-      setStageCommerce(false);
-    }
     setPhonePane(pane);
   };
   if (!store.ready) {
@@ -126,28 +119,26 @@ export function MainScreen() {
             <View style={styles.fullPane}>
               <FieldPanel
                 onOpenStage={() => {
-                  setStageCommerce(false);
                   selectWideMode("companion");
                 }}
               />
             </View>
           ) : wideMode === "companion" ? (
             <View style={styles.fullPane}>
-              <StagePanel commerce="hidden" reducedMotion={reducedMotion} />
+              <StagePanel reducedMotion={reducedMotion} />
             </View>
           ) : (
             <>
               <View style={styles.sidebarWide}>
                 <Sidebar
                   onSelected={() => {
-                    setStageCommerce(true);
                     selectWideMode("habitat");
                   }}
                   onShowOnboarding={() => setShowOnboarding(true)}
                 />
               </View>
               <View style={styles.stageWide}>
-                <StagePanel commerce="allowed" reducedMotion={reducedMotion} />
+                <StagePanel reducedMotion={reducedMotion} />
               </View>
               <View style={styles.inspectorWide}>
                 <InspectorPanel />
@@ -160,7 +151,6 @@ export function MainScreen() {
               <View style={styles.fullPane}>
                 <FieldPanel
                   onOpenStage={() => {
-                    setStageCommerce(false);
                     selectPhonePane("stage");
                   }}
                 />
@@ -170,7 +160,6 @@ export function MainScreen() {
               <View style={styles.fullPane}>
                 <Sidebar
                   onSelected={() => {
-                    setStageCommerce(true);
                     selectPhonePane("stage");
                   }}
                   onShowOnboarding={() => setShowOnboarding(true)}
@@ -179,10 +168,7 @@ export function MainScreen() {
             ) : null}
             {phonePane === "stage" ? (
               <View style={styles.fullPane}>
-                <StagePanel
-                  commerce={stageCommerce ? "allowed" : "hidden"}
-                  reducedMotion={reducedMotion}
-                />
+                <StagePanel reducedMotion={reducedMotion} />
               </View>
             ) : null}
             {phonePane === "inspect" ? (

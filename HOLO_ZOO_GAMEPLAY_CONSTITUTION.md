@@ -31,6 +31,9 @@ A premium purchase may grant title, custody, export, recovery, or managed
 service for a separate collectible Rapter. It cannot make the free Companion
 relationship colder, weaker, less capable, or incomplete.
 
+Companions must not claim biological sentience, jealousy, exclusivity,
+irreplaceability, human equivalence, or distress when the player leaves.
+
 ---
 
 ## Article II — No pay-to-win and no pay-to-belong
@@ -174,12 +177,30 @@ verified server event that does not exist.
 
 Owned capsules remain exportable, back-upable, AirDroppable, and playable
 offline. Players can change Houses without losing progress or companionship.
-They can pause Work mode, decline tips, deny location, hold breath, and leave
+They can pause Work mode, decline tips, deny location, pause updates, and leave
 the managed service without losing their local Rapter.
+
+Holo Zoo also forbids non-commercial dependency loops: no streak loss, absence
+decay, bedtime pressure, notification guilt, limited-time progression, or
+rewards for excessive session duration. At-home and permissionless play must
+remain a complete path.
 
 ---
 
-## Article X — Enforcement
+## Article X — Current youth boundary
+
+The initial TestFlight is limited to adult internal testers. Permanent family
+governance or board participation does not automatically create an app account
+or testing permission for a child.
+
+Before any minor can use Holo Zoo, the product requires guardian controls,
+age-appropriate model/content policy, purchase restrictions, household
+separation, deletion/recovery, crisis-safe responses, and no unsupervised
+adult-minor House contact.
+
+---
+
+## Article XI — Enforcement
 
 Every new Holo Zoo feature must answer:
 
@@ -193,8 +214,11 @@ Every new Holo Zoo feature must answer:
 7. Can raw location or private GODD data leave the device?
 8. Does the UI distinguish preview, live, private, public, and verified states?
 9. Can the player export owned data and leave?
+10. Does the product punish absence, pressure bedtime return, or reward
+    excessive session duration?
+11. Does the current release remain limited to adult internal testers?
 
-Any **yes** to questions 1–4 or 7, or **no** to questions 5–6 or 8–9, blocks
+Any **yes** to questions 1–4, 7, or 10, or **no** to questions 5–6, 8–9, or 11, blocks
 release.
 
 ## Core sentence

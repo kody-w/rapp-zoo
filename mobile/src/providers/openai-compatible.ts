@@ -60,6 +60,7 @@ function createProvider(
     async complete(request: OpenAICompatibleRequest, options) {
       const init: RequestInit = {
         method: "POST",
+        redirect: "error",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -71,10 +72,9 @@ function createProvider(
         }),
       };
       if (options?.signal) init.signal = options.signal;
-      const response = await fetchImpl(
-        `${normalizedEndpoint}/chat/completions`,
-        init,
-      );
+      const requestUrl = `${normalizedEndpoint}/chat/completions`;
+      const response = await fetchImpl(requestUrl, init);
+      assertFinalResponseOrigin(requestUrl, response);
       if (!response.ok) {
         const body = await response.text();
         throw new Error(
@@ -96,12 +96,14 @@ export async function testDirectProvider(
   try {
     const response = await fetchImpl(`${provider.endpoint}/models`, {
       method: "GET",
+      redirect: "error",
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${settings.apiKey}`,
       },
       signal: controller.signal,
     });
+    assertFinalResponseOrigin(`${provider.endpoint}/models`, response);
     if (!response.ok) {
       throw new Error(
         response.status === 401 || response.status === 403
@@ -123,6 +125,26 @@ export async function testDirectProvider(
     throw new Error("Provider key test failed.");
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function assertFinalResponseOrigin(
+  requestedUrl: string,
+  response: Response,
+): void {
+  if (!response.url) {
+    throw new Error("Provider response did not disclose its final origin.");
+  }
+  let requestedOrigin: string;
+  let responseOrigin: string;
+  try {
+    requestedOrigin = new URL(requestedUrl).origin;
+    responseOrigin = new URL(response.url).origin;
+  } catch {
+    throw new Error("Provider response returned an invalid final URL.");
+  }
+  if (responseOrigin !== requestedOrigin) {
+    throw new Error("Provider cross-origin redirect was refused.");
   }
 }
 

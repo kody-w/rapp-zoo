@@ -57,7 +57,7 @@ describe("Rapterbox consumer branding", () => {
     );
     assert.equal(
       config.extra.brand.marketingUrl,
-      "https://rapterbox.com/holo",
+      "https://rapterbox.com/holo/",
     );
     assert.equal(config.extra.brand.product, "Rolling Cores");
     assert.equal(config.extra.brand.displayName, "Holo Zoo");
