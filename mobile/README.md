@@ -1,88 +1,135 @@
 # Holo Zoo: Rolling Cores
 
-**Holo Zoo: Rolling Cores**
+Holo Zoo is the RapterBox habitat, player, library, Field, and local Work
+walkthrough for signed Rolling Core organisms.
 
-Everything autocomplete on an organism. Powered by RAPP/1. From Rapterbox.
+**App lockup:** Everything autocomplete on an organism.
+**Current channel:** adult internal TestFlight
+**Current economics:** disabled
 
-Holo Zoo is the Rapterbox consumer app: the habitat, player, and library for
-living digital organisms called Rapters and their Rolling Cores. Rolling Cores
-is the underlying product system and whole-business thesis. The app is a
-managed Expo SDK 57 project for iOS, Android, and web using Expo Router,
-TypeScript, React Native Web, and `react-native-webview`. There are no
-checked-in generated `ios/` or `android/` projects.
+The app uses Expo SDK 57, Expo Router, TypeScript, React Native, React Native
+Web, and `react-native-webview`. Generated native `ios/` and `android/`
+projects are not committed.
 
-The consumer app is marketed and sold through
-[Rapterbox](https://rapterbox.com/holo). A **Rapter** is one organism, a
-**Rappter** is a flock of Rapters, and **RAPP/1** is the protocol. Store
-metadata should use:
+## Identity and URLs
 
-- Expo slug/scheme: `holo-zoo`
-- iOS bundle ID: `com.rapterbox.holozoo`
-- Android package: `com.rapterbox.holozoo`
-- Marketing: `https://rapterbox.com/holo`
-- Privacy: `https://rapterbox.com/privacy`
-- Support: `https://rapterbox.com/support`
+- Display name: **Holo Zoo**
+- Store title: **Holo Zoo: Rolling Cores**
+- Expo owner/project: `wildfeuer05/@wildfeuer05/holo-zoo`
+- EAS project ID: `782a464a-a0d8-40e9-93e3-0cec01874101`
+- Bundle/package: `com.rapterbox.holozoo`
+- Marketing: <https://rapterbox.com/holo/>
+- Privacy: <https://rapterbox.com/privacy/>
+- Support: <https://rapterbox.com/support/>
 
-## Company core loop
+A **Rapter** is one organism. A **Rappter** is a flock of Rapters.
+
+## Current product
+
+### Holo Field
+
+The default surface is an offline deterministic radar built from public
+organism IDs. It requests no GPS, contacts no map provider, creates no physical
+destination, and gives every House the same encounter roster.
+
+### Houses
+
+Overwatch, Scout, Forge, and Sentinel are local perspective choices. The app
+stores only a lowercase House code. House never changes price, rank, power,
+encounter odds, companion capability, Growth, World Pulse, or economic weight.
+
+### Companion
+
+Companion mode provides local meeting, Holo/Growl playback, history, evidence,
+and owned/imported capsule access. It contains no market, fee, job, treasury,
+tip, sponsorship, Coin, or sales action.
+
+### Work walkthrough
+
+The current `local-work-preview/1` flow is a deterministic, non-executing
+walkthrough of a possible proof-first work interface:
 
 ```text
-discover organism
--> preview and value it
--> one-time Rapter credit purchase
--> redeem and download signed Rolling Core Capsule
--> own and use it offline
--> import, export, AirDrop, or back it up
--> reopen it in Holo Zoo
--> interact and grow immutable history frame by frame
+sample request
+-> sample status
+-> sample proof
+-> sample delivery
 ```
 
-RAPP/1 is the substrate. Rapterbox is the storefront. Cloud inference is an
-optional service, never a prerequisite for local ownership or playback.
+The user can advance the explanatory screens but cannot transact. The preview
+creates no official job, work, proof, artifact, delivery, payment, review,
+public frame, or Coin record.
 
-The default app surface is **Holo Field**: a permissionless offline radar that
-combines organism discovery and companionship with a separately entered Work
-mode. The current Work mode is explicitly `local-work-preview/1`; it creates no
-official RapterWorks job, payment, tip, public proof, Coin, or service claim.
-See [`../HOLO_ZOO_FIELD_DISPATCH.md`](../HOLO_ZOO_FIELD_DISPATCH.md).
+The public work boundary is documented in [`../RAPTERWORKS.md`](../RAPTERWORKS.md).
 
-The binding gameplay rule is
-[`../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md):
-spending cannot alter affection, memory, survival, House identity, encounter
-odds, Growth, companion capability, or provenance truth.
+## Release freeze
 
-The repository also reserves a dormant Rapter Coin Trail seam for
-intentionally public DOGG-safe frames. It is not exposed in Holo Zoo, has no
-wallet, balance, market, transfer, cash value, or yield, and never includes
-private GODD/on-device context. The seam exists only so useful public frames
-can retain exact provenance and future attribution without changing capsule or
-Rolling Core identity later. See
-[`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md).
+`src/release-policy.ts` is the tracked runtime authority for this build. It
+fails closed for:
+
+- real commerce and RevenueCat initialization;
+- production RapterWorks;
+- tips, sponsorship, rentals, resale, and managed-compute sales;
+- Coin economics;
+- public sharing;
+- external interoperability; and
+- irreversible protocol writes.
+
+OTA updates are disabled. The audience is adult internal testers only.
+
+`npm run release:gate` checks the app projection and source bindings, then
+mutates protected values to prove the gate actually fails.
+
+## Local data and provider keys
+
+The app may store the House code, configured RAPP Zoo URL, imported or bundled
+capsules, Holo history, local evidence, provider endpoint/model, bounded-update
+limits, and app preferences.
+
+Native Direct provider keys use Expo SecureStore with this-device-only
+accessibility. A separate app-sandbox marker scopes the key to the current
+installation. When that marker is absent or stale, Holo Zoo clears any
+residual Keychain/Keystore value before loading settings. If secure deletion
+or settings load fails, Direct updates remain disabled and the error is shown.
+
+Testing a key calls only the selected provider's `/models` endpoint. A bounded
+update starts only after explicit action, sends the selected current Rolling
+Core as context, and stops when the app leaves the foreground.
+
+## Network boundary
+
+The app contacts only a tester-configured RAPP Zoo or Direct provider.
+
+- public hosts require HTTPS;
+- HTTP is restricted to literal loopback or private-network addresses;
+- credentials in endpoint URLs are rejected;
+- the final response origin must match the requested origin; and
+- cross-origin redirects are rejected before data is accepted.
+
+Android keeps manifest cleartext capability only so validated private-LAN
+development hosts can work. The application validator remains the enforcing
+boundary.
+
+## Files
+
+- Native imports are capped at 16 MiB.
+- Capsules use `.rollingcore`.
+- Registered MIME: `application/vnd.rapterbox.rolling-core+json`.
+- Registered UTI: `com.rapterbox.rollingcore`.
+- Picker and export cache files are deleted after reading or sharing.
+- Export starts only through the system share action.
 
 ## Verified-tick liveness
 
-A source frame plus its verified successor Rolling Core frame is a **tick of
-existence**. Holo Zoo reads each host-derived liveness summary directly from
-`GET /api/holo/heads`: `state`, `last_tick_utc`, `age_ms`, and
-`wake_lease_ms`.
+Holo Zoo reads signed host liveness as Awake, Sleeping, Quarantined, or Unborn.
+Waking is transient client UI only while an explicit refresh waits for a
+successor. Animation, connectivity, a stored key, or a configured cadence is
+never proof that an organism advanced.
 
-- **Awake:** the latest accepted tick is fresh inside its configured
-  wake lease.
-- **Sleeping:** no observation/lease exists or the lease expired without an
-  advancing verified tick.
-- **Quarantined:** the host refused invalid continuity or output evidence.
-- **Unborn:** no verified genesis tick exists yet.
-
-A configured cadence schedules opportunities to produce ticks; it is never
-shown as activity by itself. Sleeping never means deleted or dead. The last
-Rolling Core and full immutable history remain available, and the next valid
-successor wakes the same Rapter without resetting history. **Waking** is only a
-transient Holo Zoo UI state while an explicit refresh awaits that successor; it
-is never accepted as a host liveness state or proof of activity.
-
-Holo Zoo uses **consciousness** only as an operational product term:
-continuous inspectable experience-state across verified ticks. It is not a
-claim of biological consciousness or scientific proof. AI-presence heuristics
-remain separate from liveness.
+Sleeping preserves the latest valid Rolling Core and complete immutable
+history. Holo Zoo uses consciousness only as an operational description of
+continuous inspectable experience-state, not a biological or scientific
+claim.
 
 ## Install and run
 
@@ -93,32 +140,42 @@ npm run sync:holo
 npx expo start
 ```
 
-From the Expo terminal, press `i` for an iOS Simulator, `a` for an Android
-emulator, or `w` for web. A physical device can scan the Expo QR code when the
-development machine and device can reach one another.
+Use `i` for iOS Simulator, `a` for Android emulator, or `w` for web.
 
-The default host is `http://127.0.0.1:5000`. Android emulators commonly reach
-the development machine at `http://10.0.2.2:5000`; set that URL in the app.
-Android prebuilds use the checked-in
-`plugins/with-private-network-http.js` config plugin to preserve these
-explicitly selected loopback/private-LAN HTTP flows. The application validator
-continues to refuse credentials and public cleartext endpoints.
+The default development host is `http://127.0.0.1:5000`. Android emulators
+commonly use `http://10.0.2.2:5000`.
 
-## Checks
+## Validation
 
 ```sh
+npm run release:gate
 npm run lint
 npm run typecheck
 npm test
 npm run export:web
+npx expo config --type prebuild --json
+npx expo prebuild --platform android --no-install
 ```
 
 The static web export is written to `mobile/dist/`.
 
+## EAS
+
+`eas.json` pins EAS CLI `22.3.0`, uses remote app versions, enables production
+auto-increment, and defines development, preview, and production profiles.
+
+```sh
+cd mobile
+npx eas-cli@22.3.0 build:version:set --platform ios
+npx eas-cli@22.3.0 build --platform ios --profile production
+```
+
+The repository does not authenticate Apple accounts, create legal agreements,
+enter tax/banking data, or submit a build. Those remain owner actions.
+
 ## Brand sigil
 
-The app icon, adaptive foreground, splash mark, favicon, and checked-in SVG
-masters are generated from the Rolling Cores master SHAPEE:
+All app/store assets use the canonical deterministic SHAPEE:
 
 ```json
 {
@@ -131,274 +188,9 @@ masters are generated from the Rolling Cores master SHAPEE:
 }
 ```
 
-`npm run generate:brand` probes the bundled or repository
-`RappHoloProtocol.shapeeOutline` helper first. Until that shared asset is
-synchronized, it uses an exact pinned parity implementation. The generated
-`master-shapee.json` records the outline and raster hashes. Raster generation
-requires `rsvg-convert`; no image-generation dependency ships in the app.
-The mark intentionally contains no egg, sphere, or ball motif.
-
-## EAS builds
-
-Install and authenticate EAS CLI separately, then choose a documented profile:
-
-```sh
-cd mobile
-npx eas-cli build --platform ios --profile development
-npx eas-cli build --platform android --profile preview
-npx eas-cli build --platform all --profile production
-```
-
-`eas.json` defines simulator/internal/production build shapes. No submit,
-deployment, signing, or store upload is performed by this repository.
-
-### RevenueCat setup
-
-`react-native-purchases` requires an EAS development/store build for real
-purchases. Expo Go and web intentionally use a visible, session-only preview
-adapter; preview purchases never contact a store.
-
-Create unique packages in the current RevenueCat one-time offering for:
-
-- `rapter_hatch_1` — one signed Rapter capsule download credit
-- `rappter_flock_3` — three discounted capsule credits
-- `rappter_flock_10` — ten discounted capsule credits
-- `rolling_compute_small` — optional small managed-compute/Growl pack
-- `rolling_compute_large` — optional large managed-compute/Growl pack
-
-The 3- and 10-slot Rappter flock products can carry discounted localized
-pricing. Prices are always loaded from RevenueCat/store products; the app
-hardcodes no currency or price. Configure build-time public platform SDK keys
-without committing them:
-
-```sh
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_REVENUECAT_IOS_API_KEY --value '<ios-public-sdk-key>'
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY --value '<android-public-sdk-key>'
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_RAPTERBOX_WILD_BRAINSTEM_URL \
-  --value 'https://<azure-function-host>/v1'
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_RAPTERBOX_WILD_LEDGER_URL \
-  --value 'https://<ledger-host>/v1'
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_RAPTERBOX_CREDIT_REGISTRY_URL \
-  --value 'https://<registry-host>/v1'
-npx eas-cli env:create --environment development \
-  --name EXPO_PUBLIC_RAPTERBOX_CAPSULE_SERVICE_URL \
-  --value 'https://<capsule-service-host>/v1'
-```
-
-Repeat for `preview` and `production`. `.env.example` contains empty
-placeholders only. A native build with a missing platform key fails billing
-initialization explicitly and leaves paid features locked; it never falls back
-to fake purchases. Rebuild the development client after installing or updating
-RevenueCat:
-
-```sh
-npx eas-cli build --platform ios --profile development
-npx eas-cli build --platform android --profile development
-npx expo start --dev-client
-```
-
-The gallery is free to browse and preview. A one-time Rapter credit lets the
-user choose an organism. RevenueCat supplies transaction/customer information;
-the backend ledger mints the download right idempotently by store transaction
-ID, then the capsule service returns the signed `Rolling Core Capsule`.
-
-The capsule—not the receipt or cloud slot—is the durable owned object. It is
-stored in application document storage, works offline, and can be exported,
-AirDropped, backed up, and re-imported through Files or an OS open/share action.
-The client verifies the capsule ID, trusted Ed25519 signature, RAPP/1 frames,
-source bindings, and authored hashes before storing it.
-
-Exported capsules use the `.rollingcore` extension and
-`application/vnd.rapterbox.rolling-core+json` media type. Invalid or untrusted
-capsules are refused without repair.
-
-Purchased capsules carry exactly one public `rapp-rapter-credit/1` sidecar
-binding the stable `organism_rappid` and genesis Rolling Core frame. The record
-stores an integer `price_sats`, issuer signature, mint channel, and either a
-signed issuance-ledger location or optional Bitcoin `{txid,vout}` outpoint.
-Price is metadata, not identity. No wallet private key, seed phrase, or raw
-store receipt enters the capsule.
-
-Rapterbox operates the authoritative signed ownership registry. The app can
-only verify and mirror `rapp-rapter-credit-status/1` records; it has no issuer
-write path. Real redemption must atomically return both the signed capsule and
-its signed registry status, and receipt success alone never marks an organism
-owned.
-
-When online, users can refresh the official record. Offline, the app displays
-the last verified signed status and timestamp. A capsule with no matching
-verified registry status remains importable and renderable as an **unverified
-copy/preview**, never as official ownership. A transferred or revoked record
-also leaves the local bytes usable while changing official ownership,
-redownload, and transfer claims.
-
-Marketplace valuation is also issuer-controlled. Each purchased capsule's
-credit record includes a signed tier/set schedule reference, fixed integer
-`price_sats`, BTC/USD quote snapshot at conception, and birth fiat reference.
-The app labels this **Official Rapterbox birth value**. It is immutable
-historical metadata—not current market value or an investment appraisal.
-
-Store products remain generic Rapter/compute credits. During redemption the
-client submits only the selected organism and idempotent redemption ID; the
-backend applies the authoritative schedule and verified store receipt. The
-client never chooses a tier, price, quote, or payment result.
-
-Holo Zoo implements no Bitcoin wallet, custody, transfer, exchange, or
-direct BTC checkout. A future Rapterbox web BTC purchase and an App Store/Play
-receipt redemption can call the same backend minting protocol and return the
-same capsule/credit record shape.
-
-The reserved Rapter Coin Trail is separate from Rapter Credits and Bitcoin.
-The submitted app does not create, display, sell, trade, redeem, or value
-Coins. Any future activation requires a new signed policy, explicit opt-in,
-privacy and fraud review, and current legal/store-policy approval after Holos
-have demonstrated real utility.
-
-Consumed products are not guaranteed to remain recoverable from every platform
-receipt—particularly Google Play Billing 8. The account ledger exists only for
-redownload/recovery and unused-credit balance; the signed local capsule remains
-the source of truth for offline ownership.
-
-### 30-day return and resale lifecycle
-
-The original official owner has an inclusive 30-day return window beginning at
-the signed issuance timestamp. Holo Zoo checks the public lifecycle service and
-ownership head before showing a return as eligible. A requested return remains
-**Return pending** until the original payment rail confirms the refund and the
-backend verifies the signed `rapp-rapter-credit-return/1` event.
-
-Apple App Store and Google Play refunds defer to their current policies and
-refund surfaces. Bitcoin returns require backend-verified settlement on the
-recorded rail. The client never declares payment success and never stores raw
-receipts. After confirmation, the capsule becomes a clearly labeled
-**returned · unowned verifiable copy**; its immutable local file is not deleted
-or rewritten.
-
-After the return window, the official owner may create or cancel a listing
-through signed registry events. A verified sale is followed by a signed
-ownership transfer. Local bytes held by the prior owner remain an unowned,
-renderable copy. The UI keeps three values separate:
-
-- **Official Rapterbox birth value:** immutable signed issuance metadata.
-- **Current seller ask:** the active listing's requested sats.
-- **Last verified sale:** the latest signed settlement amount.
-
-Ask and sale prices are market facts, not an investment appraisal, promised
-return, or liquidity guarantee. The client lifecycle states are `owned`,
-`return-eligible`, `return-pending`, `returned`, `listed`, `sold`, and
-`unverified-copy`.
-
-### Direct and Wild contract
-
-- **Direct — free:** one bundled local Rapter plus any signed capsules the user
-  owns; a user-owned OpenAI-compatible endpoint, model, and API key; offline
-  playback/history/import/export; and RAPP/1 validation. Native keys use Expo
-  SecureStore. Web keys live only for the browser-tab session.
-- **Rapter ownership:** one-time hatch and flock packs grant signed capsule
-  download credits. Selecting a gallery organism consumes one credit through
-  the backend and imports the returned capsule locally.
-- **Wild compute — optional:** Direct/BYOK remains available for every owned
-  capsule. Optional managed Brainstem access uses prepaid compute credits for
-  routing, quota/revocation, remote access, autocomplete, and managed Growls.
-- **Rappter flock packs:** 3- and 10-credit consumables provide discounted
-  multi-Rapter ownership through RevenueCat offerings.
-- **Rolling Compute:** optional small/large consumable packs fund ongoing
-  managed Azure/model and Growl work.
-
-Cloud connectivity is never required to view, play, inspect, or export an owned
-local capsule. Store pricing and compute-pack grant amounts remain entirely
-external.
-
-Direct and Wild call the same `OpenAICompatibleProvider` interface. Direct adds
-the user's own bearer key locally. Wild uses the managed Brainstem URL and an
-eventual short-lived user/session token; no shared cloud provider credential is
-embedded. Exhausting compute credits never hides, invalidates, deletes, or
-prevents offline use/export of local capsules the user already owns.
-
-### Breath key and bounded breathing
-
-A Direct API key becomes a **breath key** only after the user explicitly tests
-it against the configured provider's `/models` endpoint. Native builds keep the
-key in Expo SecureStore; web keeps it in tab-scoped session storage. Saving or
-testing a key never starts completion spend.
-
-The user must explicitly start each local breathing session. Defaults are
-bounded to a 300-second cadence, 6 attempted ticks, 512 maximum output tokens
-per tick, 3,072 total reserved output tokens, 32,768 context bytes, and a
-one-hour session. The UI accepts only finite limits and provides an immediate
-**Pause · Hold Breath** control. The selected provider may bill each attempted
-completion; Holo Zoo bounds request context and output but cannot predict its
-currency price.
-
-Each attempt asks the configured OpenAI-compatible provider for one authored
-successor candidate. Holo Zoo materializes its local RAPP source and
-`body.pulse` frames, verifies hashes, source binding, subject, sequence,
-visual parent, and an actual experience-state mutation, then stores the tick.
-Invalid output never advances the Rolling Core.
-
-Direct breathing runs only while the Expo app runtime is active. Moving iOS
-into the background immediately aborts the active request and holds breath; no
-background mode is declared and no background liveness is simulated. Continuous
-away-from-device breathing requires an optional, explicitly bounded Wild cloud
-lease backed by prepaid compute. Missing/revoked keys, offline providers,
-explicit pause, refused successors, and exhausted tick/token/time budgets all
-hold breath and leave the last valid core and history intact.
-
-## Capabilities
-
-- Responsive three-panel workspace on wide screens and stacked
-  Field/Library/Stage/Inspect navigation on phones.
-- Offline Holo Field radar with deterministic public-organism signals, four
-  local-only starting Houses, and no GPS or map-provider dependency.
-- Explicit Companion and Work modes. Companion mode contains no commerce; Work
-  mode is a bounded, visibly nonofficial UI walkthrough until durable
-  RapterWorks services launch.
-- Holo Zoo consumer habitat, player, and immutable Rolling Core library.
-- Configurable RAPP Zoo host for connected Rapters with sandboxed non-secret
-  persistence.
-- Direct BYOK OpenAI-compatible provider configuration with secure native key
-  storage and session-only web key storage.
-- Wild managed-Brainstem configuration with no shared cloud credentials in the
-  bundle.
-- Health, Holo heads with liveness, history, exact frame, exact source,
-  presence, and
-  fantasy-draft endpoint support.
-- Signed Rolling Core Capsule gallery, idempotent receipt redemption, local
-  document storage, Files/Share import, AirDrop/share export, and browser
-  upload/download.
-- Integer-only JCS-compatible canonicalization, SHA-256 hash checks, exact RAPP
-  frame/record shapes, source binding, and bounded Holo scene validation.
-- Offline bundled `viewer.html`, CSS, Three r128, `holo-protocol.js`, and
-  `hologram-runtime.js`.
-- Native WebView and sandboxed web iframe players with no arbitrary navigation
-  or renderer networking.
-- Recursive history/base injection, current versus player-active metadata,
-  evidence-derived Awake/Sleeping/Quarantined/Unborn status, transient Waking
-  during successor checks, source inspection, and an immutable flipbook.
-- SHAPEE remains an optional primitive inside a complete scene.
-- Growl consumes only completed
-  `NOTE(pitch, delta_onset, duration, velocity)` data after **Play Growl** is
-  pressed. Missing or incomplete data leaves playback explicitly disabled.
-
-The local oscillator is a deterministic rendering adapter, not a composer. It
-does not invent pitches, fetch samples, autoplay, or open a hardware MIDI port.
-
-## Model weights
-
-Real on-device model weights are not bundled. Holo Zoo consumes completed
-Holo/Growl output from a configured RAPP Zoo host or local imports, and may
-request bounded successor candidates from the user's tested Direct provider.
+Run `npm run generate:brand` only when regenerating checked-in brand assets.
 
 ## Shared asset synchronization
-
-This integration synchronizes the viewer, required completed Growl contract,
-SHAPEE helper, recursive history, and renderer from
-`copilot/expressive-hologram-selves` at `423f29c`. For future protocol updates:
 
 ```sh
 cp holograms/viewer.html mobile/assets/holo/viewer.html
@@ -409,37 +201,14 @@ cp static/hologram-runtime.js mobile/assets/holo/hologram-runtime.js
 cd mobile && npm run sync:holo
 ```
 
-Then align the local validators to any newly ratified schema and rerun all
-checks. The checked-in shared asset copies remain byte-identical to their
-source files before generation.
+Then align validators to the ratified schema and rerun every validation.
 
-See [`PRIVACY.md`](./PRIVACY.md) for the privacy statement.
-See [`APP_STORE_METADATA.md`](./APP_STORE_METADATA.md) for reviewed vocabulary
-and store-listing copy.
-See [`STORE_RELEASE_CHECKLIST.md`](./STORE_RELEASE_CHECKLIST.md) for the
-owner-only account, payment, signing, TestFlight, and store preparation steps.
-See [`ENTITLEMENT_ARCHITECTURE.md`](./ENTITLEMENT_ARCHITECTURE.md) for the
-typed Free Companion, premium rental, permanent ownership, and Sovereign
-application boundary intentionally deferred from this immediate handoff.
-See [`GENESIS_FAMILY_ARCHITECTURE.md`](./GENESIS_FAMILY_ARCHITECTURE.md) for
-the typed 251-title First Edition / First Dimension catalog, Original title
-transfer gates, separate offspring rights, shared authored Holo references,
-and signed generation eligibility boundary.
-See [`GROWTH_POINTS_ARCHITECTURE.md`](./GROWTH_POINTS_ARCHITECTURE.md) for
-non-monetary Growth Points, signed mutation timing, accessibility-safe
-micro-events, and the disabled-by-default preview HealthKit adapter.
-See [`WORLD_PULSE_ARCHITECTURE.md`](./WORLD_PULSE_ARCHITECTURE.md) for the
-typed global aggregate checkpoint, milestone, event-count, and universal
-shared-world unlock boundary kept separate from individual progress.
-See [`STAGE_TIMELINE_ARCHITECTURE.md`](./STAGE_TIMELINE_ARCHITECTURE.md) for
-the typed free Origin and signed Journey/Ascendant stage reference timeline,
-with points-plus-UTC eligibility and no pay-to-evolve semantics.
-See [`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md) for the
-dormant public-frame provenance seam, public DOGG/private GODD split, title
-resolution, tip attribution, activation gates, and anti-speculation rules.
-See [`../HOLO_ZOO_FIELD_DISPATCH.md`](../HOLO_ZOO_FIELD_DISPATCH.md) for the
-unified Field/companion/work interaction model.
-See
-[`../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md)
-for the release-blocking no-pay-to-win, no-pay-to-live, no-guilt, and
-full-delivery-before-compensation rules.
+## Governing documents
+
+- [`PRIVACY.md`](./PRIVACY.md)
+- [`APP_STORE_METADATA.md`](./APP_STORE_METADATA.md)
+- [`STORE_RELEASE_CHECKLIST.md`](./STORE_RELEASE_CHECKLIST.md)
+- [`../HOLO_ZOO_FIELD_DISPATCH.md`](../HOLO_ZOO_FIELD_DISPATCH.md)
+- [`../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md`](../HOLO_ZOO_GAMEPLAY_CONSTITUTION.md)
+- [`../RAPTER_CREDIT_PROTOCOL.md`](../RAPTER_CREDIT_PROTOCOL.md)
+- [`../RAPTER_COIN_ARCHITECTURE.md`](../RAPTER_COIN_ARCHITECTURE.md)

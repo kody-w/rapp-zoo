@@ -58,21 +58,6 @@
       "$ref": "#/$defs/utc"
     }
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "issuance_index": {
-            "type": "integer"
-          },
-          "series_cap": {
-            "type": "integer"
-          }
-        }
-      },
-      "then": {}
-    }
-  ],
   "$defs": {
     "hex64": {
       "type": "string",
@@ -107,98 +92,6 @@
       "properties": {
         "txid": {
           "$ref": "#/$defs/hex64"
-        },
-        "birth": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "schema",
-            "conception_utc",
-            "tier",
-            "schedule_id",
-            "schedule_hash",
-            "btc_fraction",
-            "btc_quote",
-            "price_sats",
-            "birth_value_usd_micros"
-          ],
-          "properties": {
-            "schema": {
-              "const": "rapp-rapter-birth/1"
-            },
-            "conception_utc": {
-              "$ref": "#/$defs/utc"
-            },
-            "tier": {
-              "$ref": "#/$defs/label"
-            },
-            "schedule_id": {
-              "$ref": "#/$defs/label"
-            },
-            "schedule_hash": {
-              "$ref": "#/$defs/hex64"
-            },
-            "btc_fraction": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "numerator",
-                "denominator"
-              ],
-              "properties": {
-                "numerator": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                },
-                "denominator": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                }
-              }
-            },
-            "btc_quote": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "pair",
-                "price_usd_micros",
-                "source",
-                "observed_utc",
-                "response_hash"
-              ],
-              "properties": {
-                "pair": {
-                  "const": "BTC-USD"
-                },
-                "price_usd_micros": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                },
-                "source": {
-                  "$ref": "#/$defs/label"
-                },
-                "observed_utc": {
-                  "$ref": "#/$defs/utc"
-                },
-                "response_hash": {
-                  "$ref": "#/$defs/hex64"
-                }
-              }
-            },
-            "price_sats": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100000000
-            },
-            "birth_value_usd_micros": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 9007199254740991
-            }
-          }
         },
         "vout": {
           "type": "integer",
@@ -263,6 +156,99 @@
           }
         }
       ]
+    },
+    "birth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "conception_utc",
+        "tier",
+        "schedule_id",
+        "schedule_hash",
+        "btc_fraction",
+        "btc_quote",
+        "price_sats",
+        "birth_value_usd_micros"
+      ],
+      "properties": {
+        "schema": {
+          "const": "rapp-rapter-birth/1"
+        },
+        "conception_utc": {
+          "$ref": "#/$defs/utc"
+        },
+        "tier": {
+          "$ref": "#/$defs/label"
+        },
+        "schedule_id": {
+          "$ref": "#/$defs/label"
+        },
+        "schedule_hash": {
+          "$ref": "#/$defs/hex64"
+        },
+        "btc_fraction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "properties": {
+            "numerator": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "denominator": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "btc_quote": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pair",
+            "price_usd_micros",
+            "source",
+            "observed_utc",
+            "response_hash"
+          ],
+          "properties": {
+            "pair": {
+              "const": "BTC-USD"
+            },
+            "price_usd_micros": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "source": {
+              "$ref": "#/$defs/label"
+            },
+            "observed_utc": {
+              "$ref": "#/$defs/utc"
+            },
+            "response_hash": {
+              "$ref": "#/$defs/hex64"
+            }
+          }
+        },
+        "price_sats": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000000
+        },
+        "birth_value_usd_micros": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
     }
-  }
+  },
+  "$comment": "Runtime validation additionally requires issuance_index < series_cap and valid quote/issuance chronology; JSON Schema draft 2020-12 cannot compare sibling numeric values."
 }

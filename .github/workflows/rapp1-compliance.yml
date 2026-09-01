@@ -23,7 +23,7 @@ jobs:
       - name: Check out pinned protocol and ancestor
         run: |
           git clone https://github.com/kody-w/rapp-1.git "$RUNNER_TEMP/rapp-1"
-          git -C "$RUNNER_TEMP/rapp-1" checkout 3d2ac167d4afad8a24e29d6da1a5126e9d8bc8aa
+          git -C "$RUNNER_TEMP/rapp-1" checkout caf6ef276cafa92aa744499af90dc1a28559941a
           git clone https://github.com/kody-w/RAPP.git "$RUNNER_TEMP/RAPP"
           git -C "$RUNNER_TEMP/RAPP" checkout f97ed45fba0cf087b73b938ab2a6c529afe2ac57
 
@@ -46,8 +46,46 @@ jobs:
       - name: Run Frontier desktop suite
         run: npm test
 
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm --prefix mobile ci
+
+      - name: Run mobile release gate
+        run: npm --prefix mobile run release:gate
+
+      - name: Run mobile lint, types, and tests
+        run: |
+          npm --prefix mobile run lint -- --max-warnings 0
+          npm --prefix mobile run typecheck
+          npm --prefix mobile test
+
+      - name: Export static web application
+        run: npm --prefix mobile run export:web
+
+      - name: Resolve Expo native configuration
+        working-directory: mobile
+        run: |
+          npx expo config --type prebuild --json > /tmp/holo-zoo-expo-config.json
+          npx expo prebuild --platform android --no-install
+          grep -q 'android:usesCleartextTraffic=\"true\"' android/app/src/main/AndroidManifest.xml
+          for permission in READ_EXTERNAL_STORAGE WRITE_EXTERNAL_STORAGE SYSTEM_ALERT_WINDOW VIBRATE; do
+            grep -q "android.permission.${permission}\" tools:node=\"remove\"" android/app/src/main/AndroidManifest.xml
+          done
+
   package:
-    needs: test
+    needs:
+      - test
+      - mobile
     strategy:
       fail-fast: false
       matrix:

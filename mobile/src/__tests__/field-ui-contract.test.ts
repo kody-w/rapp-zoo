@@ -45,10 +45,9 @@ describe("Holo Field UI contract", () => {
     assert.match(source, /"field", "companion", "habitat"/);
     assert.match(source, /width >= 1180/);
     assert.match(source, /selectWideMode\("companion"\)/);
-    assert.match(
-      source,
-      /if \(pane === "stage" && phonePane === "field"\)/,
-    );
+    assert.match(source, /selectPhonePane\("stage"\)/);
+    assert.match(source, /<StagePanel reducedMotion=/);
+    assert.doesNotMatch(source, /stageCommerce|commerce=/);
     assert.doesNotMatch(source, /useBilling|REVENUECAT KEY MISSING/);
   });
 });

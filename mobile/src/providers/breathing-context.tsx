@@ -134,16 +134,28 @@ export function DirectBreathingProvider({ children }: PropsWithChildren) {
     void Promise.all([
       loadDirectProviderSettings(),
       loadBreathingLimits(),
-    ]).then(([storedSettings, storedLimits]) => {
-      settingsRef.current = storedSettings;
-      limitsRef.current = storedLimits;
-      setSettings(storedSettings);
-      setLimits(storedLimits);
-      setKeyStatus(
-        storedSettings.apiKey ? "stored-unverified" : "missing",
-      );
-      setReady(true);
-    });
+    ])
+      .then(([storedSettings, storedLimits]) => {
+        settingsRef.current = storedSettings;
+        limitsRef.current = storedLimits;
+        setSettings(storedSettings);
+        setLimits(storedLimits);
+        setKeyStatus(
+          storedSettings.apiKey ? "stored-unverified" : "missing",
+        );
+        setReady(true);
+      })
+      .catch((caught: unknown) => {
+        settingsRef.current = defaults;
+        limitsRef.current = DEFAULT_BREATHING_LIMITS;
+        setSettings(defaults);
+        setLimits(DEFAULT_BREATHING_LIMITS);
+        setKeyStatus("missing");
+        setMessage(
+          `Provider settings could not be loaded: ${(caught as Error).message}. Direct updates remain disabled until the settings are saved again.`,
+        );
+        setReady(true);
+      });
   }, []);
 
   useEffect(() => {

@@ -32,11 +32,11 @@ export type LocalWorkPreview = {
   privateLocalOnly: true;
 };
 
-export const WORK_PREVIEW_CATEGORIES: ReadonlyArray<{
+export const WORK_PREVIEW_CATEGORIES: readonly {
   code: WorkPreviewCategory;
   label: string;
   request: string;
-}> = [
+}[] = [
   {
     code: "research",
     label: "Research",

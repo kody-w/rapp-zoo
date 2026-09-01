@@ -147,12 +147,23 @@ export class ZooApi {
   private async get(path: string): Promise<JsonValue> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
+    const requestUrl = `${this.baseUrl}${path}`;
     try {
-      const response = await fetch(`${this.baseUrl}${path}`, {
+      const response = await fetch(requestUrl, {
         method: "GET",
         headers: { Accept: "application/json" },
         signal: controller.signal,
       });
+      if (!response.url) {
+        throw new ZooApiError("RAPP Zoo response URL could not be verified.");
+      }
+      const requestedOrigin = new URL(requestUrl).origin;
+      const responseOrigin = new URL(response.url).origin;
+      if (responseOrigin !== requestedOrigin) {
+        throw new ZooApiError(
+          "RAPP Zoo refused a cross-origin redirect.",
+        );
+      }
       const raw = await response.text();
       if (!response.ok) {
         let message = response.statusText;
@@ -247,7 +258,45 @@ export function normalizeBaseUrl(value: string): string {
   require(["http:", "https:"].includes(url.protocol), "Host URL must use http or https");
   require(url.username === "" && url.password === "", "Host URL cannot contain credentials");
   require(url.search === "" && url.hash === "", "Host URL cannot contain query or fragment");
+  if (url.protocol === "http:") {
+    require(
+      privateHttpHostname(url.hostname),
+      "Public RAPP Zoo hosts must use HTTPS; HTTP is limited to loopback or literal private-network addresses",
+    );
+  }
   return url.toString().replace(/\/$/, "");
+}
+
+export function privateHttpHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") {
+    return true;
+  }
+  if (host.includes(":")) {
+    return (
+      host.startsWith("fc") ||
+      host.startsWith("fd") ||
+      /^fe[89ab]/.test(host)
+    );
+  }
+  const parts = host.split(".");
+  if (
+    parts.length !== 4 ||
+    parts.some(
+      (part) =>
+        !/^(0|[1-9][0-9]{0,2})$/.test(part) ||
+        Number(part) > 255,
+    )
+  ) {
+    return false;
+  }
+  const [first, second] = parts.map(Number);
+  return (
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second! >= 16 && second! <= 31) ||
+    (first === 192 && second === 168)
+  );
 }
 
 function asObject(value: JsonValue | undefined, path: string): JsonObject {

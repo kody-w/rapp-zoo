@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +12,6 @@ import { colors } from "@/theme/colors";
 
 export default function FantasyDraftScreen() {
   const store = useHoloStore();
-  const router = useRouter();
   useEffect(() => {
     const timer = setTimeout(() => void store.loadFantasyDraft(), 0);
     return () => clearTimeout(timer);
@@ -60,9 +58,10 @@ export default function FantasyDraftScreen() {
           <Button tone="accent" onPress={() => void store.loadFantasyDraft()}>
             Retry
           </Button>
-          <Button onPress={() => router.push("/upgrade")}>
-            View Wild Credits
-          </Button>
+          <Text style={styles.kind}>
+            This sample uses the tester-configured RAPP Zoo and has no paid
+            unlock.
+          </Text>
         </View>
       ) : (
         <View style={styles.empty}>

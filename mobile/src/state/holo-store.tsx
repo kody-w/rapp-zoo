@@ -54,6 +54,7 @@ import {
   saveBaseUrl,
   storeHolo,
 } from "@/lib/library";
+import { mergeSuccessorLineage } from "@/lib/successor-lineage";
 import { strictParse } from "@/lib/strict-json";
 import { requestDirectSuccessorTick } from "@/providers/direct-tick";
 import type { DirectProviderSettings } from "@/providers/types";
@@ -67,6 +68,7 @@ import type {
   RollingCoreLiveness,
   ValidatedHolo,
 } from "@/lib/types";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 
 type Selection =
   | { kind: "live"; subjectRappid: string }
@@ -188,9 +190,14 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     void (async () => {
+      let bundledFailure: string | null = null;
       try {
         const bundledCapsule = validateCapsuleRaw(lumenDriftCapsuleRaw);
         await storeCapsule(bundledCapsule);
+      } catch (caught) {
+        bundledFailure = `Bundled Companion could not be refreshed: ${(caught as Error).message}`;
+      }
+      try {
         const [host, entries, capsuleEntries, mirroredRegistry] =
           await Promise.all([
             loadBaseUrl(),
@@ -206,8 +213,9 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
         const firstLegacy = entries[0];
         if (firstCapsule) applyCapsule(firstCapsule, mirroredRegistry);
         else if (firstLegacy) applyLibrary(firstLegacy, entries);
+        if (bundledFailure) setInfo(bundledFailure);
       } catch (caught) {
-        setError((caught as Error).message);
+        setError(`Local Holo Zoo state could not load: ${(caught as Error).message}`);
       } finally {
         setReady(true);
       }
@@ -236,12 +244,6 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
   }, []);
 
   async function refresh(): Promise<void> {
-    if (!billing.features.remoteAccess) {
-      setError(
-        "Holo Zoo Wild unlocks remote Rapters and the managed Brainstem.",
-      );
-      return;
-    }
     setLoading(true);
     setError(null);
     const refreshingSubject =
@@ -305,12 +307,6 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
   }
 
   async function loadLive(head: HoloHead, api = new ZooApi(baseUrl)): Promise<void> {
-    if (!billing.features.remoteAccess) {
-      setError(
-        "Holo Zoo Wild unlocks remote Rapters and the managed Brainstem.",
-      );
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
@@ -332,7 +328,7 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
         return;
       }
       const [history, nextPresence] = await Promise.all([
-        api.history(head.subjectRappid, billing.features.wildHistoryDepth),
+        api.history(head.subjectRappid, 8),
         api.presence(head.subjectRappid),
       ]);
       const currentId = history.currentHeadId ?? head.holoId;
@@ -398,6 +394,10 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
   async function redeemGalleryOrganism(
     organism: GalleryOrganism,
   ): Promise<void> {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setError("Capsule redemption is disabled in this internal TestFlight.");
+      return;
+    }
     if (billing.ledger.availableRapterCredits < 1) {
       setError("A one-time Rapter credit is required to redeem this organism.");
       return;
@@ -449,6 +449,10 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
   }
 
   async function recoverCapsule(capsuleId: string): Promise<void> {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setError("Account recovery is disabled in this internal TestFlight.");
+      return;
+    }
     const normalized = capsuleId.trim();
     if (!/^[0-9a-f]{64}$/.test(normalized)) {
       setError("Capsule recovery requires a 64-character capsule ID.");
@@ -521,8 +525,12 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
   }
 
   async function refreshSelectedRegistry(): Promise<void> {
+    if (!HOLO_ZOO_RELEASE_POLICY.externalInteroperabilityEnabled) {
+      setError("Registry refresh is disabled in this internal TestFlight.");
+      return;
+    }
     if (!selectedCapsule?.credit) {
-      setError("This local capsule has no purchased Rapter Credit binding.");
+      setError("This local capsule has no separate Rapter Credit binding.");
       return;
     }
     await refreshRegistryForCapsule(selectedCapsule, true, true);
@@ -533,6 +541,12 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
     announce = false,
     selectRecord = false,
   ): Promise<void> {
+    if (!HOLO_ZOO_RELEASE_POLICY.externalInteroperabilityEnabled) {
+      if (announce) {
+        setError("Registry refresh is disabled in this internal TestFlight.");
+      }
+      return;
+    }
     if (!capsule.credit) return;
     const configured = configuredCreditRegistryEndpoint();
     if (!configured.endpoint) {
@@ -609,7 +623,7 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
     try {
       if (selectedCapsule) {
         await exportJsonFile(
-          `${selectedCapsule.organism.id}-${selectedCapsule.capsuleId}.rollingcore.json`,
+          `${selectedCapsule.organism.id}-${selectedCapsule.capsuleId}.rollingcore`,
           selectedCapsule.raw,
         );
         setInfo(
@@ -626,13 +640,6 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
 
   async function exportGrowl(): Promise<void> {
     if (!selected || selected.growl.kind !== "playable") return;
-    if (
-      selection?.kind === "live" &&
-      !billing.features.wildGrowlExport
-    ) {
-      setError("Holo Zoo Wild unlocks managed Growl NOTE export.");
-      return;
-    }
     try {
       await exportJsonFile(
         `growl-${selected.id}.json`,
@@ -646,13 +653,6 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
 
   async function loadFantasyDraft(): Promise<void> {
     setFantasyError(null);
-    if (!billing.features.fantasyDrafts) {
-      setFantasyDraft(null);
-      setFantasyError(
-        "A 3- or 10-slot Rappter flock Wild plan unlocks fantasy drafts.",
-      );
-      return;
-    }
     try {
       setFantasyDraft(await new ZooApi(baseUrl).fantasyDraft());
     } catch (caught) {
@@ -700,13 +700,17 @@ export function HoloStoreProvider({ children }: PropsWithChildren) {
     await storeHolo(result.holo, undefined, result.source);
     const nextLibrary = await loadLibrary();
     setLibrary(nextLibrary);
-    setSelection({ kind: "library", id: result.holo.id });
-    setSelected(result.holo);
-    setAvailableFrames([
+    const successorLineage = mergeSuccessorLineage(
       result.holo,
-      ...availableFrames.filter((frame) => frame.id !== result.holo.id),
-    ]);
-    setAuthoritativeHoloId(result.holo.id);
+      availableFrames,
+      nextLibrary,
+    );
+    setSelection({ kind: "library", id: result.holo.id });
+    setSelectedCapsule(null);
+    setSelectedRegistryRecord(null);
+    setSelected(result.holo);
+    setAvailableFrames(successorLineage);
+    setAuthoritativeHoloId(successorLineage[0]?.id ?? result.holo.id);
     setPresence(null);
     setAwaitingSuccessorRappid(null);
     setVerifiedLivenessTick(null);

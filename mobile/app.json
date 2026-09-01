@@ -3,6 +3,11 @@
     "name": "Holo Zoo",
     "slug": "holo-zoo",
     "version": "1.0.0",
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
+    },
     "scheme": "holo-zoo",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
@@ -13,6 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rapterbox.holozoo",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Holo Zoo connects to the RAPP Zoo host you choose on your local network to load Rapter Holo frames and source evidence.",
         "NSAppTransportSecurity": {
@@ -49,8 +55,15 @@
     },
     "android": {
       "package": "com.rapterbox.holozoo",
+      "versionCode": 1,
       "permissions": [
         "INTERNET"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-foreground.png",
@@ -120,10 +133,25 @@
           "teeth": 16,
           "relief": 420
         },
-        "marketingUrl": "https://rapterbox.com/holo",
-        "privacyUrl": "https://rapterbox.com/privacy",
-        "supportUrl": "https://rapterbox.com/support"
+        "marketingUrl": "https://rapterbox.com/holo/",
+        "privacyUrl": "https://rapterbox.com/privacy/",
+        "supportUrl": "https://rapterbox.com/support/"
+      },
+      "router": {},
+      "eas": {
+        "projectId": "782a464a-a0d8-40e9-93e3-0cec01874101"
+      },
+      "releasePolicy": {
+        "audience": "adult-internal-testers",
+        "channel": "internal-testflight",
+        "realCommerceEnabled": false,
+        "productionRapterWorksEnabled": false,
+        "coinEconomicsEnabled": false,
+        "externalInteroperabilityEnabled": false,
+        "irreversibleProtocolWritesEnabled": false,
+        "currentRappMigrationRequired": true
       }
-    }
+    },
+    "owner": "wildfeuer05"
   }
 }

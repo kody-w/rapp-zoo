@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 import { formatBtc, formatSats } from "@/capsules/credit";
 import { useLifecycle } from "@/capsules/lifecycle-context";
 import { useHoloStore } from "@/state/holo-store";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 import { colors } from "@/theme/colors";
 import { Button, MetadataRow, SectionTitle } from "./ui";
 
@@ -10,6 +11,7 @@ export function LifecyclePanel() {
   const store = useHoloStore();
   const lifecycle = useLifecycle();
   const [askSats, setAskSats] = useState("42000");
+  if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) return null;
   const snapshot = lifecycle.snapshot;
   const credit = store.selectedCapsule?.credit;
   if (!snapshot || !credit) return null;

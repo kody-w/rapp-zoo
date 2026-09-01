@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Linking, Platform } from "react-native";
 import { useBilling } from "@/billing/billing-context";
+import { HOLO_ZOO_RELEASE_POLICY } from "@/release-policy";
 import { useHoloStore } from "@/state/holo-store";
 import {
   configuredLifecycleEndpoint,
@@ -57,7 +58,10 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   const billing = useBilling();
   const store = useHoloStore();
   const marketplace = useMemo(
-    () => loadLifecycleFixtures().marketplace,
+    () =>
+      HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled
+        ? loadLifecycleFixtures().marketplace
+        : [],
     [],
   );
   const [snapshot, setSnapshot] =
@@ -107,6 +111,10 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   };
 
   const refresh = async () => {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setMessage("Lifecycle services are disabled in this internal TestFlight.");
+      return;
+    }
     if (!capsule || !creditId) return;
     const endpoint = configuredLifecycleEndpoint();
     if (!endpoint) {
@@ -147,6 +155,10 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   };
 
   const requestReturn = async () => {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setMessage("Returns are disabled in this internal TestFlight.");
+      return;
+    }
     if (!snapshot || !capsule?.credit) return;
     setBusy(true);
     try {
@@ -187,7 +199,7 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
       await persist(pending);
       const url =
         capsule.credit.mintChannel === "rapterbox_btc"
-          ? "https://rapterbox.com/support"
+          ? "https://rapterbox.com/support/"
           : Platform.OS === "ios"
             ? "https://reportaproblem.apple.com"
             : "https://support.google.com/googleplay/workflow/9813244";
@@ -205,11 +217,15 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   };
 
   const listForSale = async (askPriceSats: number) => {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setMessage("Listings are disabled in this internal TestFlight.");
+      return;
+    }
     if (!snapshot) return;
     setBusy(true);
     try {
       if (!preview) {
-        await Linking.openURL("https://rapterbox.com/holo");
+        await Linking.openURL("https://rapterbox.com/holo/");
         setMessage(
           "Listing requires official-owner authorization and a signed Rapterbox registry event. Refresh after completing the web flow.",
         );
@@ -233,11 +249,15 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   };
 
   const cancelSaleListing = async () => {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setMessage("Listings are disabled in this internal TestFlight.");
+      return;
+    }
     if (!snapshot) return;
     setBusy(true);
     try {
       if (!preview) {
-        await Linking.openURL("https://rapterbox.com/holo");
+        await Linking.openURL("https://rapterbox.com/holo/");
         setMessage(
           "Cancellation requires a signed official-owner registry event. Refresh after the web flow.",
         );
@@ -258,11 +278,15 @@ export function LifecycleProvider({ children }: PropsWithChildren) {
   };
 
   const manageSaleTransfer = async () => {
+    if (!HOLO_ZOO_RELEASE_POLICY.realCommerceEnabled) {
+      setMessage("Transfers are disabled in this internal TestFlight.");
+      return;
+    }
     if (!snapshot) return;
     setBusy(true);
     try {
       if (!preview) {
-        await Linking.openURL("https://rapterbox.com/holo");
+        await Linking.openURL("https://rapterbox.com/holo/");
         setMessage(
           "Sale settlement and ownership transfer require signed backend events. Refresh after the official web flow completes.",
         );

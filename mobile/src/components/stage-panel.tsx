@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import { useMemo, useRef } from "react";
 import {
   Pressable,
@@ -10,7 +9,6 @@ import {
 import { buildPlayerHtml } from "@/lib/player-html";
 import { canonicalize, strictParse } from "@/lib/strict-json";
 import type { JsonObject } from "@/lib/types";
-import { useBilling } from "@/billing/billing-context";
 import { useHoloStore } from "@/state/holo-store";
 import { colors } from "@/theme/colors";
 import HoloStage from "./holo-stage";
@@ -19,14 +17,10 @@ import { Button, SectionTitle } from "./ui";
 
 export function StagePanel({
   reducedMotion,
-  commerce = "allowed",
 }: {
   reducedMotion: boolean;
-  commerce?: "allowed" | "hidden";
 }) {
   const store = useHoloStore();
-  const billing = useBilling();
-  const router = useRouter();
   const stage = useRef<HoloStageHandle>(null);
   const update = store.playerUpdate(reducedMotion);
   const updateJson = update ? canonicalize(update) : null;
@@ -38,29 +32,12 @@ export function StagePanel({
     [updateJson],
   );
   const growl = store.selected?.growl;
-  const wildSelection = store.selection?.kind === "live";
-  const wildGrowlWithinQuota =
-    growl?.kind !== "playable" ||
-    growl.notes.length <= billing.features.wildGrowlMaxNotes;
-  const growlAllowed =
-    !wildSelection ||
-    (billing.features.remoteAccess && wildGrowlWithinQuota);
-  const commerceAllowed = commerce === "allowed";
   const playGrowl = () => {
     if (growl?.kind !== "playable") return;
-    if (!growlAllowed) {
-      if (commerceAllowed) router.push("/upgrade");
-      else store.setInfo("Managed Growl is unavailable in Companion Stage.");
-      return;
-    }
     stage.current?.playGrowl(growl);
   };
   const growlMessage =
-    growl?.kind === "playable" && !growlAllowed
-      ? commerceAllowed
-        ? `This managed Growl needs a Wild plan supporting ${growl.notes.length} NOTE events.`
-        : "Managed Growl is unavailable in Companion Stage."
-      : growl?.message ?? "Select a Holo frame to inspect Growl.";
+    growl?.message ?? "Select a Holo frame to inspect Growl.";
   return (
     <View style={styles.container}>
       <View style={styles.heading}>
@@ -113,29 +90,17 @@ export function StagePanel({
         </View>
         <Button
           tone="accent"
-          disabled={growl?.kind !== "playable" || (!growlAllowed && !commerceAllowed)}
+          disabled={growl?.kind !== "playable"}
           onPress={playGrowl}
           accessibilityLabel="Play Growl"
         >
-          {growlAllowed || !commerceAllowed ? "Play Growl" : "Play Growl · Wild"}
+          Play Growl
         </Button>
         <Button
           disabled={growl?.kind !== "playable"}
-          onPress={() =>
-            !wildSelection || billing.features.wildGrowlExport
-              ? void store.exportGrowl()
-              : commerceAllowed
-                ? router.push("/upgrade")
-                : store.setInfo(
-                    "Managed Growl export is unavailable in Companion Stage.",
-                  )
-          }
+          onPress={() => void store.exportGrowl()}
         >
-          {!wildSelection ||
-          billing.features.wildGrowlExport ||
-          !commerceAllowed
-            ? "Export NOTE JSON"
-            : "Export · Wild"}
+          Export NOTE JSON
         </Button>
       </View>
 

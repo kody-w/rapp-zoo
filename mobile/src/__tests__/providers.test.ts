@@ -22,6 +22,16 @@ import { validateHoloRaw, verifySourceFrame } from "@/lib/holo";
 import { strictParse } from "@/lib/strict-json";
 import type { JsonObject } from "@/lib/types";
 
+function responseAt(
+  url: string,
+  body: BodyInit | null,
+  init?: ResponseInit,
+): Response {
+  const response = new Response(body, init);
+  Object.defineProperty(response, "url", { value: url });
+  return response;
+}
+
 describe("shared OpenAI-compatible provider interface", () => {
   it("uses the same chat completions contract for Direct and Wild", async () => {
     const requests: { url: string; authorization: string | undefined }[] = [];
@@ -30,7 +40,8 @@ describe("shared OpenAI-compatible provider interface", () => {
         url: String(input),
         authorization: (init?.headers as Record<string, string>)?.Authorization,
       });
-      return new Response(
+      return responseAt(
+        String(input),
         JSON.stringify({
           id: "completion",
           choices: [{ message: { role: "assistant", content: "ok" } }],
@@ -115,7 +126,8 @@ describe("shared OpenAI-compatible provider interface", () => {
     const requests: string[] = [];
     const fetchMock: typeof fetch = async (input) => {
       requests.push(String(input));
-      return new Response(
+      return responseAt(
+        String(input),
         JSON.stringify({ data: [{ id: "direct-model" }] }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
@@ -129,6 +141,44 @@ describe("shared OpenAI-compatible provider interface", () => {
       fetchMock,
     );
     assert.deepEqual(requests, ["https://api.example.test/v1/models"]);
+  });
+
+  it("rejects cross-origin redirects for key tests and completions", async () => {
+    const direct = createDirectProvider(
+      {
+        endpoint: "https://api.example.test/v1",
+        model: "direct-model",
+        apiKey: "user-key",
+      },
+      async () =>
+        responseAt(
+          "https://redirected.example/v1/chat/completions",
+          JSON.stringify({
+            choices: [{ message: { role: "assistant", content: "ok" } }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    await assert.rejects(
+      direct.complete({ model: direct.model, messages: [] }),
+      /cross-origin redirect/,
+    );
+    await assert.rejects(
+      testDirectProvider(
+        {
+          endpoint: "https://api.example.test/v1",
+          model: "direct-model",
+          apiKey: "user-key",
+        },
+        async () =>
+          responseAt(
+            "https://redirected.example/v1/models",
+            JSON.stringify({ data: [{ id: "direct-model" }] }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+      ),
+      /cross-origin redirect/,
+    );
   });
 
   it("materializes and verifies a bounded local successor tick", () => {
@@ -193,10 +243,11 @@ describe("shared OpenAI-compatible provider interface", () => {
     authored.base_holo_id = current.id;
     const accessibility = authored.accessibility as JsonObject;
     accessibility.description = "A verified bounded breath shifts the field.";
-    const fetchMock: typeof fetch = async (_input, init) => {
+    const fetchMock: typeof fetch = async (input, init) => {
       const request = JSON.parse(String(init?.body));
       assert.equal(request.max_tokens, 512);
-      return new Response(
+      return responseAt(
+        String(input),
         JSON.stringify({
           id: "direct-tick",
           choices: [
@@ -248,8 +299,9 @@ describe("shared OpenAI-compatible provider interface", () => {
         maxContextBytes: 32_768,
         maxOutputTokens: 512,
         wakeLeaseMs: 600_000,
-        fetchImpl: async () =>
-          new Response(
+        fetchImpl: async (input) =>
+          responseAt(
+            String(input),
             JSON.stringify({
               choices: [
                 {
