@@ -1,5 +1,9 @@
 # rapp-zoo
 
+<!-- rapp1:network-header:start -->
+[![RAPP/1](https://kody-w.github.io/rapp-hive-public/portfolio/badges/rapp-zoo.svg)](https://github.com/kody-w/rapp-hive-public/blob/main/portfolio/repos/rapp-zoo.md) · **New to RAPP?** [Start here: get your Brainstem →](https://github.com/kody-w/rapp-installer#start-here)
+<!-- rapp1:network-header:end -->
+
 > **Local-first Pokédex of digital organisms on your device.**
 
 A small Flask app at `http://127.0.0.1:7070` that lists, packs, verifies, imports, exports, summons, bonds, starts, and stops organisms. It sits **above** per-instance brainstems and never replaces them.
